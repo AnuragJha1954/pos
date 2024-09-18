@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "4d24b63f-fa09-4238-889e-1292b740ff87",
+		"_postman_id": "28934c7e-9466-4cb3-9679-29a19f0f2116",
 		"name": "POS API",
 		"description": "Comprehensive API documentation for the POS project, developed by Vibrant DigiTech.\n\nContact Support:\n Email: vibrantdigitech@gmail.com",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
@@ -8,173 +8,232 @@
 	},
 	"item": [
 		{
-			"name": "login",
+			"name": "api",
 			"item": [
 				{
-					"name": "login create",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"username\": \"<email>\",\n  \"password\": \"<string>\"\n}",
-							"options": {
-								"raw": {
-									"headerFamily": "json",
-									"language": "json"
+					"name": "qr",
+					"item": [
+						{
+							"name": "get-categories",
+							"item": [
+								{
+									"name": "api qr get-categories list",
+									"request": {
+										"method": "GET",
+										"header": [],
+										"url": {
+											"raw": "{{baseUrl}}/api/qr/get-categories/",
+											"host": [
+												"{{baseUrl}}"
+											],
+											"path": [
+												"api",
+												"qr",
+												"get-categories",
+												""
+											]
+										}
+									},
+									"response": [
+										{
+											"name": "Untitled Response",
+											"originalRequest": {
+												"method": "GET",
+												"header": [
+													{
+														"key": "Authorization",
+														"value": "Basic <credentials>",
+														"description": "Added as a part of security scheme: basic"
+													}
+												],
+												"url": {
+													"raw": "{{baseUrl}}/api/qr/get-categories/",
+													"host": [
+														"{{baseUrl}}"
+													],
+													"path": [
+														"api",
+														"qr",
+														"get-categories",
+														""
+													]
+												}
+											},
+											"status": "OK",
+											"code": 200,
+											"_postman_previewlanguage": "text",
+											"header": [],
+											"cookie": [],
+											"body": ""
+										}
+									]
 								}
-							}
-						},
-						"url": {
-							"raw": "{{baseUrl}}/login/",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"login",
-								""
 							]
-						}
-					},
-					"response": [
-						{
-							"name": "User Logged in successfully",
-							"originalRequest": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json"
-									},
-									{
-										"key": "Authorization",
-										"value": "Basic <credentials>",
-										"description": "Added as a part of security scheme: basic"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"username\": \"<email>\",\n  \"password\": \"<string>\"\n}",
-									"options": {
-										"raw": {
-											"headerFamily": "json",
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/login/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"login",
-										""
-									]
-								}
-							},
-							"status": "OK",
-							"code": 200,
-							"_postman_previewlanguage": "text",
-							"header": [],
-							"cookie": [],
-							"body": ""
 						},
 						{
-							"name": "Invalid credentials",
-							"originalRequest": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json"
-									},
-									{
-										"key": "Authorization",
-										"value": "Basic <credentials>",
-										"description": "Added as a part of security scheme: basic"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"username\": \"<email>\",\n  \"password\": \"<string>\"\n}",
-									"options": {
-										"raw": {
-											"headerFamily": "json",
-											"language": "json"
+							"name": "get-products",
+							"item": [
+								{
+									"name": "api qr get-products list",
+									"request": {
+										"method": "GET",
+										"header": [],
+										"url": {
+											"raw": "{{baseUrl}}/api/qr/get-products/",
+											"host": [
+												"{{baseUrl}}"
+											],
+											"path": [
+												"api",
+												"qr",
+												"get-products",
+												""
+											]
 										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/login/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"login",
-										""
+									},
+									"response": [
+										{
+											"name": "Untitled Response",
+											"originalRequest": {
+												"method": "GET",
+												"header": [
+													{
+														"key": "Authorization",
+														"value": "Basic <credentials>",
+														"description": "Added as a part of security scheme: basic"
+													}
+												],
+												"url": {
+													"raw": "{{baseUrl}}/api/qr/get-products/",
+													"host": [
+														"{{baseUrl}}"
+													],
+													"path": [
+														"api",
+														"qr",
+														"get-products",
+														""
+													]
+												}
+											},
+											"status": "OK",
+											"code": 200,
+											"_postman_previewlanguage": "text",
+											"header": [],
+											"cookie": [],
+											"body": ""
+										}
 									]
 								}
-							},
-							"status": "Bad Request",
-							"code": 400,
-							"_postman_previewlanguage": "text",
-							"header": [],
-							"cookie": [],
-							"body": ""
+							]
+						},
+						{
+							"name": "place-order",
+							"item": [
+								{
+									"name": "api qr place-order create",
+									"request": {
+										"method": "POST",
+										"header": [],
+										"url": {
+											"raw": "{{baseUrl}}/api/qr/place-order/",
+											"host": [
+												"{{baseUrl}}"
+											],
+											"path": [
+												"api",
+												"qr",
+												"place-order",
+												""
+											]
+										}
+									},
+									"response": [
+										{
+											"name": "Untitled Response",
+											"originalRequest": {
+												"method": "POST",
+												"header": [
+													{
+														"key": "Authorization",
+														"value": "Basic <credentials>",
+														"description": "Added as a part of security scheme: basic"
+													}
+												],
+												"url": {
+													"raw": "{{baseUrl}}/api/qr/place-order/",
+													"host": [
+														"{{baseUrl}}"
+													],
+													"path": [
+														"api",
+														"qr",
+														"place-order",
+														""
+													]
+												}
+											},
+											"status": "Created",
+											"code": 201,
+											"_postman_previewlanguage": "text",
+											"header": [],
+											"cookie": [],
+											"body": ""
+										}
+									]
+								}
+							]
 						}
 					]
 				}
 			]
 		},
 		{
-			"name": "resend-otp",
+			"name": "auth",
 			"item": [
 				{
-					"name": "{user_id}",
+					"name": "login",
 					"item": [
 						{
-							"name": "resend-otp create",
+							"name": "auth login create",
 							"request": {
 								"method": "POST",
 								"header": [
 									{
-										"key": "Accept",
+										"key": "Content-Type",
 										"value": "application/json"
 									}
 								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"username\": \"<email>\",\n  \"password\": \"<string>\"\n}",
+									"options": {
+										"raw": {
+											"headerFamily": "json",
+											"language": "json"
+										}
+									}
+								},
 								"url": {
-									"raw": "{{baseUrl}}/resend-otp/:user_id/",
+									"raw": "{{baseUrl}}/auth/login/",
 									"host": [
 										"{{baseUrl}}"
 									],
 									"path": [
-										"resend-otp",
-										":user_id",
+										"auth",
+										"login",
 										""
-									],
-									"variable": [
-										{
-											"key": "user_id",
-											"value": "<integer>",
-											"description": "(Required) ID of the user for whom the OTP needs to be resent"
-										}
 									]
 								}
 							},
 							"response": [
 								{
-									"name": "OTP has been resent successfully",
+									"name": "User Logged in successfully",
 									"originalRequest": {
 										"method": "POST",
 										"header": [
 											{
-												"key": "Accept",
+												"key": "Content-Type",
 												"value": "application/json"
 											},
 											{
@@ -183,42 +242,42 @@
 												"description": "Added as a part of security scheme: basic"
 											}
 										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n  \"username\": \"<email>\",\n  \"password\": \"<string>\"\n}",
+											"options": {
+												"raw": {
+													"headerFamily": "json",
+													"language": "json"
+												}
+											}
+										},
 										"url": {
-											"raw": "{{baseUrl}}/resend-otp/:user_id/",
+											"raw": "{{baseUrl}}/auth/login/",
 											"host": [
 												"{{baseUrl}}"
 											],
 											"path": [
-												"resend-otp",
-												":user_id",
+												"auth",
+												"login",
 												""
-											],
-											"variable": [
-												{
-													"key": "user_id"
-												}
 											]
 										}
 									},
 									"status": "OK",
 									"code": 200,
-									"_postman_previewlanguage": "json",
-									"header": [
-										{
-											"key": "Content-Type",
-											"value": "application/json"
-										}
-									],
+									"_postman_previewlanguage": "text",
+									"header": [],
 									"cookie": [],
-									"body": "{\n  \"examples\": {\n    \"response\": {\n      \"value\": {\n        \"error\": false,\n        \"detail\": \"OTP has been resent to your email.\"\n      }\n    }\n  }\n}"
+									"body": ""
 								},
 								{
-									"name": "Bad request",
+									"name": "Invalid credentials",
 									"originalRequest": {
 										"method": "POST",
 										"header": [
 											{
-												"key": "Accept",
+												"key": "Content-Type",
 												"value": "application/json"
 											},
 											{
@@ -227,240 +286,222 @@
 												"description": "Added as a part of security scheme: basic"
 											}
 										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n  \"username\": \"<email>\",\n  \"password\": \"<string>\"\n}",
+											"options": {
+												"raw": {
+													"headerFamily": "json",
+													"language": "json"
+												}
+											}
+										},
 										"url": {
-											"raw": "{{baseUrl}}/resend-otp/:user_id/",
+											"raw": "{{baseUrl}}/auth/login/",
 											"host": [
 												"{{baseUrl}}"
 											],
 											"path": [
-												"resend-otp",
-												":user_id",
+												"auth",
+												"login",
 												""
-											],
-											"variable": [
-												{
-													"key": "user_id"
-												}
 											]
 										}
 									},
 									"status": "Bad Request",
 									"code": 400,
-									"_postman_previewlanguage": "json",
-									"header": [
-										{
-											"key": "Content-Type",
-											"value": "application/json"
-										}
-									],
+									"_postman_previewlanguage": "text",
+									"header": [],
 									"cookie": [],
-									"body": "{\n  \"examples\": {\n    \"response\": {\n      \"value\": {\n        \"error\": true,\n        \"detail\": \"Invalid request.\"\n      }\n    }\n  }\n}"
-								},
+									"body": ""
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "resend-otp",
+					"item": [
+						{
+							"name": "{user_id}",
+							"item": [
 								{
-									"name": "User or OTP record not found",
-									"originalRequest": {
+									"name": "auth resend-otp create",
+									"request": {
 										"method": "POST",
 										"header": [
 											{
 												"key": "Accept",
 												"value": "application/json"
-											},
-											{
-												"key": "Authorization",
-												"value": "Basic <credentials>",
-												"description": "Added as a part of security scheme: basic"
 											}
 										],
 										"url": {
-											"raw": "{{baseUrl}}/resend-otp/:user_id/",
+											"raw": "{{baseUrl}}/auth/resend-otp/:user_id/",
 											"host": [
 												"{{baseUrl}}"
 											],
 											"path": [
+												"auth",
 												"resend-otp",
 												":user_id",
 												""
 											],
 											"variable": [
 												{
-													"key": "user_id"
+													"key": "user_id",
+													"value": "<integer>",
+													"description": "(Required) ID of the user for whom the OTP needs to be resent"
 												}
 											]
 										}
 									},
-									"status": "Not Found",
-									"code": 404,
-									"_postman_previewlanguage": "json",
-									"header": [
+									"response": [
 										{
-											"key": "Content-Type",
-											"value": "application/json"
+											"name": "OTP has been resent successfully",
+											"originalRequest": {
+												"method": "POST",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													},
+													{
+														"key": "Authorization",
+														"value": "Basic <credentials>",
+														"description": "Added as a part of security scheme: basic"
+													}
+												],
+												"url": {
+													"raw": "{{baseUrl}}/auth/resend-otp/:user_id/",
+													"host": [
+														"{{baseUrl}}"
+													],
+													"path": [
+														"auth",
+														"resend-otp",
+														":user_id",
+														""
+													],
+													"variable": [
+														{
+															"key": "user_id"
+														}
+													]
+												}
+											},
+											"status": "OK",
+											"code": 200,
+											"_postman_previewlanguage": "json",
+											"header": [
+												{
+													"key": "Content-Type",
+													"value": "application/json"
+												}
+											],
+											"cookie": [],
+											"body": "{\n  \"examples\": {\n    \"response\": {\n      \"value\": {\n        \"error\": false,\n        \"detail\": \"OTP has been resent to your email.\"\n      }\n    }\n  }\n}"
+										},
+										{
+											"name": "Bad request",
+											"originalRequest": {
+												"method": "POST",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													},
+													{
+														"key": "Authorization",
+														"value": "Basic <credentials>",
+														"description": "Added as a part of security scheme: basic"
+													}
+												],
+												"url": {
+													"raw": "{{baseUrl}}/auth/resend-otp/:user_id/",
+													"host": [
+														"{{baseUrl}}"
+													],
+													"path": [
+														"auth",
+														"resend-otp",
+														":user_id",
+														""
+													],
+													"variable": [
+														{
+															"key": "user_id"
+														}
+													]
+												}
+											},
+											"status": "Bad Request",
+											"code": 400,
+											"_postman_previewlanguage": "json",
+											"header": [
+												{
+													"key": "Content-Type",
+													"value": "application/json"
+												}
+											],
+											"cookie": [],
+											"body": "{\n  \"examples\": {\n    \"response\": {\n      \"value\": {\n        \"error\": true,\n        \"detail\": \"Invalid request.\"\n      }\n    }\n  }\n}"
+										},
+										{
+											"name": "User or OTP record not found",
+											"originalRequest": {
+												"method": "POST",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													},
+													{
+														"key": "Authorization",
+														"value": "Basic <credentials>",
+														"description": "Added as a part of security scheme: basic"
+													}
+												],
+												"url": {
+													"raw": "{{baseUrl}}/auth/resend-otp/:user_id/",
+													"host": [
+														"{{baseUrl}}"
+													],
+													"path": [
+														"auth",
+														"resend-otp",
+														":user_id",
+														""
+													],
+													"variable": [
+														{
+															"key": "user_id"
+														}
+													]
+												}
+											},
+											"status": "Not Found",
+											"code": 404,
+											"_postman_previewlanguage": "json",
+											"header": [
+												{
+													"key": "Content-Type",
+													"value": "application/json"
+												}
+											],
+											"cookie": [],
+											"body": "{\n  \"examples\": {\n    \"response\": {\n      \"value\": {\n        \"error\": true,\n        \"detail\": \"User not found.\"\n      }\n    }\n  }\n}"
 										}
-									],
-									"cookie": [],
-									"body": "{\n  \"examples\": {\n    \"response\": {\n      \"value\": {\n        \"error\": true,\n        \"detail\": \"User not found.\"\n      }\n    }\n  }\n}"
+									]
 								}
 							]
 						}
 					]
-				}
-			]
-		},
-		{
-			"name": "sign-up",
-			"item": [
+				},
 				{
-					"name": "sign-up create",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Accept",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"company_name\": \"<string>\",\n  \"email\": \"<email>\",\n  \"number_of_outlets\": \"<integer>\",\n  \"phone_number\": \"<string>\",\n  \"verified\": \"<boolean>\"\n}",
-							"options": {
-								"raw": {
-									"headerFamily": "json",
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{baseUrl}}/sign-up/",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"sign-up",
-								""
-							]
-						}
-					},
-					"response": [
-						{
-							"name": "User created successfully",
-							"originalRequest": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json"
-									},
-									{
-										"key": "Accept",
-										"value": "application/json"
-									},
-									{
-										"key": "Authorization",
-										"value": "Basic <credentials>",
-										"description": "Added as a part of security scheme: basic"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"company_name\": \"<string>\",\n  \"email\": \"<email>\",\n  \"number_of_outlets\": \"<integer>\",\n  \"phone_number\": \"<string>\",\n  \"verified\": \"<boolean>\"\n}",
-									"options": {
-										"raw": {
-											"headerFamily": "json",
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/sign-up/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"sign-up",
-										""
-									]
-								}
-							},
-							"status": "Created",
-							"code": 201,
-							"_postman_previewlanguage": "json",
-							"header": [
-								{
-									"key": "Content-Type",
-									"value": "application/json"
-								}
-							],
-							"cookie": [],
-							"body": "{\n  \"examples\": {\n    \"response\": {\n      \"value\": {\n        \"error\": false,\n        \"detail\": \"User created successfully. OTP has been sent to your email.\",\n        \"username\": \"example_username\",\n        \"user_id\": 1,\n        \"email\": \"example@example.com\"\n      }\n    }\n  }\n}"
-						},
-						{
-							"name": "Bad request",
-							"originalRequest": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json"
-									},
-									{
-										"key": "Accept",
-										"value": "application/json"
-									},
-									{
-										"key": "Authorization",
-										"value": "Basic <credentials>",
-										"description": "Added as a part of security scheme: basic"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"company_name\": \"<string>\",\n  \"email\": \"<email>\",\n  \"number_of_outlets\": \"<integer>\",\n  \"phone_number\": \"<string>\",\n  \"verified\": \"<boolean>\"\n}",
-									"options": {
-										"raw": {
-											"headerFamily": "json",
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{baseUrl}}/sign-up/",
-									"host": [
-										"{{baseUrl}}"
-									],
-									"path": [
-										"sign-up",
-										""
-									]
-								}
-							},
-							"status": "Bad Request",
-							"code": 400,
-							"_postman_previewlanguage": "json",
-							"header": [
-								{
-									"key": "Content-Type",
-									"value": "application/json"
-								}
-							],
-							"cookie": [],
-							"body": "{\n  \"examples\": {\n    \"response\": {\n      \"value\": {\n        \"error\": true,\n        \"detail\": {\n          \"field_name\": [\n            \"error message\"\n          ]\n        }\n      }\n    }\n  }\n}"
-						}
-					]
-				}
-			]
-		},
-		{
-			"name": "verify-otp",
-			"item": [
-				{
-					"name": "{user_id}",
+					"name": "sign-up",
 					"item": [
 						{
-							"name": "verify-otp create",
+							"name": "auth sign-up create",
 							"request": {
 								"method": "POST",
 								"header": [
@@ -475,7 +516,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n  \"otp\": \"<string>\"\n}",
+									"raw": "{\n  \"company_name\": \"<string>\",\n  \"email\": \"<email>\",\n  \"number_of_outlets\": \"<integer>\",\n  \"phone_number\": \"<string>\",\n  \"verified\": \"<boolean>\"\n}",
 									"options": {
 										"raw": {
 											"headerFamily": "json",
@@ -484,27 +525,20 @@
 									}
 								},
 								"url": {
-									"raw": "{{baseUrl}}/verify-otp/:user_id/",
+									"raw": "{{baseUrl}}/auth/sign-up/",
 									"host": [
 										"{{baseUrl}}"
 									],
 									"path": [
-										"verify-otp",
-										":user_id",
+										"auth",
+										"sign-up",
 										""
-									],
-									"variable": [
-										{
-											"key": "user_id",
-											"value": "<string>",
-											"description": "(Required) "
-										}
 									]
 								}
 							},
 							"response": [
 								{
-									"name": "OTP verified successfully",
+									"name": "User created successfully",
 									"originalRequest": {
 										"method": "POST",
 										"header": [
@@ -524,7 +558,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n  \"otp\": \"<string>\"\n}",
+											"raw": "{\n  \"company_name\": \"<string>\",\n  \"email\": \"<email>\",\n  \"number_of_outlets\": \"<integer>\",\n  \"phone_number\": \"<string>\",\n  \"verified\": \"<boolean>\"\n}",
 											"options": {
 												"raw": {
 													"headerFamily": "json",
@@ -533,24 +567,19 @@
 											}
 										},
 										"url": {
-											"raw": "{{baseUrl}}/verify-otp/:user_id/",
+											"raw": "{{baseUrl}}/auth/sign-up/",
 											"host": [
 												"{{baseUrl}}"
 											],
 											"path": [
-												"verify-otp",
-												":user_id",
+												"auth",
+												"sign-up",
 												""
-											],
-											"variable": [
-												{
-													"key": "user_id"
-												}
 											]
 										}
 									},
-									"status": "OK",
-									"code": 200,
+									"status": "Created",
+									"code": 201,
 									"_postman_previewlanguage": "json",
 									"header": [
 										{
@@ -559,7 +588,7 @@
 										}
 									],
 									"cookie": [],
-									"body": "{\n  \"examples\": {\n    \"response\": {\n      \"value\": {\n        \"error\": false,\n        \"detail\": \"OTP verified successfully. Username and password have been sent to your email.\"\n      }\n    }\n  }\n}"
+									"body": "{\n  \"examples\": {\n    \"response\": {\n      \"value\": {\n        \"error\": false,\n        \"detail\": \"User created successfully. OTP has been sent to your email.\",\n        \"username\": \"example_username\",\n        \"user_id\": 1,\n        \"email\": \"example@example.com\"\n      }\n    }\n  }\n}"
 								},
 								{
 									"name": "Bad request",
@@ -582,7 +611,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n  \"otp\": \"<string>\"\n}",
+											"raw": "{\n  \"company_name\": \"<string>\",\n  \"email\": \"<email>\",\n  \"number_of_outlets\": \"<integer>\",\n  \"phone_number\": \"<string>\",\n  \"verified\": \"<boolean>\"\n}",
 											"options": {
 												"raw": {
 													"headerFamily": "json",
@@ -591,19 +620,14 @@
 											}
 										},
 										"url": {
-											"raw": "{{baseUrl}}/verify-otp/:user_id/",
+											"raw": "{{baseUrl}}/auth/sign-up/",
 											"host": [
 												"{{baseUrl}}"
 											],
 											"path": [
-												"verify-otp",
-												":user_id",
+												"auth",
+												"sign-up",
 												""
-											],
-											"variable": [
-												{
-													"key": "user_id"
-												}
 											]
 										}
 									},
@@ -617,7 +641,182 @@
 										}
 									],
 									"cookie": [],
-									"body": "{\n  \"examples\": {\n    \"response\": {\n      \"value\": {\n        \"error\": true,\n        \"detail\": \"Invalid OTP.\"\n      }\n    }\n  }\n}"
+									"body": "{\n  \"examples\": {\n    \"response\": {\n      \"value\": {\n        \"error\": true,\n        \"detail\": {\n          \"field_name\": [\n            \"error message\"\n          ]\n        }\n      }\n    }\n  }\n}"
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "verify-otp",
+					"item": [
+						{
+							"name": "{user_id}",
+							"item": [
+								{
+									"name": "auth verify-otp create",
+									"request": {
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											},
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n  \"otp\": \"<string>\"\n}",
+											"options": {
+												"raw": {
+													"headerFamily": "json",
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "{{baseUrl}}/auth/verify-otp/:user_id/",
+											"host": [
+												"{{baseUrl}}"
+											],
+											"path": [
+												"auth",
+												"verify-otp",
+												":user_id",
+												""
+											],
+											"variable": [
+												{
+													"key": "user_id",
+													"value": "<string>",
+													"description": "(Required) "
+												}
+											]
+										}
+									},
+									"response": [
+										{
+											"name": "OTP verified successfully",
+											"originalRequest": {
+												"method": "POST",
+												"header": [
+													{
+														"key": "Content-Type",
+														"value": "application/json"
+													},
+													{
+														"key": "Accept",
+														"value": "application/json"
+													},
+													{
+														"key": "Authorization",
+														"value": "Basic <credentials>",
+														"description": "Added as a part of security scheme: basic"
+													}
+												],
+												"body": {
+													"mode": "raw",
+													"raw": "{\n  \"otp\": \"<string>\"\n}",
+													"options": {
+														"raw": {
+															"headerFamily": "json",
+															"language": "json"
+														}
+													}
+												},
+												"url": {
+													"raw": "{{baseUrl}}/auth/verify-otp/:user_id/",
+													"host": [
+														"{{baseUrl}}"
+													],
+													"path": [
+														"auth",
+														"verify-otp",
+														":user_id",
+														""
+													],
+													"variable": [
+														{
+															"key": "user_id"
+														}
+													]
+												}
+											},
+											"status": "OK",
+											"code": 200,
+											"_postman_previewlanguage": "json",
+											"header": [
+												{
+													"key": "Content-Type",
+													"value": "application/json"
+												}
+											],
+											"cookie": [],
+											"body": "{\n  \"examples\": {\n    \"response\": {\n      \"value\": {\n        \"error\": false,\n        \"detail\": \"OTP verified successfully. Username and password have been sent to your email.\"\n      }\n    }\n  }\n}"
+										},
+										{
+											"name": "Bad request",
+											"originalRequest": {
+												"method": "POST",
+												"header": [
+													{
+														"key": "Content-Type",
+														"value": "application/json"
+													},
+													{
+														"key": "Accept",
+														"value": "application/json"
+													},
+													{
+														"key": "Authorization",
+														"value": "Basic <credentials>",
+														"description": "Added as a part of security scheme: basic"
+													}
+												],
+												"body": {
+													"mode": "raw",
+													"raw": "{\n  \"otp\": \"<string>\"\n}",
+													"options": {
+														"raw": {
+															"headerFamily": "json",
+															"language": "json"
+														}
+													}
+												},
+												"url": {
+													"raw": "{{baseUrl}}/auth/verify-otp/:user_id/",
+													"host": [
+														"{{baseUrl}}"
+													],
+													"path": [
+														"auth",
+														"verify-otp",
+														":user_id",
+														""
+													],
+													"variable": [
+														{
+															"key": "user_id"
+														}
+													]
+												}
+											},
+											"status": "Bad Request",
+											"code": 400,
+											"_postman_previewlanguage": "json",
+											"header": [
+												{
+													"key": "Content-Type",
+													"value": "application/json"
+												}
+											],
+											"cookie": [],
+											"body": "{\n  \"examples\": {\n    \"response\": {\n      \"value\": {\n        \"error\": true,\n        \"detail\": \"Invalid OTP.\"\n      }\n    }\n  }\n}"
+										}
+									]
 								}
 							]
 						}
@@ -641,32 +840,10 @@
 			}
 		]
 	},
-	"event": [
-		{
-			"listen": "prerequest",
-			"script": {
-				"type": "text/javascript",
-				"packages": {},
-				"exec": [
-					""
-				]
-			}
-		},
-		{
-			"listen": "test",
-			"script": {
-				"type": "text/javascript",
-				"packages": {},
-				"exec": [
-					""
-				]
-			}
-		}
-	],
 	"variable": [
 		{
 			"key": "baseUrl",
-			"value": "http://13.60.85.9:8081/v1/auth"
+			"value": "http://127.0.0.1:8081/v1"
 		}
 	]
 }
