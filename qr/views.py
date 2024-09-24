@@ -112,26 +112,31 @@ def product_list(request):
         if category_name:
             products = products.filter(category__name__icontains=category_name)
 
-        # Pagination
-        paginator = PageNumberPagination()
-        paginator.page_size = 10  # Set the number of products per page
-        paginated_products = paginator.paginate_queryset(products, request)
-        
-        serializer = ProductSerializer(paginated_products, many=True)
+        # Serialize the products without pagination
+        serializer = ProductSerializer(products, many=True)
+
+        # Generate absolute URLs for product images and variant images
+        for product in serializer.data:
+            # Update the product image URL
+            if product.get('image'):
+                product['image'] = request.build_absolute_uri(product['image'])
+            
+            # Check for variants and update their image URLs
+            if 'variants' in product:
+                for variant in product['variants']:
+                    if variant.get('variant_image'):
+                        variant['variant_image'] = request.build_absolute_uri(variant['variant_image'])
+
         response_data = {
             'error': False,
             'detail': 'Products retrieved successfully',
-            'page_number': paginator.page.number,
-            'next': paginator.get_next_link(), 
             'products': serializer.data
         }
-        return paginator.get_paginated_response(response_data)
+        return Response(response_data, status=200)
     except Exception as e:
         response_data = {
             'error': True,
             'detail': str(e),
-            'page_number': 1,
-            'next': None,
             'products': []
         }
         return Response(response_data, status=500)
