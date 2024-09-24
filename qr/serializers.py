@@ -44,14 +44,14 @@ class ProductSerializer(serializers.ModelSerializer):
 class OrderItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderItem
-        fields = ['product', 'product_variant', 'quantity', 'price']
+        fields = ['product', 'product_variant', 'quantity']  # Remove price, total_price, and gst
 
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True)  # List of order items
 
     class Meta:
         model = Order
-        fields = ['order_number', 'order_date', 'total_price', 'gst', 'status', 'address', 'items']
+        fields = ['order_date', 'total_price', 'gst', 'items']  # Remove order_number
 
     def create(self, validated_data):
         items_data = validated_data.pop('items', [])

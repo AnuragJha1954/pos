@@ -12,12 +12,15 @@ from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
+from django.shortcuts import get_object_or_404
+
 from .models import (
     Category,
     Product,
     ProductVariant,
     Order,
-    OrderItem
+    OrderItem,
+    Customer
 )
 
 from .serializers import (
@@ -119,7 +122,7 @@ def product_list(request):
             'error': False,
             'detail': 'Products retrieved successfully',
             'page_number': paginator.page.number,
-            'next': paginator.get_next_page_link(),
+            'next': paginator.get_next_link(), 
             'products': serializer.data
         }
         return paginator.get_paginated_response(response_data)
@@ -155,19 +158,22 @@ def generate_order_number(length=12):
 #     "gst": "18.00",
 #     "status": "PENDING",
 #     "address": "123 Main St, Anytown, AT 12345",
+#     "customer": {
+#         "name": "John Doe",
+#         "phone": "999999999"
+#     },
 #     "items": [
 #         {
 #             "product": 1,
-#             "quantity": 2,
-#             "price": "50.00"
+#             "quantity": 2
 #         },
 #         {
 #             "product_variant": 5,
-#             "quantity": 1,
-#             "price": "25.00"
+#             "quantity": 1
 #         }
 #     ]
 # }
+
 
 
 
@@ -187,17 +193,98 @@ def generate_order_number(length=12):
 @permission_classes([AllowAny])
 def place_order(request):
     serializer = OrderSerializer(data=request.data)
-    
+
     if serializer.is_valid():
         order_data = serializer.validated_data
         order_data['order_number'] = generate_order_number()
+
+        # Remove items from order_data, as they should be handled separately
+        items_data = request.data.get('items', [])
         
         # Handle the creation of the order
-        order = Order.objects.create(**order_data)
-        
-        return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
-    
+        order = Order.objects.create(
+            order_number=order_data['order_number'],
+            order_date=order_data['order_date'],
+            total_price=order_data['total_price'],
+            gst=order_data['gst']
+        )
+
+        # Extract customer data and create a Customer associated with the created order
+        customer_data = request.data.get('customer', {})
+        customer = Customer.objects.create(
+            name=customer_data.get('name'),
+            phone_number=customer_data.get('phone'),
+            order=order  # Associate the customer with the created order
+        )
+
+        # Process the order items
+        items_list = []  # To store item details for the response
+        for item_data in items_data:
+            product = None
+            product_variant = None
+            price = 0.0
+            gst_percent = 0.0
+            total_price = 0.0
+            gst_amount = 0.0
+            product_name = None
+            product_variant_name = None
+
+            # Fetch product or product variant
+            if 'product' in item_data:
+                product = get_object_or_404(Product, id=item_data['product'])
+                price = product.price
+                gst_percent = product.gst_percent
+                product_name = product.name  # Get the product name
+            elif 'product_variant' in item_data:
+                product_variant = get_object_or_404(ProductVariant, id=item_data['product_variant'])
+                product = product_variant.product
+                price = product_variant.variant_price
+                gst_percent = product.gst_percent
+                product_variant_name = product_variant.name  # Get the product variant name
+
+            # Calculate total price and GST for the item
+            quantity = item_data['quantity']
+            total_price = price * quantity
+            gst_amount = (gst_percent / 100) * total_price
+
+            # Create the order item associated with the order
+            order_item = OrderItem.objects.create(
+                order=order,
+                product=product,
+                product_variant=product_variant,
+                quantity=quantity,
+                price=price,
+                total_price=total_price,
+                gst=gst_amount
+            )
+
+            # Append item details for the response
+            items_list.append({
+                'product_name': product_name,
+                'product_variant_name': product_variant_name,
+                'quantity': item_data['quantity'],
+                'price': price,
+                'total_price': total_price,
+                'gst': gst_amount,
+            })
+
+        # Serialize the entire order including customer and items
+        order_details = {
+            'error': False,
+            'detail': 'Order placed successfully',
+            'order_number': order.order_number,
+            'customer': {
+                'name': customer.name,
+                'phone_number': customer.phone_number
+            },
+            'items': items_list
+        }
+
+        return Response(order_details, status=status.HTTP_201_CREATED)
+
+    # Return detailed validation errors if the serializer is invalid
     return Response({
         'error': True,
-        'detail': 'Invalid data',
+        'detail': 'Validation failed',
+        'errors': serializer.errors
     }, status=status.HTTP_400_BAD_REQUEST)

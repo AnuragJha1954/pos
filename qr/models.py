@@ -82,6 +82,25 @@ class OrderItem(models.Model):
     product_variant = models.ForeignKey('ProductVariant', on_delete=models.SET_NULL, null=True, blank=True)  # Optional ForeignKey to ProductVariant
     quantity = models.PositiveIntegerField(default=1)
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    total_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # New field
+    gst = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)  # New field
+
 
     def __str__(self):
         return f"{self.quantity} of {self.product_variant.name if self.product_variant else self.product.name} in order {self.order.id}"
+    
+    
+    
+
+
+
+
+
+
+class Customer(models.Model):
+    name = models.CharField(max_length=255)
+    phone_number = models.CharField(max_length=15)  # Assuming a max length for phone numbers
+    order = models.ForeignKey('Order', on_delete=models.CASCADE, related_name='customers')
+
+    def __str__(self):
+        return f"{self.name} ({self.phone_number})"

@@ -1,5 +1,12 @@
 from django.contrib import admin
-from .models import Category, Product, ProductVariant, Order, OrderItem
+from .models import (
+    Category, 
+    Product, 
+    ProductVariant, 
+    Order, 
+    OrderItem, 
+    Customer
+)
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
@@ -34,3 +41,11 @@ class OrderItemAdmin(admin.ModelAdmin):
     search_fields = ('order__order_number', 'product__name', 'product_variant__name')
     list_filter = ('order', 'product', 'product_variant')
     ordering = ('order', 'product')
+
+
+@admin.register(Customer)
+class CustomerAdmin(admin.ModelAdmin):
+    list_display = ('name', 'phone_number', 'order')
+    search_fields = ('name', 'phone_number', 'order__order_number')
+    list_filter = ('order',)
+    ordering = ('name',)
