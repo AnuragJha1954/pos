@@ -210,6 +210,7 @@ def place_order(request):
         order = Order.objects.create(
             order_number=order_data['order_number'],
             order_date=order_data['order_date'],
+            mode=order_data['mode'],
             total_price=order_data['total_price'],
             gst=order_data['gst']
         )

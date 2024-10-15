@@ -58,6 +58,11 @@ class Order(models.Model):
         ('COMPLETED', 'Completed'),
         ('CANCELLED', 'Cancelled'),
     ]
+    
+    MODE_CHOICES = [
+        ('upi', 'UPI'),
+        ('cash', 'Cash Payment'),
+    ]
 
     order_number = models.CharField(max_length=20, unique=True)  # New field for the order number
     order_date = models.DateTimeField(default=timezone.now)
@@ -65,6 +70,8 @@ class Order(models.Model):
     gst = models.DecimalField(max_digits=5, decimal_places=2)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     address = models.TextField(blank=True, null=True)  # New optional address field
+    mode = models.CharField(max_length=10, choices=MODE_CHOICES, blank=True, null=True)  # New mode field
+
 
     def __str__(self):
         return f"Order {self.order_number}"

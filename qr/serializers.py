@@ -51,7 +51,7 @@ class OrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ['order_date', 'total_price', 'gst', 'items']  # Remove order_number
+        fields = ['order_date', 'total_price', 'gst', 'items','mode']  # Remove order_number
 
     def create(self, validated_data):
         items_data = validated_data.pop('items', [])
