@@ -2,6 +2,7 @@ import random
 
 from django.shortcuts import render
 from django.core.mail import send_mail
+from django.template.loader import render_to_string
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -21,7 +22,11 @@ from .serializers import (
 
 from .models import OTPDetails
 from users.models import CustomUser
-from v1.models import Company
+from v1.models import (
+    Company,
+    Plan,
+    PlanAssignment
+)
 
 
 # Create your views here.
@@ -76,12 +81,16 @@ def create_user(request):
         # Save OTP details in the database
         OTPDetails.objects.update_or_create(email=user.email, defaults={'otp': otp})
         
+        # Render email content from the HTML template
+        html_message = render_to_string('otp.html', {'otp': otp})
+        
         # Send the OTP to the email
         send_mail(
             subject="Your OTP Code",
-            message=f"Your OTP code is {otp}.",
+            message="",  # Leave the plain message empty
             from_email=None,  # Use default email settings or configure as needed
             recipient_list=[user.email],
+            html_message=html_message  # Only HTML version is provided
         )
 
         return Response({
@@ -152,12 +161,24 @@ def resend_otp(request, user_id):
         # Save OTP details in the database
         OTPDetails.objects.update_or_create(email=user.email, defaults={'otp': otp})
         
+        # # Send the OTP to the email
+        # send_mail(
+        #     subject="Your OTP Code",
+        #     message=f"Your OTP code is {otp}.",
+        #     from_email=None,  # Use default email settings or configure as needed
+        #     recipient_list=[email],
+        # )
+        
+                # Render email content from the HTML template
+        html_message = render_to_string('otp.html', {'otp': otp})
+        
         # Send the OTP to the email
         send_mail(
             subject="Your OTP Code",
-            message=f"Your OTP code is {otp}.",
+            message="",  # Leave the plain message empty
             from_email=None,  # Use default email settings or configure as needed
-            recipient_list=[email],
+            recipient_list=[user.email],
+            html_message=html_message  # Only HTML version is provided
         )
         
         return Response({"error": False, "detail": "OTP has been resent to your email."}, status=status.HTTP_200_OK)
@@ -218,9 +239,20 @@ def verify_otp(request, user_id):
                 # OTP verified, send username and original password to the user via email
                 # Note: Use a local variable to store the plain password temporarily
                 plain_password = CustomUser.objects.get(id=user_id).plain_password
-                user.email_user(
-                    subject="Your Account Details",
-                    message=f"Your username is {user.username} and your password is {plain_password}.",
+                # user.email_user(
+                #     subject="Your Account Details",
+                #     message=f"Your username is {user.username} and your password is {plain_password}.",
+                # )
+                # Render email content from the HTML template
+                html_message = render_to_string('pass.html', {'email': user.email, 'password':plain_password})
+                
+                # Send the OTP email with only the HTML template
+                send_mail(
+                    subject="Credentials for MantraPOS",
+                    message="",  # Leave the plain message empty
+                    from_email=None,  # Use default email settings or configure as needed
+                    recipient_list=[user.email],
+                    html_message=html_message  # Only HTML version is provided
                 )
                 
                 otp_details.otp= None
@@ -230,6 +262,18 @@ def verify_otp(request, user_id):
                 user.plain_password = None
                 user.verified = True
                 user.save()
+                
+                # Render email content from the HTML template
+                html_message = render_to_string('signup.html')
+                
+                # Send the OTP email with only the HTML template
+                send_mail(
+                    subject="Welcome to MantraPOS",
+                    message="",  # Leave the plain message empty
+                    from_email=None,  # Use default email settings or configure as needed
+                    recipient_list=[user.email],
+                    html_message=html_message  # Only HTML version is provided
+                )
                 
                 return Response({"error": False, "detail": "OTP verified successfully. Username and password have been sent to your email."}, status=status.HTTP_200_OK)
             else:
@@ -289,6 +333,19 @@ def user_login(request):
                         "number_of_employees": company.number_of_employees,
                         # Add more fields as needed
                     }
+                    
+                # Get user's active plan details if available
+                try:
+                    active_plan = PlanAssignment.objects.filter(user=user).latest('valid_till')
+                    user_details["plan"] = {
+                        "plan_name": active_plan.plan.plan_name,
+                        "plan_price": active_plan.plan.plan_price,
+                        "price_tenure": active_plan.plan.price_tenure,
+                        "valid_till": active_plan.valid_till,
+                        "status": active_plan.status,
+                    }
+                except PlanAssignment.DoesNotExist:
+                    user_details["plan"] = None  # No active plan assigned
 
                 return Response(
                     {

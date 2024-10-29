@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'v1',
     'qr',
+    'counterapi',
     'users',
     'userauth',
     'drf_yasg',
