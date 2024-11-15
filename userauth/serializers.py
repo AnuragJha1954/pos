@@ -4,7 +4,8 @@ from v1.models import (
     Plan,
     PlanAssignment,
     Outlet,
-    OutletAccess
+    OutletAccess,
+    Employee
 )
 from users.models import CustomUser
 from datetime import date, timedelta
@@ -58,6 +59,18 @@ class CompanyUserSerializer(serializers.Serializer):
         except Plan.DoesNotExist:
             # Handle the case where a 'Free' plan does not exist
             raise serializers.ValidationError("Free plan is not available.")
+        
+        
+        
+        # Create an entry in the Employee model with the role of 'manager'
+        Employee.objects.create(
+            company=company,
+            user=user,
+            email=validated_data['email'],
+            phone_number=validated_data['phone_number'],
+            role='manager'
+        )
+        
         
         return user
 

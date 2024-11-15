@@ -14,7 +14,8 @@ from drf_yasg import openapi
 
 from django.shortcuts import get_object_or_404
 
-from .models import (
+from v1.models import (
+    Outlet,
     Category,
     Product,
     ProductVariant,
@@ -24,7 +25,6 @@ from .models import (
 )
 
 from .serializers import (
-    CategorySerializer,
     ProductSerializer,
     ProductVariantSerializer,
     OrderItemSerializer,
@@ -35,46 +35,46 @@ from .serializers import (
 
 # Create your views here.
 
-
-@api_view(['GET'])
 @swagger_auto_schema(
-    operation_summary="List all categories",
-    operation_description="Retrieve a list of all categories with their names and icons.",
+    method='get',
+    operation_description="Fetch categories for a specific outlet.",
     responses={
-        200: openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                'error': openapi.Schema(type=openapi.TYPE_BOOLEAN, description='Indicates if there was an error'),
-                'detail': openapi.Schema(type=openapi.TYPE_STRING, description='Detailed error message'),
-                'count': openapi.Schema(type=openapi.TYPE_INTEGER, description='Total number of categories'),
-                'categories': openapi.Schema(
-                    type=openapi.TYPE_ARRAY,
-                    items=openapi.Items(type=openapi.TYPE_OBJECT, properties=CategorySerializer().get_fields())
-                ),
-            },
-        )
+        200: openapi.Response(
+            description="Categories fetched successfully.",
+            examples={
+                "application/json": {
+                    "error": False,
+                    "detail": "Categories fetched successfully.",
+                    "categories": ["Category 1", "Category 2"],
+                    "total_count": 2
+                }
+            }
+        ),
+        404: "Outlet not found."
     }
 )
+@api_view(['GET'])
 @permission_classes([AllowAny])
-def category_list(request):
+def category_list(request,outlet_id):
     try:
-        categories = Category.objects.all()
-        serializer = CategorySerializer(categories, many=True)
-        response_data = {
-            'error': False,
-            'detail': 'Categories retrieved successfully',
-            'count': categories.count(),
-            'categories': serializer.data
-        }
-        return Response(response_data)
-    except Exception as e:
-        response_data = {
-            'error': True,
-            'detail': str(e),
-            'count': 0,
-            'categories': []
-        }
-        return Response(response_data, status=500)
+        # Check if the outlet exists
+        outlet = Outlet.objects.get(id=outlet_id)
+
+        # Get the categories for the given outlet and extract only the names
+        categories = Category.objects.filter(outlet=outlet).values_list('name', flat=True)
+
+        return Response({
+            "error": False,
+            "detail": "Categories fetched successfully.",
+            "categories": list(categories),
+            "total_count": categories.count()
+        }, status=status.HTTP_200_OK)
+
+    except Outlet.DoesNotExist:
+        return Response({
+            "error": True,
+            "detail": "Outlet not found."
+        }, status=status.HTTP_404_NOT_FOUND)
 
 
 
@@ -109,23 +109,12 @@ def product_list(request):
         category_name = request.query_params.get('category_name', None)
         products = Product.objects.all()
 
+        # Apply category filter if present
         if category_name:
             products = products.filter(category__name__icontains=category_name)
 
         # Serialize the products without pagination
-        serializer = ProductSerializer(products, many=True)
-
-        # Generate absolute URLs for product images and variant images
-        for product in serializer.data:
-            # Update the product image URL
-            if product.get('image'):
-                product['image'] = request.build_absolute_uri(product['image'])
-            
-            # Check for variants and update their image URLs
-            if 'variants' in product:
-                for variant in product['variants']:
-                    if variant.get('variant_image'):
-                        variant['variant_image'] = request.build_absolute_uri(variant['variant_image'])
+        serializer = ProductSerializer(products, many=True, context={'request': request})
 
         response_data = {
             'error': False,
@@ -140,7 +129,6 @@ def product_list(request):
             'products': []
         }
         return Response(response_data, status=500)
-    
     
     
 
@@ -196,7 +184,14 @@ def generate_order_number(length=12):
     }
 )
 @permission_classes([AllowAny])
-def place_order(request):
+def place_order(request, outlet_id):
+    # Fetch the outlet from the URL parameter
+    outlet = get_object_or_404(Outlet, id=outlet_id)
+
+    # Add the outlet to the request data for the serializer
+    request.data['outlet'] = outlet.id
+
+    # Initialize the serializer with the data and validate
     serializer = OrderSerializer(data=request.data)
 
     if serializer.is_valid():
@@ -212,7 +207,8 @@ def place_order(request):
             order_date=order_data['order_date'],
             mode=order_data['mode'],
             total_price=order_data['total_price'],
-            gst=order_data['gst']
+            gst=order_data['gst'],
+            outlet=outlet  # Associate the outlet with the order
         )
 
         # Extract customer data and create a Customer associated with the created order
@@ -239,19 +235,34 @@ def place_order(request):
             if 'product' in item_data:
                 product = get_object_or_404(Product, id=item_data['product'])
                 price = product.price
-                gst_percent = product.gst_percent
+                gst_percent = product.gst_percentage
                 product_name = product.name  # Get the product name
+                
+                # If GST is not inclusive, calculate the price including GST
+                if not product.is_gst_inclusive:
+                    gst_amount = (gst_percent / 100) * price
+                    total_price = price + gst_amount  # Add GST to price
+                else:
+                    total_price = price  # Price already includes GST
+
             elif 'product_variant' in item_data:
                 product_variant = get_object_or_404(ProductVariant, id=item_data['product_variant'])
                 product = product_variant.product
-                price = product_variant.variant_price
-                gst_percent = product.gst_percent
+                price = product_variant.price
+                gst_percent = product.gst_percentage
                 product_variant_name = product_variant.name  # Get the product variant name
+                
+                # If GST is not inclusive, calculate the price including GST
+                if not product_variant.is_gst_inclusive:
+                    gst_amount = (gst_percent / 100) * price
+                    total_price = price + gst_amount  # Add GST to price
+                else:
+                    total_price = price  # Price already includes GST
 
-            # Calculate total price and GST for the item
+            # Calculate total price for the quantity and GST for the item
             quantity = item_data['quantity']
-            total_price = price * quantity
-            gst_amount = (gst_percent / 100) * total_price
+            total_price = total_price * quantity
+            gst_amount = (gst_percent / 100) * total_price if not product.is_gst_inclusive else 0
 
             # Create the order item associated with the order
             order_item = OrderItem.objects.create(

@@ -25,7 +25,8 @@ from users.models import CustomUser
 from v1.models import (
     Company,
     Plan,
-    PlanAssignment
+    PlanAssignment, 
+    Employee
 )
 
 
@@ -366,3 +367,7 @@ def user_login(request):
             {"error": True, "detail": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+
+

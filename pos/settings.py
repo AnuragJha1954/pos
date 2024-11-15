@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'v1',
     'qr',
     'counterapi',
+    'helpdesk',
     'users',
     'userauth',
     'drf_yasg',
