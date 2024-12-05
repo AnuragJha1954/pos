@@ -48,7 +48,7 @@ class OutletAccess(models.Model):
     permissions = models.JSONField()
 
     def __str__(self):
-        return f'{self.user} - {self.outlet}'
+        return f'{self.employee} - {self.outlet}'
 
 
 

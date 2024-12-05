@@ -43,7 +43,8 @@ from v1.models import (
     Order,
     OrderItem, 
     Customer,
-    StockRequest
+    StockRequest,
+    Employee
     )
 
 
@@ -77,18 +78,27 @@ def user_login(request):
                 user_details = {
                     "id": user.id,
                     "username": user.username,
-                    "name": user.first_name + " " + user.last_name,
+                    "name": f"{user.first_name} {user.last_name}",
                     "email": user.email,
                     "slug": slug,
                 }
 
-                # Get the list of companies the user is associated with
-                companies = Company.objects.filter(outlets__outletaccess__user=user).distinct()
+                # Find the employee record for the user
+                try:
+                    employee = Employee.objects.get(user=user)
+                except Employee.DoesNotExist:
+                    return Response(
+                        {"error": True, "detail": "User is not associated with any employee record"},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+
+                # Get the list of companies the employee is associated with
+                companies = Company.objects.filter(outlets__outletaccess__employee=employee).distinct()
                 user_details["companies"] = []
 
                 for company in companies:
-                    # Get the outlets the user has access to within this company
-                    outlets_access = OutletAccess.objects.filter(user=user, outlet__company=company)
+                    # Get the outlets the employee has access to within this company
+                    outlets_access = OutletAccess.objects.filter(employee=employee, outlet__company=company)
                     outlets = [
                         {
                             "id": outlet_access.outlet.id,
@@ -104,9 +114,9 @@ def user_login(request):
                         "id": company.id,
                         "name": company.name,
                         "address": company.address,
-                        "number_of_outlets": company.number_of_outlets,
-                        "number_of_employees": company.number_of_employees,
-                        "outlets": outlets,  # Outlets that the user has access to in this company
+                        "number_of_outlets": company.number_of_outlets,  # Count outlets for the company
+                        "number_of_employees": Employee.objects.filter(company=company).count(),  # Count employees for the company
+                        "outlets": outlets,  # Outlets the employee has access to
                     })
 
                 return Response(
@@ -128,7 +138,6 @@ def user_login(request):
             {"error": True, "detail": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
-
 
 
 

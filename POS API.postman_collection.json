@@ -1,193 +1,12 @@
 {
 	"info": {
-		"_postman_id": "28934c7e-9466-4cb3-9679-29a19f0f2116",
+		"_postman_id": "72e4009d-6610-4f19-adbd-c7dac5b16a75",
 		"name": "POS API",
 		"description": "Comprehensive API documentation for the POS project, developed by Vibrant DigiTech.\n\nContact Support:\n Email: vibrantdigitech@gmail.com",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "16782346"
 	},
 	"item": [
-		{
-			"name": "api",
-			"item": [
-				{
-					"name": "qr",
-					"item": [
-						{
-							"name": "get-categories",
-							"item": [
-								{
-									"name": "api qr get-categories list",
-									"request": {
-										"method": "GET",
-										"header": [],
-										"url": {
-											"raw": "{{baseUrl}}/api/qr/get-categories/",
-											"host": [
-												"{{baseUrl}}"
-											],
-											"path": [
-												"api",
-												"qr",
-												"get-categories",
-												""
-											]
-										}
-									},
-									"response": [
-										{
-											"name": "Untitled Response",
-											"originalRequest": {
-												"method": "GET",
-												"header": [
-													{
-														"key": "Authorization",
-														"value": "Basic <credentials>",
-														"description": "Added as a part of security scheme: basic"
-													}
-												],
-												"url": {
-													"raw": "{{baseUrl}}/api/qr/get-categories/",
-													"host": [
-														"{{baseUrl}}"
-													],
-													"path": [
-														"api",
-														"qr",
-														"get-categories",
-														""
-													]
-												}
-											},
-											"status": "OK",
-											"code": 200,
-											"_postman_previewlanguage": "text",
-											"header": [],
-											"cookie": [],
-											"body": ""
-										}
-									]
-								}
-							]
-						},
-						{
-							"name": "get-products",
-							"item": [
-								{
-									"name": "api qr get-products list",
-									"request": {
-										"method": "GET",
-										"header": [],
-										"url": {
-											"raw": "{{baseUrl}}/api/qr/get-products/",
-											"host": [
-												"{{baseUrl}}"
-											],
-											"path": [
-												"api",
-												"qr",
-												"get-products",
-												""
-											]
-										}
-									},
-									"response": [
-										{
-											"name": "Untitled Response",
-											"originalRequest": {
-												"method": "GET",
-												"header": [
-													{
-														"key": "Authorization",
-														"value": "Basic <credentials>",
-														"description": "Added as a part of security scheme: basic"
-													}
-												],
-												"url": {
-													"raw": "{{baseUrl}}/api/qr/get-products/",
-													"host": [
-														"{{baseUrl}}"
-													],
-													"path": [
-														"api",
-														"qr",
-														"get-products",
-														""
-													]
-												}
-											},
-											"status": "OK",
-											"code": 200,
-											"_postman_previewlanguage": "text",
-											"header": [],
-											"cookie": [],
-											"body": ""
-										}
-									]
-								}
-							]
-						},
-						{
-							"name": "place-order",
-							"item": [
-								{
-									"name": "api qr place-order create",
-									"request": {
-										"method": "POST",
-										"header": [],
-										"url": {
-											"raw": "{{baseUrl}}/api/qr/place-order/",
-											"host": [
-												"{{baseUrl}}"
-											],
-											"path": [
-												"api",
-												"qr",
-												"place-order",
-												""
-											]
-										}
-									},
-									"response": [
-										{
-											"name": "Untitled Response",
-											"originalRequest": {
-												"method": "POST",
-												"header": [
-													{
-														"key": "Authorization",
-														"value": "Basic <credentials>",
-														"description": "Added as a part of security scheme: basic"
-													}
-												],
-												"url": {
-													"raw": "{{baseUrl}}/api/qr/place-order/",
-													"host": [
-														"{{baseUrl}}"
-													],
-													"path": [
-														"api",
-														"qr",
-														"place-order",
-														""
-													]
-												}
-											},
-											"status": "Created",
-											"code": 201,
-											"_postman_previewlanguage": "text",
-											"header": [],
-											"cookie": [],
-											"body": ""
-										}
-									]
-								}
-							]
-						}
-					]
-				}
-			]
-		},
 		{
 			"name": "auth",
 			"item": [
@@ -815,6 +634,5254 @@
 											],
 											"cookie": [],
 											"body": "{\n  \"examples\": {\n    \"response\": {\n      \"value\": {\n        \"error\": true,\n        \"detail\": \"Invalid OTP.\"\n      }\n    }\n  }\n}"
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "counter",
+			"item": [
+				{
+					"name": "api",
+					"item": [
+						{
+							"name": "get-categories",
+							"item": [
+								{
+									"name": "counter api get-categories list",
+									"request": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "{{baseUrl}}/counter/api/get-categories/",
+											"host": [
+												"{{baseUrl}}"
+											],
+											"path": [
+												"counter",
+												"api",
+												"get-categories",
+												""
+											]
+										}
+									},
+									"response": [
+										{
+											"name": "Untitled Response",
+											"originalRequest": {
+												"method": "GET",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													},
+													{
+														"key": "Authorization",
+														"value": "Basic <credentials>",
+														"description": "Added as a part of security scheme: basic"
+													}
+												],
+												"url": {
+													"raw": "{{baseUrl}}/counter/api/get-categories/",
+													"host": [
+														"{{baseUrl}}"
+													],
+													"path": [
+														"counter",
+														"api",
+														"get-categories",
+														""
+													]
+												}
+											},
+											"status": "OK",
+											"code": 200,
+											"_postman_previewlanguage": "json",
+											"header": [
+												{
+													"key": "Content-Type",
+													"value": "application/json"
+												}
+											],
+											"cookie": [],
+											"body": "{\n  \"error\": \"<boolean>\",\n  \"details\": \"<string>\",\n  \"categories\": [\n    \"<string>\",\n    \"<string>\"\n  ]\n}"
+										},
+										{
+											"name": "Untitled Response",
+											"originalRequest": {
+												"method": "GET",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													},
+													{
+														"key": "Authorization",
+														"value": "Basic <credentials>",
+														"description": "Added as a part of security scheme: basic"
+													}
+												],
+												"url": {
+													"raw": "{{baseUrl}}/counter/api/get-categories/",
+													"host": [
+														"{{baseUrl}}"
+													],
+													"path": [
+														"counter",
+														"api",
+														"get-categories",
+														""
+													]
+												}
+											},
+											"status": "Internal Server Error",
+											"code": 500,
+											"_postman_previewlanguage": "json",
+											"header": [
+												{
+													"key": "Content-Type",
+													"value": "application/json"
+												}
+											],
+											"cookie": [],
+											"body": "{\n  \"error\": \"<boolean>\",\n  \"details\": \"<string>\",\n  \"categories\": [\n    \"<string>\",\n    \"<string>\"\n  ]\n}"
+										}
+									]
+								}
+							]
+						},
+						{
+							"name": "login",
+							"item": [
+								{
+									"name": "counter api login create",
+									"request": {
+										"method": "POST",
+										"header": [
+											{
+												"key": "Content-Type",
+												"value": "application/json"
+											}
+										],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n  \"username\": \"<email>\",\n  \"password\": \"<string>\"\n}",
+											"options": {
+												"raw": {
+													"headerFamily": "json",
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "{{baseUrl}}/counter/api/login/",
+											"host": [
+												"{{baseUrl}}"
+											],
+											"path": [
+												"counter",
+												"api",
+												"login",
+												""
+											]
+										}
+									},
+									"response": [
+										{
+											"name": "User Logged in successfully",
+											"originalRequest": {
+												"method": "POST",
+												"header": [
+													{
+														"key": "Content-Type",
+														"value": "application/json"
+													},
+													{
+														"key": "Authorization",
+														"value": "Basic <credentials>",
+														"description": "Added as a part of security scheme: basic"
+													}
+												],
+												"body": {
+													"mode": "raw",
+													"raw": "{\n  \"username\": \"<email>\",\n  \"password\": \"<string>\"\n}",
+													"options": {
+														"raw": {
+															"headerFamily": "json",
+															"language": "json"
+														}
+													}
+												},
+												"url": {
+													"raw": "{{baseUrl}}/counter/api/login/",
+													"host": [
+														"{{baseUrl}}"
+													],
+													"path": [
+														"counter",
+														"api",
+														"login",
+														""
+													]
+												}
+											},
+											"status": "OK",
+											"code": 200,
+											"_postman_previewlanguage": "text",
+											"header": [],
+											"cookie": [],
+											"body": ""
+										},
+										{
+											"name": "Invalid credentials",
+											"originalRequest": {
+												"method": "POST",
+												"header": [
+													{
+														"key": "Content-Type",
+														"value": "application/json"
+													},
+													{
+														"key": "Authorization",
+														"value": "Basic <credentials>",
+														"description": "Added as a part of security scheme: basic"
+													}
+												],
+												"body": {
+													"mode": "raw",
+													"raw": "{\n  \"username\": \"<email>\",\n  \"password\": \"<string>\"\n}",
+													"options": {
+														"raw": {
+															"headerFamily": "json",
+															"language": "json"
+														}
+													}
+												},
+												"url": {
+													"raw": "{{baseUrl}}/counter/api/login/",
+													"host": [
+														"{{baseUrl}}"
+													],
+													"path": [
+														"counter",
+														"api",
+														"login",
+														""
+													]
+												}
+											},
+											"status": "Bad Request",
+											"code": 400,
+											"_postman_previewlanguage": "text",
+											"header": [],
+											"cookie": [],
+											"body": ""
+										}
+									]
+								}
+							]
+						},
+						{
+							"name": "orders",
+							"item": [
+								{
+									"name": "{outlet_id}",
+									"item": [
+										{
+											"name": "get-orders",
+											"item": [
+												{
+													"name": "counter api orders get-orders list",
+													"request": {
+														"method": "GET",
+														"header": [],
+														"url": {
+															"raw": "{{baseUrl}}/counter/api/orders/:outlet_id/get-orders/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"counter",
+																"api",
+																"orders",
+																":outlet_id",
+																"get-orders",
+																""
+															],
+															"variable": [
+																{
+																	"key": "outlet_id",
+																	"value": "<string>",
+																	"description": "(Required) "
+																}
+															]
+														}
+													},
+													"response": [
+														{
+															"name": "Untitled Response",
+															"originalRequest": {
+																"method": "GET",
+																"header": [
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"url": {
+																	"raw": "{{baseUrl}}/counter/api/orders/:outlet_id/get-orders/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"counter",
+																		"api",
+																		"orders",
+																		":outlet_id",
+																		"get-orders",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "outlet_id"
+																		}
+																	]
+																}
+															},
+															"status": "OK",
+															"code": 200,
+															"_postman_previewlanguage": "text",
+															"header": [],
+															"cookie": [],
+															"body": ""
+														}
+													]
+												}
+											]
+										},
+										{
+											"name": "order-details",
+											"item": [
+												{
+													"name": "counter api orders order-details list",
+													"request": {
+														"method": "GET",
+														"header": [
+															{
+																"key": "Accept",
+																"value": "application/json"
+															}
+														],
+														"url": {
+															"raw": "{{baseUrl}}/counter/api/orders/:outlet_id/order-details/?order_number=<string>",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"counter",
+																"api",
+																"orders",
+																":outlet_id",
+																"order-details",
+																""
+															],
+															"query": [
+																{
+																	"key": "order_number",
+																	"value": "<string>",
+																	"description": "Order number to fetch the details of the order"
+																}
+															],
+															"variable": [
+																{
+																	"key": "outlet_id",
+																	"value": "<string>",
+																	"description": "(Required) "
+																}
+															]
+														}
+													},
+													"response": [
+														{
+															"name": "Order fetched successfully",
+															"originalRequest": {
+																"method": "GET",
+																"header": [
+																	{
+																		"key": "Accept",
+																		"value": "application/json"
+																	},
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"url": {
+																	"raw": "{{baseUrl}}/counter/api/orders/:outlet_id/order-details/?order_number=<string>",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"counter",
+																		"api",
+																		"orders",
+																		":outlet_id",
+																		"order-details",
+																		""
+																	],
+																	"query": [
+																		{
+																			"key": "order_number",
+																			"value": "<string>",
+																			"description": "Order number to fetch the details of the order"
+																		}
+																	],
+																	"variable": [
+																		{
+																			"key": "outlet_id"
+																		}
+																	]
+																}
+															},
+															"status": "OK",
+															"code": 200,
+															"_postman_previewlanguage": "json",
+															"header": [
+																{
+																	"key": "Content-Type",
+																	"value": "application/json"
+																}
+															],
+															"cookie": [],
+															"body": "{\n  \"outlet\": \"<integer>\",\n  \"order_number\": \"<string>\",\n  \"total_price\": \"<string>\",\n  \"gst\": \"<string>\",\n  \"items\": [\n    {\n      \"price\": \"<string>\",\n      \"product\": \"<integer>\",\n      \"product_variant\": \"<integer>\",\n      \"quantity\": \"<integer>\",\n      \"total_price\": \"<string>\",\n      \"gst\": \"<string>\"\n    },\n    {\n      \"price\": \"<string>\",\n      \"product\": \"<integer>\",\n      \"product_variant\": \"<integer>\",\n      \"quantity\": \"<integer>\",\n      \"total_price\": \"<string>\",\n      \"gst\": \"<string>\"\n    }\n  ],\n  \"order_date\": \"<dateTime>\",\n  \"status\": \"CANCELLED\",\n  \"address\": \"<string>\",\n  \"mode\": \"upi\"\n}"
+														},
+														{
+															"name": "Bad Request, missing order number",
+															"originalRequest": {
+																"method": "GET",
+																"header": [
+																	{
+																		"key": "Accept",
+																		"value": "application/json"
+																	},
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"url": {
+																	"raw": "{{baseUrl}}/counter/api/orders/:outlet_id/order-details/?order_number=<string>",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"counter",
+																		"api",
+																		"orders",
+																		":outlet_id",
+																		"order-details",
+																		""
+																	],
+																	"query": [
+																		{
+																			"key": "order_number",
+																			"value": "<string>",
+																			"description": "Order number to fetch the details of the order"
+																		}
+																	],
+																	"variable": [
+																		{
+																			"key": "outlet_id"
+																		}
+																	]
+																}
+															},
+															"status": "Bad Request",
+															"code": 400,
+															"_postman_previewlanguage": "json",
+															"header": [
+																{
+																	"key": "Content-Type",
+																	"value": "application/json"
+																}
+															],
+															"cookie": [],
+															"body": "{\n  \"error\": \"<boolean>\",\n  \"details\": \"<string>\"\n}"
+														},
+														{
+															"name": "Order not found",
+															"originalRequest": {
+																"method": "GET",
+																"header": [
+																	{
+																		"key": "Accept",
+																		"value": "application/json"
+																	},
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"url": {
+																	"raw": "{{baseUrl}}/counter/api/orders/:outlet_id/order-details/?order_number=<string>",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"counter",
+																		"api",
+																		"orders",
+																		":outlet_id",
+																		"order-details",
+																		""
+																	],
+																	"query": [
+																		{
+																			"key": "order_number",
+																			"value": "<string>",
+																			"description": "Order number to fetch the details of the order"
+																		}
+																	],
+																	"variable": [
+																		{
+																			"key": "outlet_id"
+																		}
+																	]
+																}
+															},
+															"status": "Not Found",
+															"code": 404,
+															"_postman_previewlanguage": "json",
+															"header": [
+																{
+																	"key": "Content-Type",
+																	"value": "application/json"
+																}
+															],
+															"cookie": [],
+															"body": "{\n  \"error\": \"<boolean>\",\n  \"details\": \"<string>\"\n}"
+														},
+														{
+															"name": "Internal server error",
+															"originalRequest": {
+																"method": "GET",
+																"header": [
+																	{
+																		"key": "Accept",
+																		"value": "application/json"
+																	},
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"url": {
+																	"raw": "{{baseUrl}}/counter/api/orders/:outlet_id/order-details/?order_number=<string>",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"counter",
+																		"api",
+																		"orders",
+																		":outlet_id",
+																		"order-details",
+																		""
+																	],
+																	"query": [
+																		{
+																			"key": "order_number",
+																			"value": "<string>",
+																			"description": "Order number to fetch the details of the order"
+																		}
+																	],
+																	"variable": [
+																		{
+																			"key": "outlet_id"
+																		}
+																	]
+																}
+															},
+															"status": "Internal Server Error",
+															"code": 500,
+															"_postman_previewlanguage": "json",
+															"header": [
+																{
+																	"key": "Content-Type",
+																	"value": "application/json"
+																}
+															],
+															"cookie": [],
+															"body": "{\n  \"error\": \"<boolean>\",\n  \"details\": \"<string>\"\n}"
+														}
+													]
+												}
+											]
+										},
+										{
+											"name": "place-order",
+											"item": [
+												{
+													"name": "counter api orders place-order create",
+													"request": {
+														"method": "POST",
+														"header": [
+															{
+																"key": "Content-Type",
+																"value": "application/json"
+															},
+															{
+																"key": "Accept",
+																"value": "application/json"
+															}
+														],
+														"body": {
+															"mode": "raw",
+															"raw": "{\n  \"outlet\": \"<integer>\",\n  \"order_number\": \"<string>\",\n  \"total_price\": \"<string>\",\n  \"gst\": \"<string>\",\n  \"items\": [\n    {\n      \"price\": \"<string>\",\n      \"product\": \"<integer>\",\n      \"product_variant\": \"<integer>\",\n      \"quantity\": \"<integer>\",\n      \"total_price\": \"<string>\",\n      \"gst\": \"<string>\"\n    },\n    {\n      \"price\": \"<string>\",\n      \"product\": \"<integer>\",\n      \"product_variant\": \"<integer>\",\n      \"quantity\": \"<integer>\",\n      \"total_price\": \"<string>\",\n      \"gst\": \"<string>\"\n    }\n  ],\n  \"order_date\": \"<dateTime>\",\n  \"status\": \"CANCELLED\",\n  \"address\": \"<string>\",\n  \"mode\": \"upi\"\n}",
+															"options": {
+																"raw": {
+																	"headerFamily": "json",
+																	"language": "json"
+																}
+															}
+														},
+														"url": {
+															"raw": "{{baseUrl}}/counter/api/orders/:outlet_id/place-order/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"counter",
+																"api",
+																"orders",
+																":outlet_id",
+																"place-order",
+																""
+															],
+															"variable": [
+																{
+																	"key": "outlet_id",
+																	"value": "<string>",
+																	"description": "(Required) "
+																}
+															]
+														}
+													},
+													"response": [
+														{
+															"name": "Order placed successfully",
+															"originalRequest": {
+																"method": "POST",
+																"header": [
+																	{
+																		"key": "Content-Type",
+																		"value": "application/json"
+																	},
+																	{
+																		"key": "Accept",
+																		"value": "application/json"
+																	},
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"body": {
+																	"mode": "raw",
+																	"raw": "{\n  \"outlet\": \"<integer>\",\n  \"order_number\": \"<string>\",\n  \"total_price\": \"<string>\",\n  \"gst\": \"<string>\",\n  \"items\": [\n    {\n      \"price\": \"<string>\",\n      \"product\": \"<integer>\",\n      \"product_variant\": \"<integer>\",\n      \"quantity\": \"<integer>\",\n      \"total_price\": \"<string>\",\n      \"gst\": \"<string>\"\n    },\n    {\n      \"price\": \"<string>\",\n      \"product\": \"<integer>\",\n      \"product_variant\": \"<integer>\",\n      \"quantity\": \"<integer>\",\n      \"total_price\": \"<string>\",\n      \"gst\": \"<string>\"\n    }\n  ],\n  \"order_date\": \"<dateTime>\",\n  \"status\": \"CANCELLED\",\n  \"address\": \"<string>\",\n  \"mode\": \"upi\"\n}",
+																	"options": {
+																		"raw": {
+																			"headerFamily": "json",
+																			"language": "json"
+																		}
+																	}
+																},
+																"url": {
+																	"raw": "{{baseUrl}}/counter/api/orders/:outlet_id/place-order/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"counter",
+																		"api",
+																		"orders",
+																		":outlet_id",
+																		"place-order",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "outlet_id"
+																		}
+																	]
+																}
+															},
+															"status": "Created",
+															"code": 201,
+															"_postman_previewlanguage": "json",
+															"header": [
+																{
+																	"key": "Content-Type",
+																	"value": "application/json"
+																}
+															],
+															"cookie": [],
+															"body": "{\n  \"outlet\": \"<integer>\",\n  \"order_number\": \"<string>\",\n  \"total_price\": \"<string>\",\n  \"gst\": \"<string>\",\n  \"items\": [\n    {\n      \"price\": \"<string>\",\n      \"product\": \"<integer>\",\n      \"product_variant\": \"<integer>\",\n      \"quantity\": \"<integer>\",\n      \"total_price\": \"<string>\",\n      \"gst\": \"<string>\"\n    },\n    {\n      \"price\": \"<string>\",\n      \"product\": \"<integer>\",\n      \"product_variant\": \"<integer>\",\n      \"quantity\": \"<integer>\",\n      \"total_price\": \"<string>\",\n      \"gst\": \"<string>\"\n    }\n  ],\n  \"order_date\": \"<dateTime>\",\n  \"status\": \"CANCELLED\",\n  \"address\": \"<string>\",\n  \"mode\": \"upi\"\n}"
+														},
+														{
+															"name": "Invalid request data",
+															"originalRequest": {
+																"method": "POST",
+																"header": [
+																	{
+																		"key": "Content-Type",
+																		"value": "application/json"
+																	},
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"body": {
+																	"mode": "raw",
+																	"raw": "{\n  \"outlet\": \"<integer>\",\n  \"order_number\": \"<string>\",\n  \"total_price\": \"<string>\",\n  \"gst\": \"<string>\",\n  \"items\": [\n    {\n      \"price\": \"<string>\",\n      \"product\": \"<integer>\",\n      \"product_variant\": \"<integer>\",\n      \"quantity\": \"<integer>\",\n      \"total_price\": \"<string>\",\n      \"gst\": \"<string>\"\n    },\n    {\n      \"price\": \"<string>\",\n      \"product\": \"<integer>\",\n      \"product_variant\": \"<integer>\",\n      \"quantity\": \"<integer>\",\n      \"total_price\": \"<string>\",\n      \"gst\": \"<string>\"\n    }\n  ],\n  \"order_date\": \"<dateTime>\",\n  \"status\": \"CANCELLED\",\n  \"address\": \"<string>\",\n  \"mode\": \"upi\"\n}",
+																	"options": {
+																		"raw": {
+																			"headerFamily": "json",
+																			"language": "json"
+																		}
+																	}
+																},
+																"url": {
+																	"raw": "{{baseUrl}}/counter/api/orders/:outlet_id/place-order/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"counter",
+																		"api",
+																		"orders",
+																		":outlet_id",
+																		"place-order",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "outlet_id"
+																		}
+																	]
+																}
+															},
+															"status": "Bad Request",
+															"code": 400,
+															"_postman_previewlanguage": "text",
+															"header": [],
+															"cookie": [],
+															"body": ""
+														}
+													]
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"name": "products",
+							"item": [
+								{
+									"name": "counter api products list",
+									"request": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "{{baseUrl}}/counter/api/products/",
+											"host": [
+												"{{baseUrl}}"
+											],
+											"path": [
+												"counter",
+												"api",
+												"products",
+												""
+											]
+										}
+									},
+									"response": [
+										{
+											"name": "Products fetched successfully",
+											"originalRequest": {
+												"method": "GET",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													},
+													{
+														"key": "Authorization",
+														"value": "Basic <credentials>",
+														"description": "Added as a part of security scheme: basic"
+													}
+												],
+												"url": {
+													"raw": "{{baseUrl}}/counter/api/products/",
+													"host": [
+														"{{baseUrl}}"
+													],
+													"path": [
+														"counter",
+														"api",
+														"products",
+														""
+													]
+												}
+											},
+											"status": "OK",
+											"code": 200,
+											"_postman_previewlanguage": "json",
+											"header": [
+												{
+													"key": "Content-Type",
+													"value": "application/json"
+												}
+											],
+											"cookie": [],
+											"body": "{\n  \"error\": \"<boolean>\",\n  \"details\": \"<string>\",\n  \"products\": [\n    {\n      \"id\": \"<integer>\",\n      \"name\": \"<string>\",\n      \"price\": \"<number>\",\n      \"description\": \"<string>\",\n      \"gst_percentage\": \"<number>\",\n      \"is_gst_inclusive\": \"<boolean>\",\n      \"created_at\": \"<dateTime>\",\n      \"updated_at\": \"<dateTime>\",\n      \"category\": \"<string>\",\n      \"variants\": [\n        {\n          \"id\": \"<integer>\",\n          \"name\": \"<string>\",\n          \"price\": \"<number>\",\n          \"is_gst_inclusive\": \"<boolean>\",\n          \"extra_description\": \"<string>\",\n          \"created_at\": \"<dateTime>\",\n          \"updated_at\": \"<dateTime>\"\n        },\n        {\n          \"id\": \"<integer>\",\n          \"name\": \"<string>\",\n          \"price\": \"<number>\",\n          \"is_gst_inclusive\": \"<boolean>\",\n          \"extra_description\": \"<string>\",\n          \"created_at\": \"<dateTime>\",\n          \"updated_at\": \"<dateTime>\"\n        }\n      ],\n      \"image_url\": \"<string>\"\n    },\n    {\n      \"id\": \"<integer>\",\n      \"name\": \"<string>\",\n      \"price\": \"<number>\",\n      \"description\": \"<string>\",\n      \"gst_percentage\": \"<number>\",\n      \"is_gst_inclusive\": \"<boolean>\",\n      \"created_at\": \"<dateTime>\",\n      \"updated_at\": \"<dateTime>\",\n      \"category\": \"<string>\",\n      \"variants\": [\n        {\n          \"id\": \"<integer>\",\n          \"name\": \"<string>\",\n          \"price\": \"<number>\",\n          \"is_gst_inclusive\": \"<boolean>\",\n          \"extra_description\": \"<string>\",\n          \"created_at\": \"<dateTime>\",\n          \"updated_at\": \"<dateTime>\"\n        },\n        {\n          \"id\": \"<integer>\",\n          \"name\": \"<string>\",\n          \"price\": \"<number>\",\n          \"is_gst_inclusive\": \"<boolean>\",\n          \"extra_description\": \"<string>\",\n          \"created_at\": \"<dateTime>\",\n          \"updated_at\": \"<dateTime>\"\n        }\n      ],\n      \"image_url\": \"<string>\"\n    }\n  ]\n}"
+										},
+										{
+											"name": "Internal Server Error",
+											"originalRequest": {
+												"method": "GET",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													},
+													{
+														"key": "Authorization",
+														"value": "Basic <credentials>",
+														"description": "Added as a part of security scheme: basic"
+													}
+												],
+												"url": {
+													"raw": "{{baseUrl}}/counter/api/products/",
+													"host": [
+														"{{baseUrl}}"
+													],
+													"path": [
+														"counter",
+														"api",
+														"products",
+														""
+													]
+												}
+											},
+											"status": "Internal Server Error",
+											"code": 500,
+											"_postman_previewlanguage": "json",
+											"header": [
+												{
+													"key": "Content-Type",
+													"value": "application/json"
+												}
+											],
+											"cookie": [],
+											"body": "{\n  \"error\": \"<boolean>\",\n  \"details\": \"<string>\"\n}"
+										}
+									]
+								}
+							]
+						},
+						{
+							"name": "stock-requests",
+							"item": [
+								{
+									"name": "{outlet_id}",
+									"item": [
+										{
+											"name": "stock-requests",
+											"item": [
+												{
+													"name": "counter api stock-requests stock-requests create",
+													"request": {
+														"method": "POST",
+														"header": [
+															{
+																"key": "Content-Type",
+																"value": "application/json"
+															}
+														],
+														"body": {
+															"mode": "raw",
+															"raw": "{\n  \"requested_quantity\": \"<integer>\",\n  \"outlet\": \"<integer>\",\n  \"product\": \"<integer>\",\n  \"product_variant\": \"<integer>\"\n}",
+															"options": {
+																"raw": {
+																	"headerFamily": "json",
+																	"language": "json"
+																}
+															}
+														},
+														"url": {
+															"raw": "{{baseUrl}}/counter/api/stock-requests/:outlet_id/stock-requests/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"counter",
+																"api",
+																"stock-requests",
+																":outlet_id",
+																"stock-requests",
+																""
+															],
+															"variable": [
+																{
+																	"key": "outlet_id",
+																	"value": "<string>",
+																	"description": "(Required) "
+																}
+															]
+														}
+													},
+													"response": [
+														{
+															"name": "Stock request created successfully",
+															"originalRequest": {
+																"method": "POST",
+																"header": [
+																	{
+																		"key": "Content-Type",
+																		"value": "application/json"
+																	},
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"body": {
+																	"mode": "raw",
+																	"raw": "{\n  \"requested_quantity\": \"<integer>\",\n  \"outlet\": \"<integer>\",\n  \"product\": \"<integer>\",\n  \"product_variant\": \"<integer>\"\n}",
+																	"options": {
+																		"raw": {
+																			"headerFamily": "json",
+																			"language": "json"
+																		}
+																	}
+																},
+																"url": {
+																	"raw": "{{baseUrl}}/counter/api/stock-requests/:outlet_id/stock-requests/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"counter",
+																		"api",
+																		"stock-requests",
+																		":outlet_id",
+																		"stock-requests",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "outlet_id"
+																		}
+																	]
+																}
+															},
+															"status": "Created",
+															"code": 201,
+															"_postman_previewlanguage": "text",
+															"header": [],
+															"cookie": [],
+															"body": ""
+														},
+														{
+															"name": "Invalid data",
+															"originalRequest": {
+																"method": "POST",
+																"header": [
+																	{
+																		"key": "Content-Type",
+																		"value": "application/json"
+																	},
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"body": {
+																	"mode": "raw",
+																	"raw": "{\n  \"requested_quantity\": \"<integer>\",\n  \"outlet\": \"<integer>\",\n  \"product\": \"<integer>\",\n  \"product_variant\": \"<integer>\"\n}",
+																	"options": {
+																		"raw": {
+																			"headerFamily": "json",
+																			"language": "json"
+																		}
+																	}
+																},
+																"url": {
+																	"raw": "{{baseUrl}}/counter/api/stock-requests/:outlet_id/stock-requests/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"counter",
+																		"api",
+																		"stock-requests",
+																		":outlet_id",
+																		"stock-requests",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "outlet_id"
+																		}
+																	]
+																}
+															},
+															"status": "Bad Request",
+															"code": 400,
+															"_postman_previewlanguage": "text",
+															"header": [],
+															"cookie": [],
+															"body": ""
+														}
+													]
+												}
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "helpdesk",
+			"item": [
+				{
+					"name": "api",
+					"item": [
+						{
+							"name": "tickets",
+							"item": [
+								{
+									"name": "create",
+									"item": [
+										{
+											"name": "{user_id}",
+											"item": [
+												{
+													"name": "{outlet_id}",
+													"item": [
+														{
+															"name": "helpdesk api tickets create create",
+															"request": {
+																"method": "POST",
+																"header": [
+																	{
+																		"key": "Content-Type",
+																		"value": "application/json"
+																	},
+																	{
+																		"key": "Accept",
+																		"value": "application/json"
+																	}
+																],
+																"body": {
+																	"mode": "raw",
+																	"raw": "{\n  \"title\": \"<string>\",\n  \"description\": \"<string>\",\n  \"outlet\": \"<integer>\",\n  \"raised_by\": \"<integer>\",\n  \"status\": \"CLOSED\"\n}",
+																	"options": {
+																		"raw": {
+																			"headerFamily": "json",
+																			"language": "json"
+																		}
+																	}
+																},
+																"url": {
+																	"raw": "{{baseUrl}}/helpdesk/api/tickets/create/:user_id/:outlet_id/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"helpdesk",
+																		"api",
+																		"tickets",
+																		"create",
+																		":user_id",
+																		":outlet_id",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "user_id",
+																			"value": "<string>",
+																			"description": "(Required) "
+																		},
+																		{
+																			"key": "outlet_id",
+																			"value": "<string>",
+																			"description": "(Required) "
+																		}
+																	]
+																},
+																"description": "API view to raise a new ticket."
+															},
+															"response": [
+																{
+																	"name": "Untitled Response",
+																	"originalRequest": {
+																		"method": "POST",
+																		"header": [
+																			{
+																				"key": "Content-Type",
+																				"value": "application/json"
+																			},
+																			{
+																				"key": "Accept",
+																				"value": "application/json"
+																			},
+																			{
+																				"key": "Authorization",
+																				"value": "Basic <credentials>",
+																				"description": "Added as a part of security scheme: basic"
+																			}
+																		],
+																		"body": {
+																			"mode": "raw",
+																			"raw": "{\n  \"title\": \"<string>\",\n  \"description\": \"<string>\",\n  \"outlet\": \"<integer>\",\n  \"raised_by\": \"<integer>\",\n  \"status\": \"CLOSED\"\n}",
+																			"options": {
+																				"raw": {
+																					"headerFamily": "json",
+																					"language": "json"
+																				}
+																			}
+																		},
+																		"url": {
+																			"raw": "{{baseUrl}}/helpdesk/api/tickets/create/:user_id/:outlet_id/",
+																			"host": [
+																				"{{baseUrl}}"
+																			],
+																			"path": [
+																				"helpdesk",
+																				"api",
+																				"tickets",
+																				"create",
+																				":user_id",
+																				":outlet_id",
+																				""
+																			],
+																			"variable": [
+																				{
+																					"key": "user_id"
+																				},
+																				{
+																					"key": "outlet_id"
+																				}
+																			]
+																		}
+																	},
+																	"status": "Created",
+																	"code": 201,
+																	"_postman_previewlanguage": "json",
+																	"header": [
+																		{
+																			"key": "Content-Type",
+																			"value": "application/json"
+																		}
+																	],
+																	"cookie": [],
+																	"body": "{\n  \"title\": \"<string>\",\n  \"description\": \"<string>\",\n  \"outlet\": \"<integer>\",\n  \"raised_by\": \"<integer>\",\n  \"id\": \"<integer>\",\n  \"status\": \"OPEN\",\n  \"created_at\": \"<dateTime>\",\n  \"updated_at\": \"<dateTime>\"\n}"
+																},
+																{
+																	"name": "Bad Request",
+																	"originalRequest": {
+																		"method": "POST",
+																		"header": [
+																			{
+																				"key": "Content-Type",
+																				"value": "application/json"
+																			},
+																			{
+																				"key": "Authorization",
+																				"value": "Basic <credentials>",
+																				"description": "Added as a part of security scheme: basic"
+																			}
+																		],
+																		"body": {
+																			"mode": "raw",
+																			"raw": "{\n  \"title\": \"<string>\",\n  \"description\": \"<string>\",\n  \"outlet\": \"<integer>\",\n  \"raised_by\": \"<integer>\",\n  \"status\": \"CLOSED\"\n}",
+																			"options": {
+																				"raw": {
+																					"headerFamily": "json",
+																					"language": "json"
+																				}
+																			}
+																		},
+																		"url": {
+																			"raw": "{{baseUrl}}/helpdesk/api/tickets/create/:user_id/:outlet_id/",
+																			"host": [
+																				"{{baseUrl}}"
+																			],
+																			"path": [
+																				"helpdesk",
+																				"api",
+																				"tickets",
+																				"create",
+																				":user_id",
+																				":outlet_id",
+																				""
+																			],
+																			"variable": [
+																				{
+																					"key": "user_id"
+																				},
+																				{
+																					"key": "outlet_id"
+																				}
+																			]
+																		}
+																	},
+																	"status": "Bad Request",
+																	"code": 400,
+																	"_postman_previewlanguage": "text",
+																	"header": [],
+																	"cookie": [],
+																	"body": ""
+																}
+															]
+														}
+													]
+												}
+											]
+										}
+									]
+								},
+								{
+									"name": "{outlet_id}",
+									"item": [
+										{
+											"name": "helpdesk api tickets read",
+											"request": {
+												"method": "GET",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													}
+												],
+												"url": {
+													"raw": "{{baseUrl}}/helpdesk/api/tickets/:outlet_id/",
+													"host": [
+														"{{baseUrl}}"
+													],
+													"path": [
+														"helpdesk",
+														"api",
+														"tickets",
+														":outlet_id",
+														""
+													],
+													"variable": [
+														{
+															"key": "outlet_id",
+															"value": "<string>",
+															"description": "(Required) "
+														}
+													]
+												},
+												"description": "API view to list all tickets for a specific outlet."
+											},
+											"response": [
+												{
+													"name": "Untitled Response",
+													"originalRequest": {
+														"method": "GET",
+														"header": [
+															{
+																"key": "Accept",
+																"value": "application/json"
+															},
+															{
+																"key": "Authorization",
+																"value": "Basic <credentials>",
+																"description": "Added as a part of security scheme: basic"
+															}
+														],
+														"url": {
+															"raw": "{{baseUrl}}/helpdesk/api/tickets/:outlet_id/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"helpdesk",
+																"api",
+																"tickets",
+																":outlet_id",
+																""
+															],
+															"variable": [
+																{
+																	"key": "outlet_id"
+																}
+															]
+														}
+													},
+													"status": "OK",
+													"code": 200,
+													"_postman_previewlanguage": "json",
+													"header": [
+														{
+															"key": "Content-Type",
+															"value": "application/json"
+														}
+													],
+													"cookie": [],
+													"body": "[\n  {\n    \"title\": \"<string>\",\n    \"description\": \"<string>\",\n    \"outlet\": \"<integer>\",\n    \"raised_by\": \"<integer>\",\n    \"id\": \"<integer>\",\n    \"status\": \"OPEN\",\n    \"created_at\": \"<dateTime>\",\n    \"updated_at\": \"<dateTime>\"\n  },\n  {\n    \"title\": \"<string>\",\n    \"description\": \"<string>\",\n    \"outlet\": \"<integer>\",\n    \"raised_by\": \"<integer>\",\n    \"id\": \"<integer>\",\n    \"status\": \"IN_PROGRESS\",\n    \"created_at\": \"<dateTime>\",\n    \"updated_at\": \"<dateTime>\"\n  }\n]"
+												}
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "kot",
+			"item": [
+				{
+					"name": "api",
+					"item": [
+						{
+							"name": "orders",
+							"item": [
+								{
+									"name": "{order_id}",
+									"item": [
+										{
+											"name": "status",
+											"item": [
+												{
+													"name": "complete",
+													"item": [
+														{
+															"name": "kot api orders status complete partial update",
+															"request": {
+																"method": "PATCH",
+																"header": [
+																	{
+																		"key": "Accept",
+																		"value": "application/json"
+																	}
+																],
+																"url": {
+																	"raw": "{{baseUrl}}/kot/api/orders/:order_id/status/complete/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"kot",
+																		"api",
+																		"orders",
+																		":order_id",
+																		"status",
+																		"complete",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "order_id",
+																			"value": "<string>",
+																			"description": "(Required) "
+																		}
+																	]
+																},
+																"description": "Change the status of an order to 'COMPLETED'."
+															},
+															"response": [
+																{
+																	"name": "Untitled Response",
+																	"originalRequest": {
+																		"method": "PATCH",
+																		"header": [
+																			{
+																				"key": "Accept",
+																				"value": "application/json"
+																			},
+																			{
+																				"key": "Authorization",
+																				"value": "Basic <credentials>",
+																				"description": "Added as a part of security scheme: basic"
+																			}
+																		],
+																		"url": {
+																			"raw": "{{baseUrl}}/kot/api/orders/:order_id/status/complete/",
+																			"host": [
+																				"{{baseUrl}}"
+																			],
+																			"path": [
+																				"kot",
+																				"api",
+																				"orders",
+																				":order_id",
+																				"status",
+																				"complete",
+																				""
+																			],
+																			"variable": [
+																				{
+																					"key": "order_id"
+																				}
+																			]
+																		}
+																	},
+																	"status": "OK",
+																	"code": 200,
+																	"_postman_previewlanguage": "json",
+																	"header": [
+																		{
+																			"key": "Content-Type",
+																			"value": "application/json"
+																		}
+																	],
+																	"cookie": [],
+																	"body": "{\n  \"order_number\": \"<string>\",\n  \"total_price\": \"<string>\",\n  \"gst\": \"<string>\",\n  \"order_date\": \"<dateTime>\",\n  \"status\": \"CANCELLED\",\n  \"address\": \"<string>\",\n  \"mode\": \"upi\",\n  \"items\": [\n    {\n      \"price\": \"<string>\",\n      \"id\": \"<integer>\",\n      \"product_name\": \"<string>\",\n      \"product_variant_name\": \"<string>\",\n      \"quantity\": \"<integer>\",\n      \"total_price\": \"<string>\",\n      \"gst\": \"<string>\"\n    },\n    {\n      \"price\": \"<string>\",\n      \"id\": \"<integer>\",\n      \"product_name\": \"<string>\",\n      \"product_variant_name\": \"<string>\",\n      \"quantity\": \"<integer>\",\n      \"total_price\": \"<string>\",\n      \"gst\": \"<string>\"\n    }\n  ],\n  \"customers\": [\n    {\n      \"name\": \"<string>\",\n      \"phone_number\": \"<string>\",\n      \"id\": \"<integer>\"\n    },\n    {\n      \"name\": \"<string>\",\n      \"phone_number\": \"<string>\",\n      \"id\": \"<integer>\"\n    }\n  ]\n}"
+																},
+																{
+																	"name": "Order not found",
+																	"originalRequest": {
+																		"method": "PATCH",
+																		"header": [
+																			{
+																				"key": "Authorization",
+																				"value": "Basic <credentials>",
+																				"description": "Added as a part of security scheme: basic"
+																			}
+																		],
+																		"url": {
+																			"raw": "{{baseUrl}}/kot/api/orders/:order_id/status/complete/",
+																			"host": [
+																				"{{baseUrl}}"
+																			],
+																			"path": [
+																				"kot",
+																				"api",
+																				"orders",
+																				":order_id",
+																				"status",
+																				"complete",
+																				""
+																			],
+																			"variable": [
+																				{
+																					"key": "order_id"
+																				}
+																			]
+																		}
+																	},
+																	"status": "Not Found",
+																	"code": 404,
+																	"_postman_previewlanguage": "text",
+																	"header": [],
+																	"cookie": [],
+																	"body": ""
+																}
+															]
+														}
+													]
+												},
+												{
+													"name": "process",
+													"item": [
+														{
+															"name": "kot api orders status process partial update",
+															"request": {
+																"method": "PATCH",
+																"header": [
+																	{
+																		"key": "Accept",
+																		"value": "application/json"
+																	}
+																],
+																"url": {
+																	"raw": "{{baseUrl}}/kot/api/orders/:order_id/status/process/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"kot",
+																		"api",
+																		"orders",
+																		":order_id",
+																		"status",
+																		"process",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "order_id",
+																			"value": "<string>",
+																			"description": "(Required) "
+																		}
+																	]
+																},
+																"description": "Change the status of an order to 'PROCESSING'."
+															},
+															"response": [
+																{
+																	"name": "Untitled Response",
+																	"originalRequest": {
+																		"method": "PATCH",
+																		"header": [
+																			{
+																				"key": "Accept",
+																				"value": "application/json"
+																			},
+																			{
+																				"key": "Authorization",
+																				"value": "Basic <credentials>",
+																				"description": "Added as a part of security scheme: basic"
+																			}
+																		],
+																		"url": {
+																			"raw": "{{baseUrl}}/kot/api/orders/:order_id/status/process/",
+																			"host": [
+																				"{{baseUrl}}"
+																			],
+																			"path": [
+																				"kot",
+																				"api",
+																				"orders",
+																				":order_id",
+																				"status",
+																				"process",
+																				""
+																			],
+																			"variable": [
+																				{
+																					"key": "order_id"
+																				}
+																			]
+																		}
+																	},
+																	"status": "OK",
+																	"code": 200,
+																	"_postman_previewlanguage": "json",
+																	"header": [
+																		{
+																			"key": "Content-Type",
+																			"value": "application/json"
+																		}
+																	],
+																	"cookie": [],
+																	"body": "{\n  \"order_number\": \"<string>\",\n  \"total_price\": \"<string>\",\n  \"gst\": \"<string>\",\n  \"order_date\": \"<dateTime>\",\n  \"status\": \"CANCELLED\",\n  \"address\": \"<string>\",\n  \"mode\": \"upi\",\n  \"items\": [\n    {\n      \"price\": \"<string>\",\n      \"id\": \"<integer>\",\n      \"product_name\": \"<string>\",\n      \"product_variant_name\": \"<string>\",\n      \"quantity\": \"<integer>\",\n      \"total_price\": \"<string>\",\n      \"gst\": \"<string>\"\n    },\n    {\n      \"price\": \"<string>\",\n      \"id\": \"<integer>\",\n      \"product_name\": \"<string>\",\n      \"product_variant_name\": \"<string>\",\n      \"quantity\": \"<integer>\",\n      \"total_price\": \"<string>\",\n      \"gst\": \"<string>\"\n    }\n  ],\n  \"customers\": [\n    {\n      \"name\": \"<string>\",\n      \"phone_number\": \"<string>\",\n      \"id\": \"<integer>\"\n    },\n    {\n      \"name\": \"<string>\",\n      \"phone_number\": \"<string>\",\n      \"id\": \"<integer>\"\n    }\n  ]\n}"
+																},
+																{
+																	"name": "Order not found",
+																	"originalRequest": {
+																		"method": "PATCH",
+																		"header": [
+																			{
+																				"key": "Authorization",
+																				"value": "Basic <credentials>",
+																				"description": "Added as a part of security scheme: basic"
+																			}
+																		],
+																		"url": {
+																			"raw": "{{baseUrl}}/kot/api/orders/:order_id/status/process/",
+																			"host": [
+																				"{{baseUrl}}"
+																			],
+																			"path": [
+																				"kot",
+																				"api",
+																				"orders",
+																				":order_id",
+																				"status",
+																				"process",
+																				""
+																			],
+																			"variable": [
+																				{
+																					"key": "order_id"
+																				}
+																			]
+																		}
+																	},
+																	"status": "Not Found",
+																	"code": 404,
+																	"_postman_previewlanguage": "text",
+																	"header": [],
+																	"cookie": [],
+																	"body": ""
+																}
+															]
+														}
+													]
+												}
+											]
+										}
+									]
+								},
+								{
+									"name": "kot api orders list",
+									"request": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "{{baseUrl}}/kot/api/orders/",
+											"host": [
+												"{{baseUrl}}"
+											],
+											"path": [
+												"kot",
+												"api",
+												"orders",
+												""
+											]
+										},
+										"description": "Retrieve orders with PENDING status."
+									},
+									"response": [
+										{
+											"name": "Untitled Response",
+											"originalRequest": {
+												"method": "GET",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													},
+													{
+														"key": "Authorization",
+														"value": "Basic <credentials>",
+														"description": "Added as a part of security scheme: basic"
+													}
+												],
+												"url": {
+													"raw": "{{baseUrl}}/kot/api/orders/",
+													"host": [
+														"{{baseUrl}}"
+													],
+													"path": [
+														"kot",
+														"api",
+														"orders",
+														""
+													]
+												}
+											},
+											"status": "OK",
+											"code": 200,
+											"_postman_previewlanguage": "json",
+											"header": [
+												{
+													"key": "Content-Type",
+													"value": "application/json"
+												}
+											],
+											"cookie": [],
+											"body": "[\n  {\n    \"order_number\": \"<string>\",\n    \"total_price\": \"<string>\",\n    \"gst\": \"<string>\",\n    \"order_date\": \"<dateTime>\",\n    \"status\": \"CANCELLED\",\n    \"address\": \"<string>\",\n    \"mode\": \"upi\",\n    \"items\": [\n      {\n        \"price\": \"<string>\",\n        \"id\": \"<integer>\",\n        \"product_name\": \"<string>\",\n        \"product_variant_name\": \"<string>\",\n        \"quantity\": \"<integer>\",\n        \"total_price\": \"<string>\",\n        \"gst\": \"<string>\"\n      },\n      {\n        \"price\": \"<string>\",\n        \"id\": \"<integer>\",\n        \"product_name\": \"<string>\",\n        \"product_variant_name\": \"<string>\",\n        \"quantity\": \"<integer>\",\n        \"total_price\": \"<string>\",\n        \"gst\": \"<string>\"\n      }\n    ],\n    \"customers\": [\n      {\n        \"name\": \"<string>\",\n        \"phone_number\": \"<string>\",\n        \"id\": \"<integer>\"\n      },\n      {\n        \"name\": \"<string>\",\n        \"phone_number\": \"<string>\",\n        \"id\": \"<integer>\"\n      }\n    ]\n  },\n  {\n    \"order_number\": \"<string>\",\n    \"total_price\": \"<string>\",\n    \"gst\": \"<string>\",\n    \"order_date\": \"<dateTime>\",\n    \"status\": \"CONFIRMED\",\n    \"address\": \"<string>\",\n    \"mode\": \"cash\",\n    \"items\": [\n      {\n        \"price\": \"<string>\",\n        \"id\": \"<integer>\",\n        \"product_name\": \"<string>\",\n        \"product_variant_name\": \"<string>\",\n        \"quantity\": \"<integer>\",\n        \"total_price\": \"<string>\",\n        \"gst\": \"<string>\"\n      },\n      {\n        \"price\": \"<string>\",\n        \"id\": \"<integer>\",\n        \"product_name\": \"<string>\",\n        \"product_variant_name\": \"<string>\",\n        \"quantity\": \"<integer>\",\n        \"total_price\": \"<string>\",\n        \"gst\": \"<string>\"\n      }\n    ],\n    \"customers\": [\n      {\n        \"name\": \"<string>\",\n        \"phone_number\": \"<string>\",\n        \"id\": \"<integer>\"\n      },\n      {\n        \"name\": \"<string>\",\n        \"phone_number\": \"<string>\",\n        \"id\": \"<integer>\"\n      }\n    ]\n  }\n]"
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "panel",
+			"item": [
+				{
+					"name": "api",
+					"item": [
+						{
+							"name": "add_category",
+							"item": [
+								{
+									"name": "{outlet_id}",
+									"item": [
+										{
+											"name": "{user_id}",
+											"item": [
+												{
+													"name": "panel api add category create",
+													"request": {
+														"method": "POST",
+														"header": [
+															{
+																"key": "Content-Type",
+																"value": "application/json"
+															}
+														],
+														"body": {
+															"mode": "raw",
+															"raw": "{\n  \"name\": \"<string>\",\n  \"outlet\": \"<integer>\"\n}",
+															"options": {
+																"raw": {
+																	"headerFamily": "json",
+																	"language": "json"
+																}
+															}
+														},
+														"url": {
+															"raw": "{{baseUrl}}/panel/api/add_category/:outlet_id/:user_id/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"panel",
+																"api",
+																"add_category",
+																":outlet_id",
+																":user_id",
+																""
+															],
+															"variable": [
+																{
+																	"key": "outlet_id",
+																	"value": "<string>",
+																	"description": "(Required) "
+																},
+																{
+																	"key": "user_id",
+																	"value": "<string>",
+																	"description": "(Required) "
+																}
+															]
+														},
+														"description": "Add a category for a specific outlet."
+													},
+													"response": [
+														{
+															"name": "Category added successfully.",
+															"originalRequest": {
+																"method": "POST",
+																"header": [
+																	{
+																		"key": "Content-Type",
+																		"value": "application/json"
+																	},
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"body": {
+																	"mode": "raw",
+																	"raw": "{\n  \"name\": \"<string>\",\n  \"outlet\": \"<integer>\"\n}",
+																	"options": {
+																		"raw": {
+																			"headerFamily": "json",
+																			"language": "json"
+																		}
+																	}
+																},
+																"url": {
+																	"raw": "{{baseUrl}}/panel/api/add_category/:outlet_id/:user_id/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"panel",
+																		"api",
+																		"add_category",
+																		":outlet_id",
+																		":user_id",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "outlet_id"
+																		},
+																		{
+																			"key": "user_id"
+																		}
+																	]
+																}
+															},
+															"status": "Created",
+															"code": 201,
+															"_postman_previewlanguage": "text",
+															"header": [],
+															"cookie": [],
+															"body": ""
+														},
+														{
+															"name": "Bad request.",
+															"originalRequest": {
+																"method": "POST",
+																"header": [
+																	{
+																		"key": "Content-Type",
+																		"value": "application/json"
+																	},
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"body": {
+																	"mode": "raw",
+																	"raw": "{\n  \"name\": \"<string>\",\n  \"outlet\": \"<integer>\"\n}",
+																	"options": {
+																		"raw": {
+																			"headerFamily": "json",
+																			"language": "json"
+																		}
+																	}
+																},
+																"url": {
+																	"raw": "{{baseUrl}}/panel/api/add_category/:outlet_id/:user_id/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"panel",
+																		"api",
+																		"add_category",
+																		":outlet_id",
+																		":user_id",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "outlet_id"
+																		},
+																		{
+																			"key": "user_id"
+																		}
+																	]
+																}
+															},
+															"status": "Bad Request",
+															"code": 400,
+															"_postman_previewlanguage": "text",
+															"header": [],
+															"cookie": [],
+															"body": ""
+														},
+														{
+															"name": "Unauthorized.",
+															"originalRequest": {
+																"method": "POST",
+																"header": [
+																	{
+																		"key": "Content-Type",
+																		"value": "application/json"
+																	},
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"body": {
+																	"mode": "raw",
+																	"raw": "{\n  \"name\": \"<string>\",\n  \"outlet\": \"<integer>\"\n}",
+																	"options": {
+																		"raw": {
+																			"headerFamily": "json",
+																			"language": "json"
+																		}
+																	}
+																},
+																"url": {
+																	"raw": "{{baseUrl}}/panel/api/add_category/:outlet_id/:user_id/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"panel",
+																		"api",
+																		"add_category",
+																		":outlet_id",
+																		":user_id",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "outlet_id"
+																		},
+																		{
+																			"key": "user_id"
+																		}
+																	]
+																}
+															},
+															"status": "Unauthorized",
+															"code": 401,
+															"_postman_previewlanguage": "text",
+															"header": [],
+															"cookie": [],
+															"body": ""
+														},
+														{
+															"name": "Outlet not found.",
+															"originalRequest": {
+																"method": "POST",
+																"header": [
+																	{
+																		"key": "Content-Type",
+																		"value": "application/json"
+																	},
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"body": {
+																	"mode": "raw",
+																	"raw": "{\n  \"name\": \"<string>\",\n  \"outlet\": \"<integer>\"\n}",
+																	"options": {
+																		"raw": {
+																			"headerFamily": "json",
+																			"language": "json"
+																		}
+																	}
+																},
+																"url": {
+																	"raw": "{{baseUrl}}/panel/api/add_category/:outlet_id/:user_id/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"panel",
+																		"api",
+																		"add_category",
+																		":outlet_id",
+																		":user_id",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "outlet_id"
+																		},
+																		{
+																			"key": "user_id"
+																		}
+																	]
+																}
+															},
+															"status": "Not Found",
+															"code": 404,
+															"_postman_previewlanguage": "text",
+															"header": [],
+															"cookie": [],
+															"body": ""
+														}
+													]
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"name": "add_menu",
+							"item": [
+								{
+									"name": "{user_id}",
+									"item": [
+										{
+											"name": "panel api add menu create",
+											"request": {
+												"method": "POST",
+												"header": [
+													{
+														"key": "Content-Type",
+														"value": "application/json"
+													}
+												],
+												"body": {
+													"mode": "raw",
+													"raw": "{\n  \"name\": \"<string>\",\n  \"outlet\": \"<integer>\",\n  \"is_enabled\": \"<boolean>\",\n  \"start_date\": \"<date>\",\n  \"end_date\": \"<date>\",\n  \"open_time\": \"<string>\",\n  \"close_time\": \"<string>\",\n  \"products\": [\n    \"<integer>\",\n    \"<integer>\"\n  ]\n}",
+													"options": {
+														"raw": {
+															"headerFamily": "json",
+															"language": "json"
+														}
+													}
+												},
+												"url": {
+													"raw": "{{baseUrl}}/panel/api/add_menu/:user_id/",
+													"host": [
+														"{{baseUrl}}"
+													],
+													"path": [
+														"panel",
+														"api",
+														"add_menu",
+														":user_id",
+														""
+													],
+													"variable": [
+														{
+															"key": "user_id",
+															"value": "<string>",
+															"description": "(Required) "
+														}
+													]
+												},
+												"description": "Create a new menu for an outlet."
+											},
+											"response": [
+												{
+													"name": "Menu created successfully.",
+													"originalRequest": {
+														"method": "POST",
+														"header": [
+															{
+																"key": "Content-Type",
+																"value": "application/json"
+															},
+															{
+																"key": "Authorization",
+																"value": "Basic <credentials>",
+																"description": "Added as a part of security scheme: basic"
+															}
+														],
+														"body": {
+															"mode": "raw",
+															"raw": "{\n  \"name\": \"<string>\",\n  \"outlet\": \"<integer>\",\n  \"is_enabled\": \"<boolean>\",\n  \"start_date\": \"<date>\",\n  \"end_date\": \"<date>\",\n  \"open_time\": \"<string>\",\n  \"close_time\": \"<string>\",\n  \"products\": [\n    \"<integer>\",\n    \"<integer>\"\n  ]\n}",
+															"options": {
+																"raw": {
+																	"headerFamily": "json",
+																	"language": "json"
+																}
+															}
+														},
+														"url": {
+															"raw": "{{baseUrl}}/panel/api/add_menu/:user_id/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"panel",
+																"api",
+																"add_menu",
+																":user_id",
+																""
+															],
+															"variable": [
+																{
+																	"key": "user_id"
+																}
+															]
+														}
+													},
+													"status": "Created",
+													"code": 201,
+													"_postman_previewlanguage": "text",
+													"header": [],
+													"cookie": [],
+													"body": ""
+												},
+												{
+													"name": "Bad request.",
+													"originalRequest": {
+														"method": "POST",
+														"header": [
+															{
+																"key": "Content-Type",
+																"value": "application/json"
+															},
+															{
+																"key": "Authorization",
+																"value": "Basic <credentials>",
+																"description": "Added as a part of security scheme: basic"
+															}
+														],
+														"body": {
+															"mode": "raw",
+															"raw": "{\n  \"name\": \"<string>\",\n  \"outlet\": \"<integer>\",\n  \"is_enabled\": \"<boolean>\",\n  \"start_date\": \"<date>\",\n  \"end_date\": \"<date>\",\n  \"open_time\": \"<string>\",\n  \"close_time\": \"<string>\",\n  \"products\": [\n    \"<integer>\",\n    \"<integer>\"\n  ]\n}",
+															"options": {
+																"raw": {
+																	"headerFamily": "json",
+																	"language": "json"
+																}
+															}
+														},
+														"url": {
+															"raw": "{{baseUrl}}/panel/api/add_menu/:user_id/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"panel",
+																"api",
+																"add_menu",
+																":user_id",
+																""
+															],
+															"variable": [
+																{
+																	"key": "user_id"
+																}
+															]
+														}
+													},
+													"status": "Bad Request",
+													"code": 400,
+													"_postman_previewlanguage": "text",
+													"header": [],
+													"cookie": [],
+													"body": ""
+												},
+												{
+													"name": "Unauthorized.",
+													"originalRequest": {
+														"method": "POST",
+														"header": [
+															{
+																"key": "Content-Type",
+																"value": "application/json"
+															},
+															{
+																"key": "Authorization",
+																"value": "Basic <credentials>",
+																"description": "Added as a part of security scheme: basic"
+															}
+														],
+														"body": {
+															"mode": "raw",
+															"raw": "{\n  \"name\": \"<string>\",\n  \"outlet\": \"<integer>\",\n  \"is_enabled\": \"<boolean>\",\n  \"start_date\": \"<date>\",\n  \"end_date\": \"<date>\",\n  \"open_time\": \"<string>\",\n  \"close_time\": \"<string>\",\n  \"products\": [\n    \"<integer>\",\n    \"<integer>\"\n  ]\n}",
+															"options": {
+																"raw": {
+																	"headerFamily": "json",
+																	"language": "json"
+																}
+															}
+														},
+														"url": {
+															"raw": "{{baseUrl}}/panel/api/add_menu/:user_id/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"panel",
+																"api",
+																"add_menu",
+																":user_id",
+																""
+															],
+															"variable": [
+																{
+																	"key": "user_id"
+																}
+															]
+														}
+													},
+													"status": "Unauthorized",
+													"code": 401,
+													"_postman_previewlanguage": "text",
+													"header": [],
+													"cookie": [],
+													"body": ""
+												},
+												{
+													"name": "Outlet not found.",
+													"originalRequest": {
+														"method": "POST",
+														"header": [
+															{
+																"key": "Content-Type",
+																"value": "application/json"
+															},
+															{
+																"key": "Authorization",
+																"value": "Basic <credentials>",
+																"description": "Added as a part of security scheme: basic"
+															}
+														],
+														"body": {
+															"mode": "raw",
+															"raw": "{\n  \"name\": \"<string>\",\n  \"outlet\": \"<integer>\",\n  \"is_enabled\": \"<boolean>\",\n  \"start_date\": \"<date>\",\n  \"end_date\": \"<date>\",\n  \"open_time\": \"<string>\",\n  \"close_time\": \"<string>\",\n  \"products\": [\n    \"<integer>\",\n    \"<integer>\"\n  ]\n}",
+															"options": {
+																"raw": {
+																	"headerFamily": "json",
+																	"language": "json"
+																}
+															}
+														},
+														"url": {
+															"raw": "{{baseUrl}}/panel/api/add_menu/:user_id/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"panel",
+																"api",
+																"add_menu",
+																":user_id",
+																""
+															],
+															"variable": [
+																{
+																	"key": "user_id"
+																}
+															]
+														}
+													},
+													"status": "Not Found",
+													"code": 404,
+													"_postman_previewlanguage": "text",
+													"header": [],
+													"cookie": [],
+													"body": ""
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"name": "add_product",
+							"item": [
+								{
+									"name": "{user_id}",
+									"item": [
+										{
+											"name": "panel api add product create",
+											"request": {
+												"method": "POST",
+												"header": [
+													{
+														"key": "Content-Type",
+														"value": "application/json"
+													}
+												],
+												"body": {
+													"mode": "raw",
+													"raw": "{\n  \"name\": \"<string>\",\n  \"price\": \"<string>\",\n  \"outlet\": \"<integer>\",\n  \"category\": \"<integer>\",\n  \"description\": \"<string>\",\n  \"is_gst_inclusive\": \"<boolean>\"\n}",
+													"options": {
+														"raw": {
+															"headerFamily": "json",
+															"language": "json"
+														}
+													}
+												},
+												"url": {
+													"raw": "{{baseUrl}}/panel/api/add_product/:user_id/",
+													"host": [
+														"{{baseUrl}}"
+													],
+													"path": [
+														"panel",
+														"api",
+														"add_product",
+														":user_id",
+														""
+													],
+													"variable": [
+														{
+															"key": "user_id",
+															"value": "<string>",
+															"description": "(Required) "
+														}
+													]
+												},
+												"description": "Add a new product."
+											},
+											"response": [
+												{
+													"name": "Product added successfully.",
+													"originalRequest": {
+														"method": "POST",
+														"header": [
+															{
+																"key": "Content-Type",
+																"value": "application/json"
+															},
+															{
+																"key": "Authorization",
+																"value": "Basic <credentials>",
+																"description": "Added as a part of security scheme: basic"
+															}
+														],
+														"body": {
+															"mode": "raw",
+															"raw": "{\n  \"name\": \"<string>\",\n  \"price\": \"<string>\",\n  \"outlet\": \"<integer>\",\n  \"category\": \"<integer>\",\n  \"description\": \"<string>\",\n  \"is_gst_inclusive\": \"<boolean>\"\n}",
+															"options": {
+																"raw": {
+																	"headerFamily": "json",
+																	"language": "json"
+																}
+															}
+														},
+														"url": {
+															"raw": "{{baseUrl}}/panel/api/add_product/:user_id/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"panel",
+																"api",
+																"add_product",
+																":user_id",
+																""
+															],
+															"variable": [
+																{
+																	"key": "user_id"
+																}
+															]
+														}
+													},
+													"status": "Created",
+													"code": 201,
+													"_postman_previewlanguage": "text",
+													"header": [],
+													"cookie": [],
+													"body": ""
+												},
+												{
+													"name": "Bad request.",
+													"originalRequest": {
+														"method": "POST",
+														"header": [
+															{
+																"key": "Content-Type",
+																"value": "application/json"
+															},
+															{
+																"key": "Authorization",
+																"value": "Basic <credentials>",
+																"description": "Added as a part of security scheme: basic"
+															}
+														],
+														"body": {
+															"mode": "raw",
+															"raw": "{\n  \"name\": \"<string>\",\n  \"price\": \"<string>\",\n  \"outlet\": \"<integer>\",\n  \"category\": \"<integer>\",\n  \"description\": \"<string>\",\n  \"is_gst_inclusive\": \"<boolean>\"\n}",
+															"options": {
+																"raw": {
+																	"headerFamily": "json",
+																	"language": "json"
+																}
+															}
+														},
+														"url": {
+															"raw": "{{baseUrl}}/panel/api/add_product/:user_id/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"panel",
+																"api",
+																"add_product",
+																":user_id",
+																""
+															],
+															"variable": [
+																{
+																	"key": "user_id"
+																}
+															]
+														}
+													},
+													"status": "Bad Request",
+													"code": 400,
+													"_postman_previewlanguage": "text",
+													"header": [],
+													"cookie": [],
+													"body": ""
+												},
+												{
+													"name": "Unauthorized.",
+													"originalRequest": {
+														"method": "POST",
+														"header": [
+															{
+																"key": "Content-Type",
+																"value": "application/json"
+															},
+															{
+																"key": "Authorization",
+																"value": "Basic <credentials>",
+																"description": "Added as a part of security scheme: basic"
+															}
+														],
+														"body": {
+															"mode": "raw",
+															"raw": "{\n  \"name\": \"<string>\",\n  \"price\": \"<string>\",\n  \"outlet\": \"<integer>\",\n  \"category\": \"<integer>\",\n  \"description\": \"<string>\",\n  \"is_gst_inclusive\": \"<boolean>\"\n}",
+															"options": {
+																"raw": {
+																	"headerFamily": "json",
+																	"language": "json"
+																}
+															}
+														},
+														"url": {
+															"raw": "{{baseUrl}}/panel/api/add_product/:user_id/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"panel",
+																"api",
+																"add_product",
+																":user_id",
+																""
+															],
+															"variable": [
+																{
+																	"key": "user_id"
+																}
+															]
+														}
+													},
+													"status": "Unauthorized",
+													"code": 401,
+													"_postman_previewlanguage": "text",
+													"header": [],
+													"cookie": [],
+													"body": ""
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"name": "add_product_variant",
+							"item": [
+								{
+									"name": "{user_id}",
+									"item": [
+										{
+											"name": "panel api add product variant create",
+											"request": {
+												"method": "POST",
+												"header": [
+													{
+														"key": "Content-Type",
+														"value": "application/json"
+													}
+												],
+												"body": {
+													"mode": "raw",
+													"raw": "{\n  \"product\": \"<integer>\",\n  \"price\": \"<string>\",\n  \"is_gst_inclusive\": \"<boolean>\",\n  \"extra_description\": {}\n}",
+													"options": {
+														"raw": {
+															"headerFamily": "json",
+															"language": "json"
+														}
+													}
+												},
+												"url": {
+													"raw": "{{baseUrl}}/panel/api/add_product_variant/:user_id/",
+													"host": [
+														"{{baseUrl}}"
+													],
+													"path": [
+														"panel",
+														"api",
+														"add_product_variant",
+														":user_id",
+														""
+													],
+													"variable": [
+														{
+															"key": "user_id",
+															"value": "<string>",
+															"description": "(Required) "
+														}
+													]
+												},
+												"description": "Add a new product variant."
+											},
+											"response": [
+												{
+													"name": "Product variant added successfully.",
+													"originalRequest": {
+														"method": "POST",
+														"header": [
+															{
+																"key": "Content-Type",
+																"value": "application/json"
+															},
+															{
+																"key": "Authorization",
+																"value": "Basic <credentials>",
+																"description": "Added as a part of security scheme: basic"
+															}
+														],
+														"body": {
+															"mode": "raw",
+															"raw": "{\n  \"product\": \"<integer>\",\n  \"price\": \"<string>\",\n  \"is_gst_inclusive\": \"<boolean>\",\n  \"extra_description\": {}\n}",
+															"options": {
+																"raw": {
+																	"headerFamily": "json",
+																	"language": "json"
+																}
+															}
+														},
+														"url": {
+															"raw": "{{baseUrl}}/panel/api/add_product_variant/:user_id/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"panel",
+																"api",
+																"add_product_variant",
+																":user_id",
+																""
+															],
+															"variable": [
+																{
+																	"key": "user_id"
+																}
+															]
+														}
+													},
+													"status": "Created",
+													"code": 201,
+													"_postman_previewlanguage": "text",
+													"header": [],
+													"cookie": [],
+													"body": ""
+												},
+												{
+													"name": "Bad request.",
+													"originalRequest": {
+														"method": "POST",
+														"header": [
+															{
+																"key": "Content-Type",
+																"value": "application/json"
+															},
+															{
+																"key": "Authorization",
+																"value": "Basic <credentials>",
+																"description": "Added as a part of security scheme: basic"
+															}
+														],
+														"body": {
+															"mode": "raw",
+															"raw": "{\n  \"product\": \"<integer>\",\n  \"price\": \"<string>\",\n  \"is_gst_inclusive\": \"<boolean>\",\n  \"extra_description\": {}\n}",
+															"options": {
+																"raw": {
+																	"headerFamily": "json",
+																	"language": "json"
+																}
+															}
+														},
+														"url": {
+															"raw": "{{baseUrl}}/panel/api/add_product_variant/:user_id/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"panel",
+																"api",
+																"add_product_variant",
+																":user_id",
+																""
+															],
+															"variable": [
+																{
+																	"key": "user_id"
+																}
+															]
+														}
+													},
+													"status": "Bad Request",
+													"code": 400,
+													"_postman_previewlanguage": "text",
+													"header": [],
+													"cookie": [],
+													"body": ""
+												},
+												{
+													"name": "Unauthorized.",
+													"originalRequest": {
+														"method": "POST",
+														"header": [
+															{
+																"key": "Content-Type",
+																"value": "application/json"
+															},
+															{
+																"key": "Authorization",
+																"value": "Basic <credentials>",
+																"description": "Added as a part of security scheme: basic"
+															}
+														],
+														"body": {
+															"mode": "raw",
+															"raw": "{\n  \"product\": \"<integer>\",\n  \"price\": \"<string>\",\n  \"is_gst_inclusive\": \"<boolean>\",\n  \"extra_description\": {}\n}",
+															"options": {
+																"raw": {
+																	"headerFamily": "json",
+																	"language": "json"
+																}
+															}
+														},
+														"url": {
+															"raw": "{{baseUrl}}/panel/api/add_product_variant/:user_id/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"panel",
+																"api",
+																"add_product_variant",
+																":user_id",
+																""
+															],
+															"variable": [
+																{
+																	"key": "user_id"
+																}
+															]
+														}
+													},
+													"status": "Unauthorized",
+													"code": 401,
+													"_postman_previewlanguage": "text",
+													"header": [],
+													"cookie": [],
+													"body": ""
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"name": "categories",
+							"item": [
+								{
+									"name": "{outlet_id}",
+									"item": [
+										{
+											"name": "{user_id}",
+											"item": [
+												{
+													"name": "panel api categories read",
+													"request": {
+														"method": "GET",
+														"header": [
+															{
+																"key": "Accept",
+																"value": "application/json"
+															}
+														],
+														"url": {
+															"raw": "{{baseUrl}}/panel/api/categories/:outlet_id/:user_id/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"panel",
+																"api",
+																"categories",
+																":outlet_id",
+																":user_id",
+																""
+															],
+															"variable": [
+																{
+																	"key": "outlet_id",
+																	"value": "<string>",
+																	"description": "(Required) "
+																},
+																{
+																	"key": "user_id",
+																	"value": "<string>",
+																	"description": "(Required) "
+																}
+															]
+														},
+														"description": "Fetch categories for a specific outlet."
+													},
+													"response": [
+														{
+															"name": "Categories fetched successfully.",
+															"originalRequest": {
+																"method": "GET",
+																"header": [
+																	{
+																		"key": "Accept",
+																		"value": "application/json"
+																	},
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"url": {
+																	"raw": "{{baseUrl}}/panel/api/categories/:outlet_id/:user_id/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"panel",
+																		"api",
+																		"categories",
+																		":outlet_id",
+																		":user_id",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "outlet_id"
+																		},
+																		{
+																			"key": "user_id"
+																		}
+																	]
+																}
+															},
+															"status": "OK",
+															"code": 200,
+															"_postman_previewlanguage": "json",
+															"header": [
+																{
+																	"key": "Content-Type",
+																	"value": "application/json"
+																}
+															],
+															"cookie": [],
+															"body": "{\n  \"examples\": {\n    \"response\": {\n      \"value\": {\n        \"error\": false,\n        \"detail\": \"Categories fetched successfully.\",\n        \"categories\": [\n          \"Category 1\",\n          \"Category 2\"\n        ],\n        \"total_count\": 2\n      }\n    }\n  }\n}"
+														},
+														{
+															"name": "Unauthorized. Missing or invalid token.",
+															"originalRequest": {
+																"method": "GET",
+																"header": [
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"url": {
+																	"raw": "{{baseUrl}}/panel/api/categories/:outlet_id/:user_id/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"panel",
+																		"api",
+																		"categories",
+																		":outlet_id",
+																		":user_id",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "outlet_id"
+																		},
+																		{
+																			"key": "user_id"
+																		}
+																	]
+																}
+															},
+															"status": "Unauthorized",
+															"code": 401,
+															"_postman_previewlanguage": "text",
+															"header": [],
+															"cookie": [],
+															"body": ""
+														},
+														{
+															"name": "Forbidden. Invalid token.",
+															"originalRequest": {
+																"method": "GET",
+																"header": [
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"url": {
+																	"raw": "{{baseUrl}}/panel/api/categories/:outlet_id/:user_id/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"panel",
+																		"api",
+																		"categories",
+																		":outlet_id",
+																		":user_id",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "outlet_id"
+																		},
+																		{
+																			"key": "user_id"
+																		}
+																	]
+																}
+															},
+															"status": "Forbidden",
+															"code": 403,
+															"_postman_previewlanguage": "text",
+															"header": [],
+															"cookie": [],
+															"body": ""
+														},
+														{
+															"name": "Outlet not found.",
+															"originalRequest": {
+																"method": "GET",
+																"header": [
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"url": {
+																	"raw": "{{baseUrl}}/panel/api/categories/:outlet_id/:user_id/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"panel",
+																		"api",
+																		"categories",
+																		":outlet_id",
+																		":user_id",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "outlet_id"
+																		},
+																		{
+																			"key": "user_id"
+																		}
+																	]
+																}
+															},
+															"status": "Not Found",
+															"code": 404,
+															"_postman_previewlanguage": "text",
+															"header": [],
+															"cookie": [],
+															"body": ""
+														}
+													]
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"name": "create_employee",
+							"item": [
+								{
+									"name": "{user_id}",
+									"item": [
+										{
+											"name": "panel api create employee create",
+											"request": {
+												"method": "POST",
+												"header": [
+													{
+														"key": "Content-Type",
+														"value": "application/json"
+													}
+												],
+												"body": {
+													"mode": "raw",
+													"raw": "{\n  \"first_name\": \"<string>\",\n  \"last_name\": \"<string>\",\n  \"email\": \"<email>\",\n  \"role\": \"pos_staff\",\n  \"phone_number\": \"<string>\",\n  \"address\": \"<string>\",\n  \"date_of_birth\": \"<date>\"\n}",
+													"options": {
+														"raw": {
+															"headerFamily": "json",
+															"language": "json"
+														}
+													}
+												},
+												"url": {
+													"raw": "{{baseUrl}}/panel/api/create_employee/:user_id/",
+													"host": [
+														"{{baseUrl}}"
+													],
+													"path": [
+														"panel",
+														"api",
+														"create_employee",
+														":user_id",
+														""
+													],
+													"variable": [
+														{
+															"key": "user_id",
+															"value": "<string>",
+															"description": "(Required) "
+														}
+													]
+												},
+												"description": "Create a new employee."
+											},
+											"response": [
+												{
+													"name": "Employee created successfully.",
+													"originalRequest": {
+														"method": "POST",
+														"header": [
+															{
+																"key": "Content-Type",
+																"value": "application/json"
+															},
+															{
+																"key": "Authorization",
+																"value": "Basic <credentials>",
+																"description": "Added as a part of security scheme: basic"
+															}
+														],
+														"body": {
+															"mode": "raw",
+															"raw": "{\n  \"first_name\": \"<string>\",\n  \"last_name\": \"<string>\",\n  \"email\": \"<email>\",\n  \"role\": \"pos_staff\",\n  \"phone_number\": \"<string>\",\n  \"address\": \"<string>\",\n  \"date_of_birth\": \"<date>\"\n}",
+															"options": {
+																"raw": {
+																	"headerFamily": "json",
+																	"language": "json"
+																}
+															}
+														},
+														"url": {
+															"raw": "{{baseUrl}}/panel/api/create_employee/:user_id/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"panel",
+																"api",
+																"create_employee",
+																":user_id",
+																""
+															],
+															"variable": [
+																{
+																	"key": "user_id"
+																}
+															]
+														}
+													},
+													"status": "Created",
+													"code": 201,
+													"_postman_previewlanguage": "text",
+													"header": [],
+													"cookie": [],
+													"body": ""
+												},
+												{
+													"name": "Bad request.",
+													"originalRequest": {
+														"method": "POST",
+														"header": [
+															{
+																"key": "Content-Type",
+																"value": "application/json"
+															},
+															{
+																"key": "Authorization",
+																"value": "Basic <credentials>",
+																"description": "Added as a part of security scheme: basic"
+															}
+														],
+														"body": {
+															"mode": "raw",
+															"raw": "{\n  \"first_name\": \"<string>\",\n  \"last_name\": \"<string>\",\n  \"email\": \"<email>\",\n  \"role\": \"pos_staff\",\n  \"phone_number\": \"<string>\",\n  \"address\": \"<string>\",\n  \"date_of_birth\": \"<date>\"\n}",
+															"options": {
+																"raw": {
+																	"headerFamily": "json",
+																	"language": "json"
+																}
+															}
+														},
+														"url": {
+															"raw": "{{baseUrl}}/panel/api/create_employee/:user_id/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"panel",
+																"api",
+																"create_employee",
+																":user_id",
+																""
+															],
+															"variable": [
+																{
+																	"key": "user_id"
+																}
+															]
+														}
+													},
+													"status": "Bad Request",
+													"code": 400,
+													"_postman_previewlanguage": "text",
+													"header": [],
+													"cookie": [],
+													"body": ""
+												},
+												{
+													"name": "Unauthorized.",
+													"originalRequest": {
+														"method": "POST",
+														"header": [
+															{
+																"key": "Content-Type",
+																"value": "application/json"
+															},
+															{
+																"key": "Authorization",
+																"value": "Basic <credentials>",
+																"description": "Added as a part of security scheme: basic"
+															}
+														],
+														"body": {
+															"mode": "raw",
+															"raw": "{\n  \"first_name\": \"<string>\",\n  \"last_name\": \"<string>\",\n  \"email\": \"<email>\",\n  \"role\": \"pos_staff\",\n  \"phone_number\": \"<string>\",\n  \"address\": \"<string>\",\n  \"date_of_birth\": \"<date>\"\n}",
+															"options": {
+																"raw": {
+																	"headerFamily": "json",
+																	"language": "json"
+																}
+															}
+														},
+														"url": {
+															"raw": "{{baseUrl}}/panel/api/create_employee/:user_id/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"panel",
+																"api",
+																"create_employee",
+																":user_id",
+																""
+															],
+															"variable": [
+																{
+																	"key": "user_id"
+																}
+															]
+														}
+													},
+													"status": "Unauthorized",
+													"code": 401,
+													"_postman_previewlanguage": "text",
+													"header": [],
+													"cookie": [],
+													"body": ""
+												},
+												{
+													"name": "Forbidden.",
+													"originalRequest": {
+														"method": "POST",
+														"header": [
+															{
+																"key": "Content-Type",
+																"value": "application/json"
+															},
+															{
+																"key": "Authorization",
+																"value": "Basic <credentials>",
+																"description": "Added as a part of security scheme: basic"
+															}
+														],
+														"body": {
+															"mode": "raw",
+															"raw": "{\n  \"first_name\": \"<string>\",\n  \"last_name\": \"<string>\",\n  \"email\": \"<email>\",\n  \"role\": \"pos_staff\",\n  \"phone_number\": \"<string>\",\n  \"address\": \"<string>\",\n  \"date_of_birth\": \"<date>\"\n}",
+															"options": {
+																"raw": {
+																	"headerFamily": "json",
+																	"language": "json"
+																}
+															}
+														},
+														"url": {
+															"raw": "{{baseUrl}}/panel/api/create_employee/:user_id/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"panel",
+																"api",
+																"create_employee",
+																":user_id",
+																""
+															],
+															"variable": [
+																{
+																	"key": "user_id"
+																}
+															]
+														}
+													},
+													"status": "Forbidden",
+													"code": 403,
+													"_postman_previewlanguage": "text",
+													"header": [],
+													"cookie": [],
+													"body": ""
+												},
+												{
+													"name": "Company not found.",
+													"originalRequest": {
+														"method": "POST",
+														"header": [
+															{
+																"key": "Content-Type",
+																"value": "application/json"
+															},
+															{
+																"key": "Authorization",
+																"value": "Basic <credentials>",
+																"description": "Added as a part of security scheme: basic"
+															}
+														],
+														"body": {
+															"mode": "raw",
+															"raw": "{\n  \"first_name\": \"<string>\",\n  \"last_name\": \"<string>\",\n  \"email\": \"<email>\",\n  \"role\": \"pos_staff\",\n  \"phone_number\": \"<string>\",\n  \"address\": \"<string>\",\n  \"date_of_birth\": \"<date>\"\n}",
+															"options": {
+																"raw": {
+																	"headerFamily": "json",
+																	"language": "json"
+																}
+															}
+														},
+														"url": {
+															"raw": "{{baseUrl}}/panel/api/create_employee/:user_id/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"panel",
+																"api",
+																"create_employee",
+																":user_id",
+																""
+															],
+															"variable": [
+																{
+																	"key": "user_id"
+																}
+															]
+														}
+													},
+													"status": "Not Found",
+													"code": 404,
+													"_postman_previewlanguage": "text",
+													"header": [],
+													"cookie": [],
+													"body": ""
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"name": "create_outlet",
+							"item": [
+								{
+									"name": "{company_id}",
+									"item": [
+										{
+											"name": "{user_id}",
+											"item": [
+												{
+													"name": "panel api create outlet create",
+													"request": {
+														"method": "POST",
+														"header": [
+															{
+																"key": "Content-Type",
+																"value": "application/json"
+															}
+														],
+														"body": {
+															"mode": "raw",
+															"raw": "{\n  \"gst_number\": \"<string>\",\n  \"outlet_name\": \"<string>\",\n  \"address\": \"<string>\",\n  \"company\": \"<integer>\",\n  \"phone_number\": \"<string>\",\n  \"opening_hours\": \"<string>\",\n  \"is_active\": \"<boolean>\",\n  \"bank_account_number\": \"<string>\",\n  \"ifsc_code\": \"<string>\"\n}",
+															"options": {
+																"raw": {
+																	"headerFamily": "json",
+																	"language": "json"
+																}
+															}
+														},
+														"url": {
+															"raw": "{{baseUrl}}/panel/api/create_outlet/:company_id/:user_id/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"panel",
+																"api",
+																"create_outlet",
+																":company_id",
+																":user_id",
+																""
+															],
+															"variable": [
+																{
+																	"key": "company_id",
+																	"value": "<string>",
+																	"description": "(Required) "
+																},
+																{
+																	"key": "user_id",
+																	"value": "<string>",
+																	"description": "(Required) "
+																}
+															]
+														},
+														"description": "Create a new outlet for a company."
+													},
+													"response": [
+														{
+															"name": "Outlet created successfully.",
+															"originalRequest": {
+																"method": "POST",
+																"header": [
+																	{
+																		"key": "Content-Type",
+																		"value": "application/json"
+																	},
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"body": {
+																	"mode": "raw",
+																	"raw": "{\n  \"gst_number\": \"<string>\",\n  \"outlet_name\": \"<string>\",\n  \"address\": \"<string>\",\n  \"company\": \"<integer>\",\n  \"phone_number\": \"<string>\",\n  \"opening_hours\": \"<string>\",\n  \"is_active\": \"<boolean>\",\n  \"bank_account_number\": \"<string>\",\n  \"ifsc_code\": \"<string>\"\n}",
+																	"options": {
+																		"raw": {
+																			"headerFamily": "json",
+																			"language": "json"
+																		}
+																	}
+																},
+																"url": {
+																	"raw": "{{baseUrl}}/panel/api/create_outlet/:company_id/:user_id/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"panel",
+																		"api",
+																		"create_outlet",
+																		":company_id",
+																		":user_id",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "company_id"
+																		},
+																		{
+																			"key": "user_id"
+																		}
+																	]
+																}
+															},
+															"status": "Created",
+															"code": 201,
+															"_postman_previewlanguage": "text",
+															"header": [],
+															"cookie": [],
+															"body": ""
+														},
+														{
+															"name": "Bad request.",
+															"originalRequest": {
+																"method": "POST",
+																"header": [
+																	{
+																		"key": "Content-Type",
+																		"value": "application/json"
+																	},
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"body": {
+																	"mode": "raw",
+																	"raw": "{\n  \"gst_number\": \"<string>\",\n  \"outlet_name\": \"<string>\",\n  \"address\": \"<string>\",\n  \"company\": \"<integer>\",\n  \"phone_number\": \"<string>\",\n  \"opening_hours\": \"<string>\",\n  \"is_active\": \"<boolean>\",\n  \"bank_account_number\": \"<string>\",\n  \"ifsc_code\": \"<string>\"\n}",
+																	"options": {
+																		"raw": {
+																			"headerFamily": "json",
+																			"language": "json"
+																		}
+																	}
+																},
+																"url": {
+																	"raw": "{{baseUrl}}/panel/api/create_outlet/:company_id/:user_id/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"panel",
+																		"api",
+																		"create_outlet",
+																		":company_id",
+																		":user_id",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "company_id"
+																		},
+																		{
+																			"key": "user_id"
+																		}
+																	]
+																}
+															},
+															"status": "Bad Request",
+															"code": 400,
+															"_postman_previewlanguage": "text",
+															"header": [],
+															"cookie": [],
+															"body": ""
+														},
+														{
+															"name": "Unauthorized.",
+															"originalRequest": {
+																"method": "POST",
+																"header": [
+																	{
+																		"key": "Content-Type",
+																		"value": "application/json"
+																	},
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"body": {
+																	"mode": "raw",
+																	"raw": "{\n  \"gst_number\": \"<string>\",\n  \"outlet_name\": \"<string>\",\n  \"address\": \"<string>\",\n  \"company\": \"<integer>\",\n  \"phone_number\": \"<string>\",\n  \"opening_hours\": \"<string>\",\n  \"is_active\": \"<boolean>\",\n  \"bank_account_number\": \"<string>\",\n  \"ifsc_code\": \"<string>\"\n}",
+																	"options": {
+																		"raw": {
+																			"headerFamily": "json",
+																			"language": "json"
+																		}
+																	}
+																},
+																"url": {
+																	"raw": "{{baseUrl}}/panel/api/create_outlet/:company_id/:user_id/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"panel",
+																		"api",
+																		"create_outlet",
+																		":company_id",
+																		":user_id",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "company_id"
+																		},
+																		{
+																			"key": "user_id"
+																		}
+																	]
+																}
+															},
+															"status": "Unauthorized",
+															"code": 401,
+															"_postman_previewlanguage": "text",
+															"header": [],
+															"cookie": [],
+															"body": ""
+														},
+														{
+															"name": "Forbidden.",
+															"originalRequest": {
+																"method": "POST",
+																"header": [
+																	{
+																		"key": "Content-Type",
+																		"value": "application/json"
+																	},
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"body": {
+																	"mode": "raw",
+																	"raw": "{\n  \"gst_number\": \"<string>\",\n  \"outlet_name\": \"<string>\",\n  \"address\": \"<string>\",\n  \"company\": \"<integer>\",\n  \"phone_number\": \"<string>\",\n  \"opening_hours\": \"<string>\",\n  \"is_active\": \"<boolean>\",\n  \"bank_account_number\": \"<string>\",\n  \"ifsc_code\": \"<string>\"\n}",
+																	"options": {
+																		"raw": {
+																			"headerFamily": "json",
+																			"language": "json"
+																		}
+																	}
+																},
+																"url": {
+																	"raw": "{{baseUrl}}/panel/api/create_outlet/:company_id/:user_id/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"panel",
+																		"api",
+																		"create_outlet",
+																		":company_id",
+																		":user_id",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "company_id"
+																		},
+																		{
+																			"key": "user_id"
+																		}
+																	]
+																}
+															},
+															"status": "Forbidden",
+															"code": 403,
+															"_postman_previewlanguage": "text",
+															"header": [],
+															"cookie": [],
+															"body": ""
+														},
+														{
+															"name": "Company not found.",
+															"originalRequest": {
+																"method": "POST",
+																"header": [
+																	{
+																		"key": "Content-Type",
+																		"value": "application/json"
+																	},
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"body": {
+																	"mode": "raw",
+																	"raw": "{\n  \"gst_number\": \"<string>\",\n  \"outlet_name\": \"<string>\",\n  \"address\": \"<string>\",\n  \"company\": \"<integer>\",\n  \"phone_number\": \"<string>\",\n  \"opening_hours\": \"<string>\",\n  \"is_active\": \"<boolean>\",\n  \"bank_account_number\": \"<string>\",\n  \"ifsc_code\": \"<string>\"\n}",
+																	"options": {
+																		"raw": {
+																			"headerFamily": "json",
+																			"language": "json"
+																		}
+																	}
+																},
+																"url": {
+																	"raw": "{{baseUrl}}/panel/api/create_outlet/:company_id/:user_id/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"panel",
+																		"api",
+																		"create_outlet",
+																		":company_id",
+																		":user_id",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "company_id"
+																		},
+																		{
+																			"key": "user_id"
+																		}
+																	]
+																}
+															},
+															"status": "Not Found",
+															"code": 404,
+															"_postman_previewlanguage": "text",
+															"header": [],
+															"cookie": [],
+															"body": ""
+														}
+													]
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"name": "get_menu_details",
+							"item": [
+								{
+									"name": "{menu_id}",
+									"item": [
+										{
+											"name": "panel api get menu details read",
+											"request": {
+												"method": "GET",
+												"header": [],
+												"url": {
+													"raw": "{{baseUrl}}/panel/api/get_menu_details/:menu_id/",
+													"host": [
+														"{{baseUrl}}"
+													],
+													"path": [
+														"panel",
+														"api",
+														"get_menu_details",
+														":menu_id",
+														""
+													],
+													"variable": [
+														{
+															"key": "menu_id",
+															"value": "<string>",
+															"description": "(Required) "
+														}
+													]
+												},
+												"description": "Fetch details of a specific menu."
+											},
+											"response": [
+												{
+													"name": "Menu details fetched successfully.",
+													"originalRequest": {
+														"method": "GET",
+														"header": [
+															{
+																"key": "Authorization",
+																"value": "Basic <credentials>",
+																"description": "Added as a part of security scheme: basic"
+															}
+														],
+														"url": {
+															"raw": "{{baseUrl}}/panel/api/get_menu_details/:menu_id/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"panel",
+																"api",
+																"get_menu_details",
+																":menu_id",
+																""
+															],
+															"variable": [
+																{
+																	"key": "menu_id"
+																}
+															]
+														}
+													},
+													"status": "OK",
+													"code": 200,
+													"_postman_previewlanguage": "text",
+													"header": [],
+													"cookie": [],
+													"body": ""
+												},
+												{
+													"name": "Menu not found.",
+													"originalRequest": {
+														"method": "GET",
+														"header": [
+															{
+																"key": "Authorization",
+																"value": "Basic <credentials>",
+																"description": "Added as a part of security scheme: basic"
+															}
+														],
+														"url": {
+															"raw": "{{baseUrl}}/panel/api/get_menu_details/:menu_id/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"panel",
+																"api",
+																"get_menu_details",
+																":menu_id",
+																""
+															],
+															"variable": [
+																{
+																	"key": "menu_id"
+																}
+															]
+														}
+													},
+													"status": "Not Found",
+													"code": 404,
+													"_postman_previewlanguage": "text",
+													"header": [],
+													"cookie": [],
+													"body": ""
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"name": "get_outlet_menus",
+							"item": [
+								{
+									"name": "{outlet_id}",
+									"item": [
+										{
+											"name": "{user_id}",
+											"item": [
+												{
+													"name": "panel api get outlet menus read",
+													"request": {
+														"method": "GET",
+														"header": [],
+														"url": {
+															"raw": "{{baseUrl}}/panel/api/get_outlet_menus/:outlet_id/:user_id/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"panel",
+																"api",
+																"get_outlet_menus",
+																":outlet_id",
+																":user_id",
+																""
+															],
+															"variable": [
+																{
+																	"key": "outlet_id",
+																	"value": "<string>",
+																	"description": "(Required) "
+																},
+																{
+																	"key": "user_id",
+																	"value": "<string>",
+																	"description": "(Required) "
+																}
+															]
+														},
+														"description": "Fetch menus for a specific outlet."
+													},
+													"response": [
+														{
+															"name": "Menus fetched successfully.",
+															"originalRequest": {
+																"method": "GET",
+																"header": [
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"url": {
+																	"raw": "{{baseUrl}}/panel/api/get_outlet_menus/:outlet_id/:user_id/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"panel",
+																		"api",
+																		"get_outlet_menus",
+																		":outlet_id",
+																		":user_id",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "outlet_id"
+																		},
+																		{
+																			"key": "user_id"
+																		}
+																	]
+																}
+															},
+															"status": "OK",
+															"code": 200,
+															"_postman_previewlanguage": "text",
+															"header": [],
+															"cookie": [],
+															"body": ""
+														},
+														{
+															"name": "Outlet not found.",
+															"originalRequest": {
+																"method": "GET",
+																"header": [
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"url": {
+																	"raw": "{{baseUrl}}/panel/api/get_outlet_menus/:outlet_id/:user_id/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"panel",
+																		"api",
+																		"get_outlet_menus",
+																		":outlet_id",
+																		":user_id",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "outlet_id"
+																		},
+																		{
+																			"key": "user_id"
+																		}
+																	]
+																}
+															},
+															"status": "Not Found",
+															"code": 404,
+															"_postman_previewlanguage": "text",
+															"header": [],
+															"cookie": [],
+															"body": ""
+														}
+													]
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"name": "get_products",
+							"item": [
+								{
+									"name": "{outlet_id}",
+									"item": [
+										{
+											"name": "panel api get products read",
+											"request": {
+												"method": "GET",
+												"header": [],
+												"url": {
+													"raw": "{{baseUrl}}/panel/api/get_products/:outlet_id/",
+													"host": [
+														"{{baseUrl}}"
+													],
+													"path": [
+														"panel",
+														"api",
+														"get_products",
+														":outlet_id",
+														""
+													],
+													"variable": [
+														{
+															"key": "outlet_id",
+															"value": "<string>",
+															"description": "(Required) "
+														}
+													]
+												},
+												"description": "Fetch all products for a specific outlet."
+											},
+											"response": [
+												{
+													"name": "Products fetched successfully.",
+													"originalRequest": {
+														"method": "GET",
+														"header": [
+															{
+																"key": "Authorization",
+																"value": "Basic <credentials>",
+																"description": "Added as a part of security scheme: basic"
+															}
+														],
+														"url": {
+															"raw": "{{baseUrl}}/panel/api/get_products/:outlet_id/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"panel",
+																"api",
+																"get_products",
+																":outlet_id",
+																""
+															],
+															"variable": [
+																{
+																	"key": "outlet_id"
+																}
+															]
+														}
+													},
+													"status": "OK",
+													"code": 200,
+													"_postman_previewlanguage": "text",
+													"header": [],
+													"cookie": [],
+													"body": ""
+												},
+												{
+													"name": "No products found for this outlet.",
+													"originalRequest": {
+														"method": "GET",
+														"header": [
+															{
+																"key": "Authorization",
+																"value": "Basic <credentials>",
+																"description": "Added as a part of security scheme: basic"
+															}
+														],
+														"url": {
+															"raw": "{{baseUrl}}/panel/api/get_products/:outlet_id/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"panel",
+																"api",
+																"get_products",
+																":outlet_id",
+																""
+															],
+															"variable": [
+																{
+																	"key": "outlet_id"
+																}
+															]
+														}
+													},
+													"status": "Not Found",
+													"code": 404,
+													"_postman_previewlanguage": "text",
+													"header": [],
+													"cookie": [],
+													"body": ""
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"name": "grant_outlet_access",
+							"item": [
+								{
+									"name": "{outlet_id}",
+									"item": [
+										{
+											"name": "{user_id}",
+											"item": [
+												{
+													"name": "{manager_id}",
+													"item": [
+														{
+															"name": "panel api grant outlet access create",
+															"request": {
+																"method": "POST",
+																"header": [
+																	{
+																		"key": "Content-Type",
+																		"value": "application/json"
+																	},
+																	{
+																		"key": "Accept",
+																		"value": "application/json"
+																	}
+																],
+																"body": {
+																	"mode": "raw",
+																	"raw": "{\n  \"permissions\": {\n    \"view\": \"<boolean>\",\n    \"edit\": \"<boolean>\",\n    \"delete\": \"<boolean>\"\n  }\n}",
+																	"options": {
+																		"raw": {
+																			"headerFamily": "json",
+																			"language": "json"
+																		}
+																	}
+																},
+																"url": {
+																	"raw": "{{baseUrl}}/panel/api/grant_outlet_access/:outlet_id/:user_id/:manager_id/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"panel",
+																		"api",
+																		"grant_outlet_access",
+																		":outlet_id",
+																		":user_id",
+																		":manager_id",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "outlet_id",
+																			"value": "<string>",
+																			"description": "(Required) "
+																		},
+																		{
+																			"key": "user_id",
+																			"value": "<string>",
+																			"description": "(Required) "
+																		},
+																		{
+																			"key": "manager_id",
+																			"value": "<string>",
+																			"description": "(Required) "
+																		}
+																	]
+																},
+																"description": "Grant or update access permissions for a user on an outlet."
+															},
+															"response": [
+																{
+																	"name": "Access updated successfully.",
+																	"originalRequest": {
+																		"method": "POST",
+																		"header": [
+																			{
+																				"key": "Content-Type",
+																				"value": "application/json"
+																			},
+																			{
+																				"key": "Accept",
+																				"value": "application/json"
+																			},
+																			{
+																				"key": "Authorization",
+																				"value": "Basic <credentials>",
+																				"description": "Added as a part of security scheme: basic"
+																			}
+																		],
+																		"body": {
+																			"mode": "raw",
+																			"raw": "{\n  \"permissions\": {\n    \"view\": \"<boolean>\",\n    \"edit\": \"<boolean>\",\n    \"delete\": \"<boolean>\"\n  }\n}",
+																			"options": {
+																				"raw": {
+																					"headerFamily": "json",
+																					"language": "json"
+																				}
+																			}
+																		},
+																		"url": {
+																			"raw": "{{baseUrl}}/panel/api/grant_outlet_access/:outlet_id/:user_id/:manager_id/",
+																			"host": [
+																				"{{baseUrl}}"
+																			],
+																			"path": [
+																				"panel",
+																				"api",
+																				"grant_outlet_access",
+																				":outlet_id",
+																				":user_id",
+																				":manager_id",
+																				""
+																			],
+																			"variable": [
+																				{
+																					"key": "outlet_id"
+																				},
+																				{
+																					"key": "user_id"
+																				},
+																				{
+																					"key": "manager_id"
+																				}
+																			]
+																		}
+																	},
+																	"status": "OK",
+																	"code": 200,
+																	"_postman_previewlanguage": "json",
+																	"header": [
+																		{
+																			"key": "Content-Type",
+																			"value": "application/json"
+																		}
+																	],
+																	"cookie": [],
+																	"body": "{\n  \"examples\": {\n    \"response\": {\n      \"value\": {\n        \"error\": false,\n        \"detail\": \"Access updated successfully.\",\n        \"permissions\": {\n          \"view\": true,\n          \"edit\": true,\n          \"delete\": false\n        }\n      }\n    }\n  }\n}"
+																},
+																{
+																	"name": "Access granted successfully.",
+																	"originalRequest": {
+																		"method": "POST",
+																		"header": [
+																			{
+																				"key": "Content-Type",
+																				"value": "application/json"
+																			},
+																			{
+																				"key": "Accept",
+																				"value": "application/json"
+																			},
+																			{
+																				"key": "Authorization",
+																				"value": "Basic <credentials>",
+																				"description": "Added as a part of security scheme: basic"
+																			}
+																		],
+																		"body": {
+																			"mode": "raw",
+																			"raw": "{\n  \"permissions\": {\n    \"view\": \"<boolean>\",\n    \"edit\": \"<boolean>\",\n    \"delete\": \"<boolean>\"\n  }\n}",
+																			"options": {
+																				"raw": {
+																					"headerFamily": "json",
+																					"language": "json"
+																				}
+																			}
+																		},
+																		"url": {
+																			"raw": "{{baseUrl}}/panel/api/grant_outlet_access/:outlet_id/:user_id/:manager_id/",
+																			"host": [
+																				"{{baseUrl}}"
+																			],
+																			"path": [
+																				"panel",
+																				"api",
+																				"grant_outlet_access",
+																				":outlet_id",
+																				":user_id",
+																				":manager_id",
+																				""
+																			],
+																			"variable": [
+																				{
+																					"key": "outlet_id"
+																				},
+																				{
+																					"key": "user_id"
+																				},
+																				{
+																					"key": "manager_id"
+																				}
+																			]
+																		}
+																	},
+																	"status": "Created",
+																	"code": 201,
+																	"_postman_previewlanguage": "json",
+																	"header": [
+																		{
+																			"key": "Content-Type",
+																			"value": "application/json"
+																		}
+																	],
+																	"cookie": [],
+																	"body": "{\n  \"examples\": {\n    \"response\": {\n      \"value\": {\n        \"error\": false,\n        \"detail\": \"Access granted successfully.\",\n        \"permissions\": {\n          \"view\": true,\n          \"edit\": false,\n          \"delete\": false\n        }\n      }\n    }\n  }\n}"
+																},
+																{
+																	"name": "Authorization token is missing or invalid.",
+																	"originalRequest": {
+																		"method": "POST",
+																		"header": [
+																			{
+																				"key": "Content-Type",
+																				"value": "application/json"
+																			},
+																			{
+																				"key": "Authorization",
+																				"value": "Basic <credentials>",
+																				"description": "Added as a part of security scheme: basic"
+																			}
+																		],
+																		"body": {
+																			"mode": "raw",
+																			"raw": "{\n  \"permissions\": {\n    \"view\": \"<boolean>\",\n    \"edit\": \"<boolean>\",\n    \"delete\": \"<boolean>\"\n  }\n}",
+																			"options": {
+																				"raw": {
+																					"headerFamily": "json",
+																					"language": "json"
+																				}
+																			}
+																		},
+																		"url": {
+																			"raw": "{{baseUrl}}/panel/api/grant_outlet_access/:outlet_id/:user_id/:manager_id/",
+																			"host": [
+																				"{{baseUrl}}"
+																			],
+																			"path": [
+																				"panel",
+																				"api",
+																				"grant_outlet_access",
+																				":outlet_id",
+																				":user_id",
+																				":manager_id",
+																				""
+																			],
+																			"variable": [
+																				{
+																					"key": "outlet_id"
+																				},
+																				{
+																					"key": "user_id"
+																				},
+																				{
+																					"key": "manager_id"
+																				}
+																			]
+																		}
+																	},
+																	"status": "Unauthorized",
+																	"code": 401,
+																	"_postman_previewlanguage": "text",
+																	"header": [],
+																	"cookie": [],
+																	"body": ""
+																},
+																{
+																	"name": "Only managers can grant or update access.",
+																	"originalRequest": {
+																		"method": "POST",
+																		"header": [
+																			{
+																				"key": "Content-Type",
+																				"value": "application/json"
+																			},
+																			{
+																				"key": "Authorization",
+																				"value": "Basic <credentials>",
+																				"description": "Added as a part of security scheme: basic"
+																			}
+																		],
+																		"body": {
+																			"mode": "raw",
+																			"raw": "{\n  \"permissions\": {\n    \"view\": \"<boolean>\",\n    \"edit\": \"<boolean>\",\n    \"delete\": \"<boolean>\"\n  }\n}",
+																			"options": {
+																				"raw": {
+																					"headerFamily": "json",
+																					"language": "json"
+																				}
+																			}
+																		},
+																		"url": {
+																			"raw": "{{baseUrl}}/panel/api/grant_outlet_access/:outlet_id/:user_id/:manager_id/",
+																			"host": [
+																				"{{baseUrl}}"
+																			],
+																			"path": [
+																				"panel",
+																				"api",
+																				"grant_outlet_access",
+																				":outlet_id",
+																				":user_id",
+																				":manager_id",
+																				""
+																			],
+																			"variable": [
+																				{
+																					"key": "outlet_id"
+																				},
+																				{
+																					"key": "user_id"
+																				},
+																				{
+																					"key": "manager_id"
+																				}
+																			]
+																		}
+																	},
+																	"status": "Forbidden",
+																	"code": 403,
+																	"_postman_previewlanguage": "text",
+																	"header": [],
+																	"cookie": [],
+																	"body": ""
+																},
+																{
+																	"name": "User or outlet not found.",
+																	"originalRequest": {
+																		"method": "POST",
+																		"header": [
+																			{
+																				"key": "Content-Type",
+																				"value": "application/json"
+																			},
+																			{
+																				"key": "Authorization",
+																				"value": "Basic <credentials>",
+																				"description": "Added as a part of security scheme: basic"
+																			}
+																		],
+																		"body": {
+																			"mode": "raw",
+																			"raw": "{\n  \"permissions\": {\n    \"view\": \"<boolean>\",\n    \"edit\": \"<boolean>\",\n    \"delete\": \"<boolean>\"\n  }\n}",
+																			"options": {
+																				"raw": {
+																					"headerFamily": "json",
+																					"language": "json"
+																				}
+																			}
+																		},
+																		"url": {
+																			"raw": "{{baseUrl}}/panel/api/grant_outlet_access/:outlet_id/:user_id/:manager_id/",
+																			"host": [
+																				"{{baseUrl}}"
+																			],
+																			"path": [
+																				"panel",
+																				"api",
+																				"grant_outlet_access",
+																				":outlet_id",
+																				":user_id",
+																				":manager_id",
+																				""
+																			],
+																			"variable": [
+																				{
+																					"key": "outlet_id"
+																				},
+																				{
+																					"key": "user_id"
+																				},
+																				{
+																					"key": "manager_id"
+																				}
+																			]
+																		}
+																	},
+																	"status": "Not Found",
+																	"code": 404,
+																	"_postman_previewlanguage": "text",
+																	"header": [],
+																	"cookie": [],
+																	"body": ""
+																}
+															]
+														}
+													]
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"name": "stock-requests",
+							"item": [
+								{
+									"name": "{user_id}",
+									"item": [
+										{
+											"name": "{outlet_id}",
+											"item": [
+												{
+													"name": "approve",
+													"item": [
+														{
+															"name": "panel api stock-requests approve partial update",
+															"request": {
+																"method": "PATCH",
+																"header": [
+																	{
+																		"key": "Content-Type",
+																		"value": "application/json"
+																	}
+																],
+																"body": {
+																	"mode": "raw",
+																	"raw": "[\n  {\n    \"status\": \"REJECTED\"\n  },\n  {\n    \"status\": \"REJECTED\"\n  }\n]",
+																	"options": {
+																		"raw": {
+																			"headerFamily": "json",
+																			"language": "json"
+																		}
+																	}
+																},
+																"url": {
+																	"raw": "{{baseUrl}}/panel/api/stock-requests/:user_id/:outlet_id/approve/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"panel",
+																		"api",
+																		"stock-requests",
+																		":user_id",
+																		":outlet_id",
+																		"approve",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "user_id",
+																			"value": "<string>",
+																			"description": "(Required) "
+																		},
+																		{
+																			"key": "outlet_id",
+																			"value": "<string>",
+																			"description": "(Required) "
+																		}
+																	]
+																}
+															},
+															"response": [
+																{
+																	"name": "Stock requests approved successfully",
+																	"originalRequest": {
+																		"method": "PATCH",
+																		"header": [
+																			{
+																				"key": "Content-Type",
+																				"value": "application/json"
+																			},
+																			{
+																				"key": "Authorization",
+																				"value": "Basic <credentials>",
+																				"description": "Added as a part of security scheme: basic"
+																			}
+																		],
+																		"body": {
+																			"mode": "raw",
+																			"raw": "[\n  {\n    \"status\": \"REJECTED\"\n  },\n  {\n    \"status\": \"REJECTED\"\n  }\n]",
+																			"options": {
+																				"raw": {
+																					"headerFamily": "json",
+																					"language": "json"
+																				}
+																			}
+																		},
+																		"url": {
+																			"raw": "{{baseUrl}}/panel/api/stock-requests/:user_id/:outlet_id/approve/",
+																			"host": [
+																				"{{baseUrl}}"
+																			],
+																			"path": [
+																				"panel",
+																				"api",
+																				"stock-requests",
+																				":user_id",
+																				":outlet_id",
+																				"approve",
+																				""
+																			],
+																			"variable": [
+																				{
+																					"key": "user_id"
+																				},
+																				{
+																					"key": "outlet_id"
+																				}
+																			]
+																		}
+																	},
+																	"status": "OK",
+																	"code": 200,
+																	"_postman_previewlanguage": "text",
+																	"header": [],
+																	"cookie": [],
+																	"body": ""
+																},
+																{
+																	"name": "Invalid data provided",
+																	"originalRequest": {
+																		"method": "PATCH",
+																		"header": [
+																			{
+																				"key": "Content-Type",
+																				"value": "application/json"
+																			},
+																			{
+																				"key": "Authorization",
+																				"value": "Basic <credentials>",
+																				"description": "Added as a part of security scheme: basic"
+																			}
+																		],
+																		"body": {
+																			"mode": "raw",
+																			"raw": "[\n  {\n    \"status\": \"REJECTED\"\n  },\n  {\n    \"status\": \"REJECTED\"\n  }\n]",
+																			"options": {
+																				"raw": {
+																					"headerFamily": "json",
+																					"language": "json"
+																				}
+																			}
+																		},
+																		"url": {
+																			"raw": "{{baseUrl}}/panel/api/stock-requests/:user_id/:outlet_id/approve/",
+																			"host": [
+																				"{{baseUrl}}"
+																			],
+																			"path": [
+																				"panel",
+																				"api",
+																				"stock-requests",
+																				":user_id",
+																				":outlet_id",
+																				"approve",
+																				""
+																			],
+																			"variable": [
+																				{
+																					"key": "user_id"
+																				},
+																				{
+																					"key": "outlet_id"
+																				}
+																			]
+																		}
+																	},
+																	"status": "Bad Request",
+																	"code": 400,
+																	"_postman_previewlanguage": "text",
+																	"header": [],
+																	"cookie": [],
+																	"body": ""
+																},
+																{
+																	"name": "Stock request(s) not found",
+																	"originalRequest": {
+																		"method": "PATCH",
+																		"header": [
+																			{
+																				"key": "Content-Type",
+																				"value": "application/json"
+																			},
+																			{
+																				"key": "Authorization",
+																				"value": "Basic <credentials>",
+																				"description": "Added as a part of security scheme: basic"
+																			}
+																		],
+																		"body": {
+																			"mode": "raw",
+																			"raw": "[\n  {\n    \"status\": \"REJECTED\"\n  },\n  {\n    \"status\": \"REJECTED\"\n  }\n]",
+																			"options": {
+																				"raw": {
+																					"headerFamily": "json",
+																					"language": "json"
+																				}
+																			}
+																		},
+																		"url": {
+																			"raw": "{{baseUrl}}/panel/api/stock-requests/:user_id/:outlet_id/approve/",
+																			"host": [
+																				"{{baseUrl}}"
+																			],
+																			"path": [
+																				"panel",
+																				"api",
+																				"stock-requests",
+																				":user_id",
+																				":outlet_id",
+																				"approve",
+																				""
+																			],
+																			"variable": [
+																				{
+																					"key": "user_id"
+																				},
+																				{
+																					"key": "outlet_id"
+																				}
+																			]
+																		}
+																	},
+																	"status": "Not Found",
+																	"code": 404,
+																	"_postman_previewlanguage": "text",
+																	"header": [],
+																	"cookie": [],
+																	"body": ""
+																}
+															]
+														}
+													]
+												},
+												{
+													"name": "pending",
+													"item": [
+														{
+															"name": "panel api stock-requests pending list",
+															"request": {
+																"method": "GET",
+																"header": [
+																	{
+																		"key": "Accept",
+																		"value": "application/json"
+																	}
+																],
+																"url": {
+																	"raw": "{{baseUrl}}/panel/api/stock-requests/:user_id/:outlet_id/pending/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"panel",
+																		"api",
+																		"stock-requests",
+																		":user_id",
+																		":outlet_id",
+																		"pending",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "user_id",
+																			"value": "<string>",
+																			"description": "(Required) "
+																		},
+																		{
+																			"key": "outlet_id",
+																			"value": "<string>",
+																			"description": "(Required) "
+																		}
+																	]
+																}
+															},
+															"response": [
+																{
+																	"name": "Untitled Response",
+																	"originalRequest": {
+																		"method": "GET",
+																		"header": [
+																			{
+																				"key": "Accept",
+																				"value": "application/json"
+																			},
+																			{
+																				"key": "Authorization",
+																				"value": "Basic <credentials>",
+																				"description": "Added as a part of security scheme: basic"
+																			}
+																		],
+																		"url": {
+																			"raw": "{{baseUrl}}/panel/api/stock-requests/:user_id/:outlet_id/pending/",
+																			"host": [
+																				"{{baseUrl}}"
+																			],
+																			"path": [
+																				"panel",
+																				"api",
+																				"stock-requests",
+																				":user_id",
+																				":outlet_id",
+																				"pending",
+																				""
+																			],
+																			"variable": [
+																				{
+																					"key": "user_id"
+																				},
+																				{
+																					"key": "outlet_id"
+																				}
+																			]
+																		}
+																	},
+																	"status": "OK",
+																	"code": 200,
+																	"_postman_previewlanguage": "json",
+																	"header": [
+																		{
+																			"key": "Content-Type",
+																			"value": "application/json"
+																		}
+																	],
+																	"cookie": [],
+																	"body": "[\n  {\n    \"requested_quantity\": \"<integer>\",\n    \"id\": \"<integer>\",\n    \"product\": \"<integer>\",\n    \"product_variant\": \"<integer>\",\n    \"status\": \"APPROVED\",\n    \"timestamp\": \"<dateTime>\",\n    \"updated_at\": \"<dateTime>\"\n  },\n  {\n    \"requested_quantity\": \"<integer>\",\n    \"id\": \"<integer>\",\n    \"product\": \"<integer>\",\n    \"product_variant\": \"<integer>\",\n    \"status\": \"PENDING\",\n    \"timestamp\": \"<dateTime>\",\n    \"updated_at\": \"<dateTime>\"\n  }\n]"
+																},
+																{
+																	"name": "Invalid request",
+																	"originalRequest": {
+																		"method": "GET",
+																		"header": [
+																			{
+																				"key": "Authorization",
+																				"value": "Basic <credentials>",
+																				"description": "Added as a part of security scheme: basic"
+																			}
+																		],
+																		"url": {
+																			"raw": "{{baseUrl}}/panel/api/stock-requests/:user_id/:outlet_id/pending/",
+																			"host": [
+																				"{{baseUrl}}"
+																			],
+																			"path": [
+																				"panel",
+																				"api",
+																				"stock-requests",
+																				":user_id",
+																				":outlet_id",
+																				"pending",
+																				""
+																			],
+																			"variable": [
+																				{
+																					"key": "user_id"
+																				},
+																				{
+																					"key": "outlet_id"
+																				}
+																			]
+																		}
+																	},
+																	"status": "Bad Request",
+																	"code": 400,
+																	"_postman_previewlanguage": "text",
+																	"header": [],
+																	"cookie": [],
+																	"body": ""
+																}
+															]
+														}
+													]
+												}
+											]
+										}
+									]
+								}
+							]
+						},
+						{
+							"name": "update_profile",
+							"item": [
+								{
+									"name": "{employee_id}",
+									"item": [
+										{
+											"name": "{user_id}",
+											"item": [
+												{
+													"name": "panel api update profile update",
+													"request": {
+														"method": "PUT",
+														"header": [
+															{
+																"key": "Content-Type",
+																"value": "application/json"
+															},
+															{
+																"key": "Accept",
+																"value": "application/json"
+															}
+														],
+														"body": {
+															"mode": "raw",
+															"raw": "{\n  \"email\": \"<email>\",\n  \"role\": \"pos_staff\",\n  \"first_name\": \"<string>\",\n  \"last_name\": \"<string>\",\n  \"phone_number\": \"<string>\",\n  \"address\": \"<string>\",\n  \"date_of_birth\": \"<date>\",\n  \"is_active\": \"<boolean>\",\n  \"employee_code\": \"<string>\"\n}",
+															"options": {
+																"raw": {
+																	"headerFamily": "json",
+																	"language": "json"
+																}
+															}
+														},
+														"url": {
+															"raw": "{{baseUrl}}/panel/api/update_profile/:employee_id/:user_id/",
+															"host": [
+																"{{baseUrl}}"
+															],
+															"path": [
+																"panel",
+																"api",
+																"update_profile",
+																":employee_id",
+																":user_id",
+																""
+															],
+															"variable": [
+																{
+																	"key": "employee_id",
+																	"value": "<string>",
+																	"description": "(Required) "
+																},
+																{
+																	"key": "user_id",
+																	"value": "<string>",
+																	"description": "(Required) "
+																}
+															]
+														},
+														"description": "Update an employee profile. Only accessible by managers."
+													},
+													"response": [
+														{
+															"name": "Profile updated successfully.",
+															"originalRequest": {
+																"method": "PUT",
+																"header": [
+																	{
+																		"key": "Content-Type",
+																		"value": "application/json"
+																	},
+																	{
+																		"key": "Accept",
+																		"value": "application/json"
+																	},
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"body": {
+																	"mode": "raw",
+																	"raw": "{\n  \"email\": \"<email>\",\n  \"role\": \"pos_staff\",\n  \"first_name\": \"<string>\",\n  \"last_name\": \"<string>\",\n  \"phone_number\": \"<string>\",\n  \"address\": \"<string>\",\n  \"date_of_birth\": \"<date>\",\n  \"is_active\": \"<boolean>\",\n  \"employee_code\": \"<string>\"\n}",
+																	"options": {
+																		"raw": {
+																			"headerFamily": "json",
+																			"language": "json"
+																		}
+																	}
+																},
+																"url": {
+																	"raw": "{{baseUrl}}/panel/api/update_profile/:employee_id/:user_id/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"panel",
+																		"api",
+																		"update_profile",
+																		":employee_id",
+																		":user_id",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "employee_id"
+																		},
+																		{
+																			"key": "user_id"
+																		}
+																	]
+																}
+															},
+															"status": "OK",
+															"code": 200,
+															"_postman_previewlanguage": "json",
+															"header": [
+																{
+																	"key": "Content-Type",
+																	"value": "application/json"
+																}
+															],
+															"cookie": [],
+															"body": "{\n  \"examples\": {\n    \"response\": {\n      \"value\": {\n        \"error\": false,\n        \"detail\": \"Profile updated successfully.\",\n        \"employee\": {\n          \"first_name\": \"John\",\n          \"last_name\": \"Doe\",\n          \"email\": \"john.doe@example.com\",\n          \"phone_number\": \"1234567890\"\n        }\n      }\n    }\n  }\n}"
+														},
+														{
+															"name": "Bad request. Invalid data.",
+															"originalRequest": {
+																"method": "PUT",
+																"header": [
+																	{
+																		"key": "Content-Type",
+																		"value": "application/json"
+																	},
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"body": {
+																	"mode": "raw",
+																	"raw": "{\n  \"email\": \"<email>\",\n  \"role\": \"pos_staff\",\n  \"first_name\": \"<string>\",\n  \"last_name\": \"<string>\",\n  \"phone_number\": \"<string>\",\n  \"address\": \"<string>\",\n  \"date_of_birth\": \"<date>\",\n  \"is_active\": \"<boolean>\",\n  \"employee_code\": \"<string>\"\n}",
+																	"options": {
+																		"raw": {
+																			"headerFamily": "json",
+																			"language": "json"
+																		}
+																	}
+																},
+																"url": {
+																	"raw": "{{baseUrl}}/panel/api/update_profile/:employee_id/:user_id/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"panel",
+																		"api",
+																		"update_profile",
+																		":employee_id",
+																		":user_id",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "employee_id"
+																		},
+																		{
+																			"key": "user_id"
+																		}
+																	]
+																}
+															},
+															"status": "Bad Request",
+															"code": 400,
+															"_postman_previewlanguage": "text",
+															"header": [],
+															"cookie": [],
+															"body": ""
+														},
+														{
+															"name": "Unauthorized. Missing or invalid token.",
+															"originalRequest": {
+																"method": "PUT",
+																"header": [
+																	{
+																		"key": "Content-Type",
+																		"value": "application/json"
+																	},
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"body": {
+																	"mode": "raw",
+																	"raw": "{\n  \"email\": \"<email>\",\n  \"role\": \"pos_staff\",\n  \"first_name\": \"<string>\",\n  \"last_name\": \"<string>\",\n  \"phone_number\": \"<string>\",\n  \"address\": \"<string>\",\n  \"date_of_birth\": \"<date>\",\n  \"is_active\": \"<boolean>\",\n  \"employee_code\": \"<string>\"\n}",
+																	"options": {
+																		"raw": {
+																			"headerFamily": "json",
+																			"language": "json"
+																		}
+																	}
+																},
+																"url": {
+																	"raw": "{{baseUrl}}/panel/api/update_profile/:employee_id/:user_id/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"panel",
+																		"api",
+																		"update_profile",
+																		":employee_id",
+																		":user_id",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "employee_id"
+																		},
+																		{
+																			"key": "user_id"
+																		}
+																	]
+																}
+															},
+															"status": "Unauthorized",
+															"code": 401,
+															"_postman_previewlanguage": "text",
+															"header": [],
+															"cookie": [],
+															"body": ""
+														},
+														{
+															"name": "Forbidden. Only managers can update profiles.",
+															"originalRequest": {
+																"method": "PUT",
+																"header": [
+																	{
+																		"key": "Content-Type",
+																		"value": "application/json"
+																	},
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"body": {
+																	"mode": "raw",
+																	"raw": "{\n  \"email\": \"<email>\",\n  \"role\": \"pos_staff\",\n  \"first_name\": \"<string>\",\n  \"last_name\": \"<string>\",\n  \"phone_number\": \"<string>\",\n  \"address\": \"<string>\",\n  \"date_of_birth\": \"<date>\",\n  \"is_active\": \"<boolean>\",\n  \"employee_code\": \"<string>\"\n}",
+																	"options": {
+																		"raw": {
+																			"headerFamily": "json",
+																			"language": "json"
+																		}
+																	}
+																},
+																"url": {
+																	"raw": "{{baseUrl}}/panel/api/update_profile/:employee_id/:user_id/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"panel",
+																		"api",
+																		"update_profile",
+																		":employee_id",
+																		":user_id",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "employee_id"
+																		},
+																		{
+																			"key": "user_id"
+																		}
+																	]
+																}
+															},
+															"status": "Forbidden",
+															"code": 403,
+															"_postman_previewlanguage": "text",
+															"header": [],
+															"cookie": [],
+															"body": ""
+														},
+														{
+															"name": "Employee not found.",
+															"originalRequest": {
+																"method": "PUT",
+																"header": [
+																	{
+																		"key": "Content-Type",
+																		"value": "application/json"
+																	},
+																	{
+																		"key": "Authorization",
+																		"value": "Basic <credentials>",
+																		"description": "Added as a part of security scheme: basic"
+																	}
+																],
+																"body": {
+																	"mode": "raw",
+																	"raw": "{\n  \"email\": \"<email>\",\n  \"role\": \"pos_staff\",\n  \"first_name\": \"<string>\",\n  \"last_name\": \"<string>\",\n  \"phone_number\": \"<string>\",\n  \"address\": \"<string>\",\n  \"date_of_birth\": \"<date>\",\n  \"is_active\": \"<boolean>\",\n  \"employee_code\": \"<string>\"\n}",
+																	"options": {
+																		"raw": {
+																			"headerFamily": "json",
+																			"language": "json"
+																		}
+																	}
+																},
+																"url": {
+																	"raw": "{{baseUrl}}/panel/api/update_profile/:employee_id/:user_id/",
+																	"host": [
+																		"{{baseUrl}}"
+																	],
+																	"path": [
+																		"panel",
+																		"api",
+																		"update_profile",
+																		":employee_id",
+																		":user_id",
+																		""
+																	],
+																	"variable": [
+																		{
+																			"key": "employee_id"
+																		},
+																		{
+																			"key": "user_id"
+																		}
+																	]
+																}
+															},
+															"status": "Not Found",
+															"code": 404,
+															"_postman_previewlanguage": "text",
+															"header": [],
+															"cookie": [],
+															"body": ""
+														}
+													]
+												}
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "qr",
+			"item": [
+				{
+					"name": "api",
+					"item": [
+						{
+							"name": "get-categories",
+							"item": [
+								{
+									"name": "qr api get-categories list",
+									"request": {
+										"method": "GET",
+										"header": [
+											{
+												"key": "Accept",
+												"value": "application/json"
+											}
+										],
+										"url": {
+											"raw": "{{baseUrl}}/qr/api/get-categories/",
+											"host": [
+												"{{baseUrl}}"
+											],
+											"path": [
+												"qr",
+												"api",
+												"get-categories",
+												""
+											]
+										},
+										"description": "Fetch categories for a specific outlet."
+									},
+									"response": [
+										{
+											"name": "Categories fetched successfully.",
+											"originalRequest": {
+												"method": "GET",
+												"header": [
+													{
+														"key": "Accept",
+														"value": "application/json"
+													},
+													{
+														"key": "Authorization",
+														"value": "Basic <credentials>",
+														"description": "Added as a part of security scheme: basic"
+													}
+												],
+												"url": {
+													"raw": "{{baseUrl}}/qr/api/get-categories/",
+													"host": [
+														"{{baseUrl}}"
+													],
+													"path": [
+														"qr",
+														"api",
+														"get-categories",
+														""
+													]
+												}
+											},
+											"status": "OK",
+											"code": 200,
+											"_postman_previewlanguage": "json",
+											"header": [
+												{
+													"key": "Content-Type",
+													"value": "application/json"
+												}
+											],
+											"cookie": [],
+											"body": "{\n  \"examples\": {\n    \"response\": {\n      \"value\": {\n        \"error\": false,\n        \"detail\": \"Categories fetched successfully.\",\n        \"categories\": [\n          \"Category 1\",\n          \"Category 2\"\n        ],\n        \"total_count\": 2\n      }\n    }\n  }\n}"
+										},
+										{
+											"name": "Outlet not found.",
+											"originalRequest": {
+												"method": "GET",
+												"header": [
+													{
+														"key": "Authorization",
+														"value": "Basic <credentials>",
+														"description": "Added as a part of security scheme: basic"
+													}
+												],
+												"url": {
+													"raw": "{{baseUrl}}/qr/api/get-categories/",
+													"host": [
+														"{{baseUrl}}"
+													],
+													"path": [
+														"qr",
+														"api",
+														"get-categories",
+														""
+													]
+												}
+											},
+											"status": "Not Found",
+											"code": 404,
+											"_postman_previewlanguage": "text",
+											"header": [],
+											"cookie": [],
+											"body": ""
+										}
+									]
+								}
+							]
+						},
+						{
+							"name": "get-products",
+							"item": [
+								{
+									"name": "qr api get-products list",
+									"request": {
+										"method": "GET",
+										"header": [],
+										"url": {
+											"raw": "{{baseUrl}}/qr/api/get-products/",
+											"host": [
+												"{{baseUrl}}"
+											],
+											"path": [
+												"qr",
+												"api",
+												"get-products",
+												""
+											]
+										}
+									},
+									"response": [
+										{
+											"name": "Untitled Response",
+											"originalRequest": {
+												"method": "GET",
+												"header": [
+													{
+														"key": "Authorization",
+														"value": "Basic <credentials>",
+														"description": "Added as a part of security scheme: basic"
+													}
+												],
+												"url": {
+													"raw": "{{baseUrl}}/qr/api/get-products/",
+													"host": [
+														"{{baseUrl}}"
+													],
+													"path": [
+														"qr",
+														"api",
+														"get-products",
+														""
+													]
+												}
+											},
+											"status": "OK",
+											"code": 200,
+											"_postman_previewlanguage": "text",
+											"header": [],
+											"cookie": [],
+											"body": ""
+										}
+									]
+								}
+							]
+						},
+						{
+							"name": "place-order",
+							"item": [
+								{
+									"name": "qr api place-order create",
+									"request": {
+										"method": "POST",
+										"header": [],
+										"url": {
+											"raw": "{{baseUrl}}/qr/api/place-order/",
+											"host": [
+												"{{baseUrl}}"
+											],
+											"path": [
+												"qr",
+												"api",
+												"place-order",
+												""
+											]
+										}
+									},
+									"response": [
+										{
+											"name": "Untitled Response",
+											"originalRequest": {
+												"method": "POST",
+												"header": [
+													{
+														"key": "Authorization",
+														"value": "Basic <credentials>",
+														"description": "Added as a part of security scheme: basic"
+													}
+												],
+												"url": {
+													"raw": "{{baseUrl}}/qr/api/place-order/",
+													"host": [
+														"{{baseUrl}}"
+													],
+													"path": [
+														"qr",
+														"api",
+														"place-order",
+														""
+													]
+												}
+											},
+											"status": "Created",
+											"code": 201,
+											"_postman_previewlanguage": "text",
+											"header": [],
+											"cookie": [],
+											"body": ""
 										}
 									]
 								}
