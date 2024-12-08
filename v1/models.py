@@ -288,7 +288,7 @@ class OrderItem(models.Model):
 class Customer(models.Model):
     name = models.CharField(max_length=255)
     phone_number = models.CharField(max_length=15)  # Assuming a max length for phone numbers
-    order = models.ForeignKey('Order', on_delete=models.CASCADE, related_name='customers')
+    order = models.ForeignKey('Order', on_delete=models.CASCADE, related_name='customers',null=True, blank=True)
 
     def __str__(self):
         return f"{self.name} ({self.phone_number})"
@@ -323,7 +323,6 @@ class StockRequest(models.Model):
         blank=True,
         related_name='stock_requests'
     )
-    requested_quantity = models.PositiveIntegerField()
     timestamp = models.DateTimeField(default=timezone.now)
     status = models.CharField(
         max_length=10, 
@@ -335,7 +334,6 @@ class StockRequest(models.Model):
 
     def __str__(self):
         return f"Stock Request for {'Variant' if self.product_variant else 'Product'} {self.product_variant.name if self.product_variant else self.product.name}, Status: {self.status}"
-
 
 
 

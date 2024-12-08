@@ -192,7 +192,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
 class StockRequestListSerializer(serializers.ModelSerializer):
     class Meta:
         model = StockRequest
-        fields = ['id', 'product', 'product_variant', 'requested_quantity', 'status', 'timestamp', 'updated_at']
+        fields = ['id', 'product', 'product_variant', 'status', 'timestamp', 'updated_at']
 
 
 

@@ -14,7 +14,7 @@ urlpatterns = [
     path('login/', user_login, name="Login Method Counter"),
     
     # Endpoint to fetch the list of categories
-    path('get-categories/', category_list, name='Get Categories for Counter'),
+    path('<int:outlet_id>/get-categories/', category_list, name='Get Categories for Counter'),
     
     # Endpoint to fetch the list of products
     path('products/', product_list, name='product_list'),

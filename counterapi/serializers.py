@@ -9,7 +9,8 @@ from v1.models import (
     Order,
     OrderItem,
     Customer,
-    StockRequest
+    StockRequest,
+    Employee
     )
 from users.models import CustomUser
 
@@ -18,13 +19,15 @@ from users.models import CustomUser
 class CustomUserCounterLoginSerializer(serializers.Serializer):
     username = serializers.EmailField()
     password = serializers.CharField(write_only=True)
+    role = serializers.CharField()
 
     def validate(self, data):
         email = data.get('username')
         password = data.get('password')
+        role = data.get('role')
 
-        if not email or not password:
-            raise serializers.ValidationError("Email and password are required.")
+        if not email or not password or not role:
+            raise serializers.ValidationError("Email, password, and role are required.")
 
         try:
             user = CustomUser.objects.get(email=email)
@@ -35,8 +38,13 @@ class CustomUserCounterLoginSerializer(serializers.Serializer):
         if not user.check_password(password):
             raise serializers.ValidationError("Invalid email or password.")
 
+        # Check if the user is associated with an employee having the provided role
+        if not Employee.objects.filter(user=user, role=role).exists():
+            raise serializers.ValidationError("User does not have the specified role.")
+
         data['user'] = user
-        return data    
+        return data
+
 
 
 
@@ -144,7 +152,7 @@ class OrderListSerializer(serializers.ModelSerializer):
 class StockRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = StockRequest
-        fields = ['product', 'product_variant', 'requested_quantity', 'outlet']
+        fields = ['product', 'product_variant', 'outlet']
         read_only_fields = ['status', 'timestamp', 'updated_at']
 
     def validate(self, data):
@@ -152,6 +160,3 @@ class StockRequestSerializer(serializers.ModelSerializer):
         if not data.get('product') and not data.get('product_variant'):
             raise serializers.ValidationError("Either product or product_variant must be provided.")
         return data
-
-
-

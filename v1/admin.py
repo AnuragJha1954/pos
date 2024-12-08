@@ -113,18 +113,19 @@ class PlanAssignmentAccessAdmin(admin.ModelAdmin):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('name', 'price', 'outlet', 'is_gst_inclusive')
-    search_fields = ('name', 'outlet__name')
-    list_filter = ('outlet', 'is_gst_inclusive')
+    list_display = ('name', 'price', 'outlet', 'category', 'is_gst_inclusive', 'gst_percentage')
+    search_fields = ('name', 'outlet__outlet_name', 'category__name')  # Search includes category name
+    list_filter = ('outlet', 'is_gst_inclusive', 'category')  # Add category filter
     readonly_fields = ('created_at', 'updated_at')
     fieldsets = (
         (None, {
-            'fields': ('name', 'price', 'image', 'description', 'outlet', 'is_gst_inclusive')
+            'fields': ('name', 'price', 'image', 'description', 'outlet', 'category', 'gst_percentage', 'is_gst_inclusive')
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
         }),
     )
+
 
 @admin.register(ProductVariant)
 class ProductVariantAdmin(admin.ModelAdmin):
@@ -201,15 +202,17 @@ class CustomerAdmin(admin.ModelAdmin):
 
 
 class StockRequestAdmin(admin.ModelAdmin):
-    list_display = ('product', 'product_variant', 'requested_quantity', 'status', 'timestamp', 'updated_at', 'outlet')
+    list_display = ('product', 'product_variant', 'status', 'timestamp', 'updated_at', 'outlet')
     list_filter = ('status', 'outlet', 'timestamp')
     search_fields = ('product__name', 'product_variant__name', 'outlet__name')
     ordering = ('-timestamp',)
     date_hierarchy = 'timestamp'
     raw_id_fields = ('product', 'product_variant', 'outlet')  # Using raw_id_fields for better performance with foreign keys
 
-    # Optionally, you can define fields to display in the form when creating/updating a StockRequest
-    fields = ('product', 'product_variant', 'requested_quantity', 'status', 'outlet')
+    # Fields to display in the form when creating/updating a StockRequest
+    fields = ('product', 'product_variant', 'status', 'outlet')
 
+# Register the updated admin class
 admin.site.register(StockRequest, StockRequestAdmin)
+
 
