@@ -240,6 +240,7 @@ class Order(models.Model):
     MODE_CHOICES = [
         ('upi', 'UPI'),
         ('cash', 'Cash Payment'),
+        ('coupon', 'Coupon'),
     ]
     
     # Add ForeignKey to Outlet

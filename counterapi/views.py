@@ -3,10 +3,16 @@ import string
 
 from decimal import Decimal
 
+from django.template.loader import render_to_string
+from django.forms.models import model_to_dict
+from django.utils.dateformat import format as date_format
+
 from django.shortcuts import render
 from django.core.mail import send_mail
 from django.utils import timezone
+from django.utils.timezone import localtime
 from django.shortcuts import get_object_or_404
+from django.http import JsonResponse
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -18,7 +24,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.authtoken.models import Token
 from rest_framework.pagination import PageNumberPagination
 
-from datetime import timedelta
+from datetime import timedelta,datetime
 
 from .serializers import ( 
     CustomUserCounterLoginSerializer,
@@ -111,7 +117,20 @@ def user_login(request):
                 # Fetch outlet details for the employee
                 outlets = Outlet.objects.filter(outletaccess__employee=employee).distinct()
                 outlet_details = [
-                    {"id": outlet.id, "name": outlet.outlet_name}
+                    {
+                        "id": outlet.id,
+                        "name": outlet.outlet_name,
+                        "logo": request.build_absolute_uri(outlet.logo.url) if outlet.logo else None,
+                        "gst_number": outlet.gst_number,
+                        "address": outlet.address,
+                        "phone_number": outlet.phone_number,
+                        "opening_hours": outlet.opening_hours,
+                        "is_active": outlet.is_active,
+                        "bank_account_number": outlet.bank_account_number,
+                        "ifsc_code": outlet.ifsc_code,
+                        "created_at": outlet.created_at,
+                        "updated_at": outlet.updated_at,
+                    }
                     for outlet in outlets
                 ]
 
@@ -292,12 +311,34 @@ def category_list(request, outlet_id):
 @permission_classes([AllowAny])
 def product_list(request):
     try:
-        products = Product.objects.all()
-        serializer = ProductSerializer(products, many=True)
+        # Retrieve all products
+        products = Product.objects.select_related('category').prefetch_related('variants').all()
+
+        # Group products by category
+        category_dict = {}
+        for product in products:
+            category_id = product.category.id
+            category_name = product.category.name
+
+            # Initialize the category in the dictionary if not already present
+            if category_id not in category_dict:
+                category_dict[category_id] = {
+                    "category_id": category_id,
+                    "category_name": category_name,
+                    "items": []
+                }
+
+            # Serialize the product and append it to the category's items
+            product_data = ProductSerializer(product).data
+            category_dict[category_id]["items"].append(product_data)
+
+        # Convert the dictionary to a list
+        response_data = list(category_dict.values())
+
         return Response({
             "error": False,
             "details": "Products fetched successfully",
-            "products": serializer.data
+            "categories": response_data
         })
     except Exception as e:
         return Response({
@@ -376,7 +417,7 @@ def place_order(request, outlet_id):
             total_price=Decimal('0.00'),
             gst=Decimal('0.00'),
             status='PENDING',
-            order_date=timezone.now(),
+            order_date=localtime(timezone.now()),
             address=data.get('address', ''),
             mode=data.get('mode', ''),
         )
@@ -387,6 +428,7 @@ def place_order(request, outlet_id):
 
         total_price = Decimal('0.00')
         total_gst = Decimal('0.00')
+        processed_items = []
 
         # Process each order item
         for item_data in items_data:
@@ -406,13 +448,24 @@ def place_order(request, outlet_id):
                 gst = product.gst_percentage
                 is_gst_inclusive = product.is_gst_inclusive
             else:
-                return Response({
+                return JsonResponse({
                     "error": True,
                     "details": "Either product or variant ID must be provided"
-                }, status=status.HTTP_400_BAD_REQUEST)
+                }, status=400)
 
             total_item_price = price * quantity
-            gst_amount = (gst / Decimal('100')) * total_item_price
+
+            if is_gst_inclusive:
+                # GST-inclusive price logic
+                rate_excluding_gst = price / (1 + gst / Decimal('100'))
+                gst_amount = total_item_price - (rate_excluding_gst * quantity)
+                amount_excluding_gst = total_item_price - gst_amount
+            else:
+                # GST-exclusive price logic
+                gst_amount = (gst / Decimal('100')) * total_item_price
+                rate_excluding_gst = price
+                amount_excluding_gst = total_item_price
+
             total_item_gst_inclusive = total_item_price + gst_amount if not is_gst_inclusive else total_item_price
 
             # Create OrderItem
@@ -426,42 +479,113 @@ def place_order(request, outlet_id):
                 gst=gst_amount
             )
 
+            # Add calculated data to processed items for context
+            processed_items.append({
+                "product_name": product.name,
+                "variant_name": variant.name if variant_id else None,
+                "quantity": quantity,
+                "price": round(rate_excluding_gst, 2),  # Rate excl. GST
+                "total_price": round(amount_excluding_gst, 2),  # Amount excl. GST
+                "gst": round(gst_amount, 2),
+            })
+
             total_price += total_item_gst_inclusive
             total_gst += gst_amount
 
         # Update the total price and GST of the order
+        subtotal = total_price - total_gst  # Calculate subtotal before GST
         order.total_price = total_price
         order.gst = total_gst
         order.save()
 
+        # Calculate CGST and SGST
+        cgst = total_gst / 2
+        sgst = total_gst / 2
+
         # Serialize and return the created order with customer details
-        order_serializer = OrderSerializer(order)
+        order_serializer = OrderSerializer(order, context={'request': request})
         response_data = order_serializer.data
 
-        # Add customer data to the response manually
+        response_data['subtotal'] = round(subtotal, 2)
+        
+        # print(localtime(timezone.now()))
+        # Format the order date
+        formatted_date = order.order_date.strftime("%d-%m-%Y %I:%M %p")
+        response_data['formatted_date'] = formatted_date
+
+        # Add customer data and processed items to the response manually
         response_data['customer'] = {
             "name": customer.name,
             "phone_number": customer.phone_number
         }
+        response_data['items'] = processed_items
 
-        return Response(response_data, status=status.HTTP_201_CREATED)
+        # Add CGST and SGST to the response
+        response_data['cgst'] = round(cgst, 2)
+        response_data['sgst'] = round(sgst, 2)
+
+        # Pass the response data directly to the bill.html template
+        return render(request, "bill.html", response_data)
 
     except Product.DoesNotExist:
-        return Response({
+        return JsonResponse({
             "error": True,
             "details": "Product not found"
-        }, status=status.HTTP_400_BAD_REQUEST)
+        }, status=400)
     except ProductVariant.DoesNotExist:
-        return Response({
+        return JsonResponse({
             "error": True,
             "details": "Product variant not found"
-        }, status=status.HTTP_400_BAD_REQUEST)
+        }, status=400)
     except Exception as e:
-        return Response({
+        return JsonResponse({
             "error": True,
             "details": f"An error occurred: {str(e)}"
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        }, status=500)
 
+
+
+
+
+
+
+
+
+
+
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def print_kot(request, outlet_id):
+    # Fetch the outlet using the outlet ID
+    outlet = get_object_or_404(Outlet, id=outlet_id)
+    
+    # Get the latest order for the outlet
+    latest_order = outlet.orders.order_by('-order_date').first()
+    
+    if not latest_order:
+        return render(request, "kot.html", {"error": "No orders found for this outlet."})
+
+    # Get the order items
+    items = latest_order.items.all()
+
+    # Prepare the context for the template
+    context = {
+        "order_number": latest_order.order_number,
+        "order_date": date_format(latest_order.order_date, "Y-m-d H:i"),
+        "items": [
+            {
+                "product_name": item.product.name if item.product else None,
+                "variant_name": item.product_variant.name if item.product_variant else None,
+                "quantity": item.quantity,
+            }
+            for item in items
+        ],
+    }
+
+    # Render the template with the context
+    return render(request, "kot.html", context)
 
 
 

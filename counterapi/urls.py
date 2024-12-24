@@ -6,7 +6,8 @@ from .views import (
     place_order,
     orders_past_three_hours,
     order_details,
-    create_stock_request
+    create_stock_request,
+    print_kot
     )
 
 urlpatterns = [
@@ -21,6 +22,8 @@ urlpatterns = [
 
     # Endpoint to place an order, passing outlet_id in the URL
     path('orders/<int:outlet_id>/place-order/', place_order, name='place_order'),
+    
+    path('orders/<int:outlet_id>/print-kot/', print_kot, name='print_kot'),
 
     # Endpoint to fetch orders placed in the past 3 hours, passing outlet_id in the URL
     path('orders/<int:outlet_id>/get-orders/', orders_past_three_hours, name='orders_past_three_hours'),
