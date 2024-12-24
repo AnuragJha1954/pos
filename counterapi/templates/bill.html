@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'PT Sans', sans-serif;
+        }
+
+        @page {
+            size: 2.8in 11in;
+            margin-top: 0cm;
+            margin-left: 0cm;
+            margin-right: 0cm;
+        }
+
+        table {
+            width: 100%;
+        }
+
+        tr {
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        #logo {
+            width: 50%;
+            text-align: center;
+            -webkit-align-content: center;
+            align-content: center;
+            padding: 5px;
+            margin: 2px;
+            display: block;
+            margin: 0 auto;
+        }
+
+        header {
+            width: 100%;
+            text-align: center;
+            -webkit-align-content: center;
+            align-content: center;
+            vertical-align: middle;
+        }
+
+        .line {
+            border-top: 1px dashed #000;
+            margin: 5px 0;
+        }
+
+        .items thead {
+            text-align: center;
+        }
+
+        .left-align {
+            text-align: left;
+        }
+        
+        .center-align {
+            text-align: center;
+        }
+        
+        .right-align {
+            text-align: right;
+        }
+
+        .bill-details td {
+            font-size: 12px;
+        }
+
+        .receipt {
+            font-size: medium;
+        }
+
+        .items .heading {
+            font-size: 12.5px;
+            text-transform: uppercase;
+            border-top: 1px solid black;
+            margin-bottom: 4px;
+            border-bottom: 1px solid black;
+            vertical-align: middle;
+        }
+
+        .items td {
+            font-size: 12px;
+            text-align: right;
+            vertical-align: bottom;
+        }
+
+        .price::before {
+            content: "\20B9";
+            font-family: Arial;
+            text-align: right;
+        }
+
+        .sum-up {
+            text-align: right !important;
+        }
+
+        .total {
+            font-size: 13px;
+            border-top: 1px solid black !important;
+            border-bottom: 1px solid black !important;
+        }
+
+        .total.text,
+        .total.price {
+            text-align: right;
+        }
+
+        .total.price::before {
+            content: "\20B9";
+        }
+
+        p {
+            padding: 1px;
+            margin: 0;
+        }
+
+        footer {
+            margin-top: 10px;
+            text-align: center;
+            font-size: 12px;
+        }
+
+        .smaller {
+            font-size: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div id="logo" class="media">
+            <img src={{outlet.logo}} alt="Outlet Logo" style="max-width: 100px; height: auto;" />
+        </div>
+        <p class="center-align bold" style="font-weight: bold;">{{ outlet.outlet_name }}</p>
+        <p class="center-align" style="font-size: 12px;">{{ outlet.address }}</p>
+        <p class="center-align" style="font-size: 12px;">Phone: {{ outlet.phone_number|default:"Not Available" }}</p>
+        <div class="line"></div>
+    </header>
+
+    <!-- Customer Details -->
+    <table class="bill-details">
+        <tbody>
+            <tr>
+                <td colspan="2" class="left-align"><span style="font-weight: bold;">Customer:</span> {{ customer.name }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="line"></div>
+
+    <!-- Order Details -->
+    <table class="bill-details">
+        <tbody>
+            <tr>
+                <td class="left-align"><span style="font-weight: bold;">Order Number:</span> {{ order_number }}</td>
+            </tr>
+            <tr>
+                <td class="left-align"><span style="font-weight: bold;">Date: </span>{{ formatted_date }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+
+
+    <!-- Items -->
+    <table class="items">
+        <thead>
+            <tr>
+                <th class="heading name" style="text-align: right;">No.</th>
+                <th class="heading name" style="text-align: left;">Item</th>
+                <th class="heading qty" style="text-align: center;">Qty</th>
+                <th class="heading rate" style="text-align: right;">Rate</th>
+                <th class="heading amount" style="text-align: right;">Amount</th>
+            </tr>
+        </thead>
+
+        <tbody>
+
+            {% for item in items %}
+            <tr>
+                <td style="text-align: right;">{{ forloop.counter }}</td>
+                <td style="text-align: left;">{{ item.product_name|default:item.variant_name }}</td>
+                <td style="text-align: center;">{{ item.quantity }}</td>
+                <td class="price" style="text-align: right;">{{ item.price }}</td>
+                <td class="price" style="text-align: right;">{{ item.total_price }}</td>
+            </tr>
+            {% endfor %}
+
+            <tr>
+                <td colspan="4" class="sum-up">Subtotal</td>
+                <td class="price">{{ subtotal|floatformat:2 }}</td>
+            </tr>
+
+            <tr>
+                <td colspan="4" class="sum-up">CGST @ 2.5%</td>
+                <td class="price">{{ cgst }}</td>
+            </tr>
+            <tr>
+                <td colspan="4" class="sum-up">SGST @ 2.5%</td>
+                <td class="price">{{ sgst }}</td>
+            </tr>
+            
+            <tr>
+                <th colspan="4" class="total text">Total</th>
+                <th class="total price">{{ total_price }}</th>
+            </tr>
+        </tbody>
+    </table>
+
+    <section>
+        <p class="smaller center-align">Paid by: <span>{{ mode }}</span></p>
+
+        <br>
+
+        <p style="text-align:center;">Thank you for your visit!</p>
+        <p style="text-align:center;">Billing Partner Mantra POS</p>
+    </section>
+</body>
+
+</html>
+

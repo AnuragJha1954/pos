@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to MantraPOS</title>
+    <style>
+        /* Reset & basic styling */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f2f5f9;
+            margin: 0;
+            padding: 0;
+            color: #444;
+        }
+        .container {
+            max-width: 600px;
+            background-color: #ffffff;
+            margin: 40px auto;
+            border-radius: 8px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+        }
+        .header {
+            background-color: #0a74da; /* Vibrant Digitech theme color */
+            color: #ffffff;
+            padding: 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 26px;
+            font-weight: bold;
+        }
+        .content {
+            padding: 30px;
+            color: #444;
+        }
+        .content h2 {
+            color: #333;
+            font-size: 22px;
+        }
+        .content p {
+            line-height: 1.6;
+            font-size: 16px;
+            color: #666;
+        }
+        .details {
+            background-color: #f7f8fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border-left: 4px solid #0a74da; /* Accent for details section */
+        }
+        .details p {
+            margin: 0;
+            color: #333;
+            font-size: 18px;
+        }
+        .button {
+            text-align: center;
+            margin-top: 30px;
+        }
+        .btn {
+            background-color: #0a74da;
+            color: #ffffff;
+            padding: 14px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 50px;
+            text-decoration: none;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 14px;
+            color: #888;
+            background-color: #f2f5f9;
+        }
+        .footer a {
+            font-size: 14px;
+            color: #888;
+            background-color: #f2f5f9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="content">
+            <h2>Hello,</h2>
+            <p>Thank you for signing up! We're thrilled to have you on board. Below are your login credentials:</p>
+            
+            <div class="details">
+                <p><strong>Username:</strong> {{ email }}</p>
+                <p><strong>Password:</strong> {{ password }}</p>
+            </div>
+
+            <div class="button">
+                <a href="https://vibrantdigitech.com/" class="btn">Login to Your Account</a>
+            </div>
+
+            <p style="margin-top: 20px;">If you have any questions, feel free to reach out to our support team. We’re here to help!</p>
+            <p>Cheers,<br>The Mantra POS Team</p>
+        </div>
+        <div class="footer">
+            Don't like these emails? <a href="https://www.vibrantdigitech.com/"style="{'color:#888'}">Unsubscribe</a>.<br>
+            &copy; 2024 MantraPOS by Vibrant Digitech. All rights reserved.
+        </div>
+    </div>
+</body>
+</html>

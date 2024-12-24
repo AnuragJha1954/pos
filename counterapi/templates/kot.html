@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'PT Sans', sans-serif;
+        }
+
+        @page {
+            size: 2.8in 11in;
+            margin-top: 0cm;
+            margin-left: 0cm;
+            margin-right: 0cm;
+        }
+
+        table {
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            margin: 10px 0;
+            font-size: 20px;
+        }
+
+        .line {
+            border-top: 1px dashed #000;
+            margin: 5px 0;
+        }
+
+        .bill-details td {
+            font-size: 12px;
+        }
+
+        .items thead {
+            text-align: center;
+        }
+
+        .items .heading {
+            font-size: 12.5px;
+            text-transform: uppercase;
+            border-top: 1px solid black;
+            border-bottom: 1px solid black;
+        }
+
+        .items td {
+            font-size: 12px;
+            text-align: left;
+        }
+
+        p {
+            padding: 1px;
+            margin: 0;
+        }
+
+        footer {
+            font-size: 12px;
+            margin-top: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>KOT</h1>
+        <div class="line"></div>
+    </header>
+
+    <!-- Order Details -->
+    <table class="bill-details">
+        <tbody>
+            <tr>
+                <td>Order Number: {{ order_number }}</td>
+            </tr>
+            <tr>
+                <td>Date: {{ order_date }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="line"></div>
+
+    <!-- Items -->
+    <table class="items">
+        <thead>
+            <tr>
+                <th class="heading">Item</th>
+                <th class="heading">Qty</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.product_name|default:item.variant_name }}</td>
+                <td>{{ item.quantity }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="line"></div>
+
+    <footer>
+        Billing Partner Mantra POS
+    </footer>
+</body>
+
+</html>
+
