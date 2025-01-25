@@ -25,7 +25,7 @@ from v1.models import (
 class ProductVariantSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductVariant
-        fields = ('id', 'name', 'extra_description', 'price', 'is_gst_inclusive', 'variant_image')
+        fields = ('id', 'name', 'extra_description', 'price', 'is_gst_inclusive')
 
     def to_representation(self, instance):
         """Adjust the variant price based on GST inclusion."""
@@ -43,7 +43,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    variants = ProductVariantSerializer(many=True, source='variants', read_only=True)  # Nested serializer for variants
+    variants = ProductVariantSerializer(many=True, read_only=True)  # Nested serializer for variants
 
     class Meta:
         model = Product
@@ -82,26 +82,42 @@ class ProductSerializer(serializers.ModelSerializer):
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
+    product_name = serializers.SerializerMethodField()
+    variant_name = serializers.SerializerMethodField()
+
     class Meta:
         model = OrderItem
-        fields = ['product', 'product_variant', 'quantity', 'price', 'total_price', 'gst']  # Include price, total_price, and gst if needed
+        fields = [
+            'product', 
+            'product_variant', 
+            'quantity', 
+            'price', 
+            'total_price', 
+            'gst', 
+            'product_name', 
+            'variant_name'
+        ]
+        ref_name = 'CounterOrderItemSerializer'
+
+    def get_product_name(self, obj):
+        return obj.product.name if obj.product else None
+
+    def get_variant_name(self, obj):
+        return obj.product_variant.name if obj.product_variant else None
 
 class OrderSerializer(serializers.ModelSerializer):
-    items = OrderItemSerializer(many=True)  # List of order items
-    outlet = serializers.PrimaryKeyRelatedField(queryset=Outlet.objects.all())  # Added outlet field
+    items = OrderItemSerializer(many=True)
 
     class Meta:
         model = Order
-        fields = ['order_number', 'order_date', 'total_price', 'gst', 'items', 'mode', 'outlet']  # Include outlet field
+        fields = ['outlet', 'order_number', 'order_date', 'total_price', 'gst', 'status', 'address', 'mode', 'items']
+        depth=1
+        ref_name = 'CounterOrderSerializer'
 
-    def create(self, validated_data):
-        items_data = validated_data.pop('items', [])
-        outlet_data = validated_data.pop('outlet')  # Extract outlet from validated_data
-
-        # Create the order and associate with the outlet
-        order = Order.objects.create(**validated_data, outlet=outlet_data)
-
-        for item_data in items_data:
-            OrderItem.objects.create(order=order, **item_data)
-
-        return order
+    def get_outlet_logo_url(self, obj):
+        outlet_logo_url = None
+        if obj.outlet and obj.outlet.logo:
+            request = self.context.get('request')
+            if request:
+                outlet_logo_url = request.build_absolute_uri(obj.outlet.logo.url)
+        return outlet_logo_url
