@@ -64,7 +64,7 @@ class ProductSerializer(serializers.ModelSerializer):
     category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())  # Add category field
     class Meta:
         model = Product
-        fields = ['id', 'name', 'price', 'image', 'description', 'outlet', 'is_gst_inclusive','category']
+        fields = ['id', 'name', 'price', 'image', 'description', 'outlet', 'is_gst_inclusive','category','is_veg']
         
     def create(self, validated_data):
         # Create and return a new Product instance

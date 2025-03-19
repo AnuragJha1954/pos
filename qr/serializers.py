@@ -25,55 +25,43 @@ from v1.models import (
 class ProductVariantSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductVariant
-        fields = ('id', 'name', 'extra_description', 'price', 'is_gst_inclusive')
+        fields = ['id', 'name', 'price', 'is_gst_inclusive', 'extra_description', 'created_at', 'updated_at']
 
-    def to_representation(self, instance):
-        """Adjust the variant price based on GST inclusion."""
-        data = super().to_representation(instance)
+    # def to_representation(self, instance):
+    #     """Adjust the variant price based on GST inclusion."""
+    #     data = super().to_representation(instance)
         
-        # Check if GST is inclusive and adjust the price accordingly
-        if instance.is_gst_inclusive:
-            gst_amount = instance.price * (instance.product.gst_percentage / 100)
-            data['price_with_gst'] = instance.price  # Price already includes GST
-        else:
-            gst_amount = instance.price * (instance.product.gst_percentage / 100)
-            data['price_with_gst'] = instance.price + gst_amount  # Add GST to price
+    #     # Check if GST is inclusive and adjust the price accordingly
+    #     if instance.is_gst_inclusive:
+    #         gst_amount = instance.price * (instance.product.gst_percentage / 100)
+    #         data['price_with_gst'] = instance.price  # Price already includes GST
+    #     else:
+    #         gst_amount = instance.price * (instance.product.gst_percentage / 100)
+    #         data['price_with_gst'] = instance.price + gst_amount  # Add GST to price
         
-        return data
+    #     return data
 
 
 class ProductSerializer(serializers.ModelSerializer):
     variants = ProductVariantSerializer(many=True, read_only=True)  # Nested serializer for variants
+    image_url = serializers.SerializerMethodField()
+    category = serializers.CharField(source='category.name', read_only=True)
+
 
     class Meta:
         model = Product
-        fields = ('id', 'name', 'category', 'outlet', 'price', 'image', 'description', 'gst_percentage', 'is_gst_inclusive', 'variants')
+        fields = [
+            'id', 'name', 'price', 'description', 'gst_percentage', 
+            'is_gst_inclusive', 'created_at', 'updated_at', 
+            'category', 'variants', 'image_url', 'is_veg'
+        ]
 
-    def to_representation(self, instance):
-        """Adjust the product price based on GST inclusion."""
-        data = super().to_representation(instance)
 
-        # Access request object from context
-        request = self.context.get('request')
-
-        # Check if GST is inclusive and adjust the price accordingly
-        if instance.is_gst_inclusive:
-            gst_amount = instance.price * (instance.gst_percentage / 100)
-            data['price_with_gst'] = instance.price  # Price already includes GST
-        else:
-            gst_amount = instance.price * (instance.gst_percentage / 100)
-            data['price_with_gst'] = instance.price + gst_amount  # Add GST to price
-        
-        # Update the product image URL
-        if instance.image:
-            data['image'] = request.build_absolute_uri(instance.image.url)
-        
-        # Update variant image URLs
-        for variant in data.get('variants', []):
-            if variant.get('variant_image'):
-                variant['variant_image'] = request.build_absolute_uri(variant['variant_image'])
-
-        return data
+    def get_image_url(self, obj):
+        # Return the absolute URL of the image if it exists
+        if obj.image:
+            return obj.image.url
+        return None
 
 
 

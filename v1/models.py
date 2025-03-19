@@ -168,6 +168,8 @@ class Product(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     category = models.ForeignKey('Category', on_delete=models.CASCADE, related_name='products')  # Add category field
+    is_veg = models.BooleanField(default=True, help_text="Indicates if the item is veg.")
+
 
     def __str__(self):
         return self.name

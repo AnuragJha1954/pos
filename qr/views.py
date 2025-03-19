@@ -61,17 +61,18 @@ from .serializers import (
 )
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def category_list(request,outlet_id):
+def category_list(request, outlet_id):
     try:
         # Check if the outlet exists
         outlet = Outlet.objects.get(id=outlet_id)
 
-        # Get the categories for the given outlet and extract only the names
-        categories = Category.objects.filter(outlet=outlet).values_list('name', flat=True)
+        # Get the categories for the given outlet with both id and name
+        categories = Category.objects.filter(outlet=outlet).values('id', 'name')
 
         return Response({
             "error": False,
             "detail": "Categories fetched successfully.",
+            "sequence":1,
             "categories": list(categories),
             "total_count": categories.count()
         }, status=status.HTTP_200_OK)
@@ -110,33 +111,58 @@ def category_list(request,outlet_id):
     }
 )
 @permission_classes([AllowAny])
-def product_list(request,outlet_id):
+def product_list(request, outlet_id):
     try:
         # Fetch the outlet to ensure it exists
         outlet = get_object_or_404(Outlet, id=outlet_id)
-        category_name = request.query_params.get('category_name', None)
-        products = Product.objects.filter(outlet= outlet_id)
 
-        # Apply category filter if present
-        if category_name:
-            products = products.filter(category__name__icontains=category_name)
+        # Get query parameters
+        is_veg = request.query_params.get('isVeg', 'true').lower() == 'true'
+        is_nonveg = request.query_params.get('isNonveg', 'true').lower() == 'true'
 
-        # Serialize the products without pagination
-        serializer = ProductSerializer(products, many=True, context={'request': request})
+        # Apply filtering logic based on the query parameters
+        if is_veg and not is_nonveg:
+            products = Product.objects.filter(outlet=outlet, is_veg=True)
+        elif not is_veg and is_nonveg:
+            products = Product.objects.filter(outlet=outlet, is_veg=False)
+        else:
+            products = Product.objects.filter(outlet=outlet)  # No filtering on is_veg
 
-        response_data = {
-            'error': False,
-            'detail': 'Products retrieved successfully',
-            'products': serializer.data
-        }
-        return Response(response_data, status=200)
+        products = products.select_related('category').prefetch_related('variants').all()
+
+        # Group products by category
+        category_dict = {}
+        for product in products:
+            category_id = product.category.id
+            category_name = product.category.name
+
+            # Initialize the category in the dictionary if not already present
+            if category_id not in category_dict:
+                category_dict[category_id] = {
+                    "category_id": category_id,
+                    "category_name": category_name,
+                    "items": []
+                }
+
+            # Serialize the product and append it to the category's items
+            product_data = ProductSerializer(product).data
+            category_dict[category_id]["items"].append(product_data)
+
+        # Convert the dictionary to a list
+        response_data = list(category_dict.values())
+
+        return Response({
+            "error": False,
+            "details": "Products fetched successfully",
+            "sequence": 3,
+            "categories": response_data
+        })
     except Exception as e:
-        response_data = {
-            'error': True,
-            'detail': str(e),
-            'products': []
-        }
-        return Response(response_data, status=500)
+        return Response({
+            "error": True,
+            "details": f"An error occurred: {str(e)}"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     
     
 
@@ -460,3 +486,166 @@ def place_order(request, outlet_id):
     #     'detail': 'Validation failed',
     #     'errors': serializer.errors
     # }, status=status.HTTP_400_BAD_REQUEST)
+    
+    
+    
+    
+    
+    
+
+@swagger_auto_schema(
+    method='get',
+    operation_summary="Get random products",
+    operation_description="Fetch up to three random products from the database along with their variants. If less than three products exist, it returns the available products.",
+    responses={
+        200: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "error": openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Indicates success or failure"),
+                "details": openapi.Schema(type=openapi.TYPE_STRING, description="Message describing the result"),
+                "products": openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            "id": openapi.Schema(type=openapi.TYPE_INTEGER, description="Product ID"),
+                            "name": openapi.Schema(type=openapi.TYPE_STRING, description="Product name"),
+                            "price": openapi.Schema(type=openapi.TYPE_STRING, description="Product price"),
+                            "is_veg": openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Indicates if the product is veg"),
+                            "variants": openapi.Schema(
+                                type=openapi.TYPE_ARRAY,
+                                items=openapi.Schema(
+                                    type=openapi.TYPE_OBJECT,
+                                    properties={
+                                        "id": openapi.Schema(type=openapi.TYPE_INTEGER, description="Variant ID"),
+                                        "name": openapi.Schema(type=openapi.TYPE_STRING, description="Variant name"),
+                                        "price": openapi.Schema(type=openapi.TYPE_STRING, description="Variant price"),
+                                    }
+                                ),
+                                description="List of product variants"
+                            ),
+                        }
+                    ),
+                    description="List of random products with variants"
+                )
+            }
+        ),
+        500: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "error": openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Indicates failure"),
+                "details": openapi.Schema(type=openapi.TYPE_STRING, description="Error message")
+            }
+        )
+    }
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def random_products(request, outlet_id):
+    try:
+        # Check if the outlet exists
+        outlet = Outlet.objects.filter(id=outlet_id).first()
+        if not outlet:
+            return Response({
+                "error": True,
+                "details": "Outlet not found."
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        # Get all products for the specified outlet
+        products = list(Product.objects.filter(outlet=outlet).prefetch_related('variants'))
+
+        # Shuffle the products list to randomize the selection
+        random.shuffle(products)
+
+        # If the number of products is less than 3, return only one product
+        if len(products) < 3:
+            selected_products = products[:1]
+        else:
+            selected_products = products[:3]
+
+        # Serialize the selected products along with their variants
+        product_list = []
+        for product in selected_products:
+            product_data = ProductSerializer(product).data
+            variants = product.variants.all()
+            variant_data = ProductVariantSerializer(variants, many=True).data
+            product_data['variants'] = variant_data
+            product_list.append(product_data)
+
+        return Response({
+            "error": False,
+            "details": "Random products fetched successfully.",
+            "products": product_list
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({
+            "error": True,
+            "details": f"An error occurred: {str(e)}"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        
+        
+        
+
+
+
+
+
+@swagger_auto_schema(
+    method='get',
+    operation_summary="Get banners",
+    operation_description="Fetch a list of banner images with their respective redirect URLs.",
+    responses={
+        200: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "error": openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Indicates success or failure"),
+                "details": openapi.Schema(type=openapi.TYPE_STRING, description="Message describing the result"),
+                "banners": openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            "image_url": openapi.Schema(type=openapi.TYPE_STRING, description="URL of the banner image"),
+                            "redirect_url": openapi.Schema(type=openapi.TYPE_STRING, description="URL to redirect on banner click")
+                        }
+                    ),
+                    description="List of banner objects"
+                )
+            }
+        )
+    }
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_banners(request,outlet_id):
+    try:
+        banners = [
+            {
+                "image_url": "https://images.pexels.com/photos/12935078/pexels-photo-12935078.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
+                "redirect_url": "https://mantrapos.com/"
+            },
+            {
+                "image_url": "https://images.pexels.com/photos/4921260/pexels-photo-4921260.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
+                "redirect_url": "https://mantrapos.com/"
+            }
+        ]
+
+        return Response({
+            "error": False,
+            "details": "Active Banners fetched successfully.",
+            "banners": banners
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({
+            "error": True,
+            "details": f"An error occurred: {str(e)}"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
+
+

@@ -71,7 +71,7 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'price', 'description', 'gst_percentage', 
             'is_gst_inclusive', 'created_at', 'updated_at', 
-            'category', 'variants', 'image_url'
+            'category', 'variants', 'image_url', 'is_veg'
         ]
 
     def get_image_url(self, obj):
