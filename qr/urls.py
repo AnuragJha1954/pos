@@ -4,7 +4,8 @@ from .views import (
     product_list,
     place_order,
     random_products,
-    get_banners
+    get_banners,
+    active_coupons
 )
 
 urlpatterns = [
@@ -13,4 +14,5 @@ urlpatterns = [
     path('place-order/<int:outlet_id>/', place_order, name='place_order'),
     path('special-menu/<int:outlet_id>/', random_products, name='random_products'),
     path('get-advertisement-banners/<int:outlet_id>/', get_banners, name='get_banners'),
+    path('get-coupons/<int:outlet_id>/', active_coupons, name='active-coupons'),
 ]

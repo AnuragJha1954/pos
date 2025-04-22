@@ -256,6 +256,11 @@ class Order(models.Model):
     address = models.TextField(blank=True, null=True)  # New optional address field
     mode = models.CharField(max_length=10, choices=MODE_CHOICES, blank=True, null=True)  # New mode field
     updated_at = models.DateTimeField(auto_now=True)
+    
+    # Razorpay-related fields
+    razorpay_order_id = models.CharField(max_length=100, blank=True, null=True)
+    razorpay_payment_id = models.CharField(max_length=100, blank=True, null=True)
+    razorpay_signature = models.CharField(max_length=255, blank=True, null=True)    
 
     def __str__(self):
         return f"Order {self.order_number}"
@@ -337,6 +342,46 @@ class StockRequest(models.Model):
 
     def __str__(self):
         return f"Stock Request for {'Variant' if self.product_variant else 'Product'} {self.product_variant.name if self.product_variant else self.product.name}, Status: {self.status}"
+
+
+
+
+
+
+
+
+
+class Coupon(models.Model):
+    DISCOUNT_TYPE_CHOICES = [
+        ('percentage', 'Percentage'),
+        ('rupees', 'Rupees'),
+    ]
+    
+    outlet = models.ForeignKey('Outlet', on_delete=models.CASCADE, related_name='coupons')  # 👈 ForeignKey to Outlet
+
+    coupon_code = models.CharField(max_length=20, unique=True)
+    discount_type = models.CharField(max_length=10, choices=DISCOUNT_TYPE_CHOICES)
+    discount_value = models.DecimalField(max_digits=10, decimal_places=2)
+    max_discount_amount = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        null=True, blank=True,
+        help_text="Max discount in ₹ (only applicable for percentage type)"
+    )
+    min_cart_value = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    expiry_date = models.DateTimeField(null=True, blank=True)
+
+    products = models.ManyToManyField('Product', blank=True, help_text="Leave empty to apply on all products")
+    categories = models.ManyToManyField('Category', blank=True, help_text="Leave empty to apply on all categories")
+
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def is_expired(self):
+        return self.expiry_date and timezone.now() > self.expiry_date
+
+    def __str__(self):
+        return self.coupon_code
 
 
 

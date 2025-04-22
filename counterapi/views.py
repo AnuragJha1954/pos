@@ -76,8 +76,8 @@ def user_login(request):
     try:
         if request.method == "POST":
             serializer = CustomUserCounterLoginSerializer(data=request.data)
-            print(request.data)
-            print(serializer.is_valid())
+            # print(request.data)
+            # print(serializer.is_valid())
             if serializer.is_valid():
                 user = serializer.validated_data["user"]
                 # role = serializer.validated_data["role"]
@@ -116,6 +116,7 @@ def user_login(request):
 
                 # Fetch outlet details for the employee
                 outlets = Outlet.objects.filter(outletaccess__employee=employee).distinct()
+                outlet_count = outlets.count()
                 outlet_details = [
                     {
                         "id": outlet.id,
@@ -158,6 +159,7 @@ def user_login(request):
                     "token": token.key,
                     "user_details": user_details,
                     "company_details": company_details,
+                    "outlet_count": outlet_count,
                     "outlet_details": outlet_details,
                     "plans": plans,
                 }
@@ -311,8 +313,16 @@ def category_list(request, outlet_id):
 @permission_classes([AllowAny])
 def product_list(request):
     try:
+        # Get the search query parameter
+        search_query = request.GET.get('product')
+        
         # Retrieve all products
         products = Product.objects.select_related('category').prefetch_related('variants').all()
+        
+        # Apply search filter if search query is provided
+        if search_query:
+            products = products.filter(name__icontains=search_query)
+
 
         # Group products by category
         category_dict = {}

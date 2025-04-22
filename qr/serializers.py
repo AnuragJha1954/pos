@@ -6,7 +6,8 @@ from v1.models import (
     ProductVariant,
     Outlet,
     Order,
-    OrderItem
+    OrderItem,
+    Coupon
     
 )
 
@@ -109,3 +110,24 @@ class OrderSerializer(serializers.ModelSerializer):
             if request:
                 outlet_logo_url = request.build_absolute_uri(obj.outlet.logo.url)
         return outlet_logo_url
+    
+
+
+
+
+
+class CouponSerializer(serializers.ModelSerializer):
+    products = serializers.StringRelatedField(many=True)
+    categories = serializers.StringRelatedField(many=True)
+
+    class Meta:
+        model = Coupon
+        fields = [
+            'coupon_code', 'discount_type', 'discount_value',
+            'max_discount_amount', 'min_cart_value', 'expiry_date',
+            'products', 'categories', 'is_active'
+        ]
+
+
+
+

@@ -13,7 +13,8 @@ from .models import (
     Order,
     OrderItem,
     Customer,
-    StockRequest
+    StockRequest,
+    Coupon
     )
 # Register your models here.
 @admin.register(Company)
@@ -215,4 +216,22 @@ class StockRequestAdmin(admin.ModelAdmin):
 # Register the updated admin class
 admin.site.register(StockRequest, StockRequestAdmin)
 
+
+
+
+
+@admin.register(Coupon)
+class CouponAdmin(admin.ModelAdmin):
+    list_display = (
+        'coupon_code', 'outlet', 'discount_type', 'discount_value',
+        'max_discount_amount', 'min_cart_value', 'expiry_date',
+        'is_active', 'created_at'
+    )
+    list_filter = (
+        'outlet', 'discount_type', 'is_active', 'expiry_date',
+    )
+    search_fields = (
+        'coupon_code',
+    )
+    filter_horizontal = ('products', 'categories')  # Improves selection UI for M2M fields
 

@@ -19,6 +19,7 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from django.utils import timezone
 from django.utils.timezone import localtime
+from django.db.models import Q
 
 from v1.models import (
     Outlet,
@@ -27,14 +28,16 @@ from v1.models import (
     ProductVariant,
     Order,
     OrderItem,
-    Customer
+    Customer,
+    Coupon
 )
 
 from .serializers import (
     ProductSerializer,
     ProductVariantSerializer,
     OrderItemSerializer,
-    OrderSerializer
+    OrderSerializer,
+    CouponSerializer
 )
 
 
@@ -213,18 +216,24 @@ def generate_order_number(length=12):
 @permission_classes([AllowAny])
 def place_order(request, outlet_id):
     try:
-        data=request.data
-        customer_data= data.get('customer')
-        items_data= data.get('items')
+        data = request.data
+        customer_data = data.get('customer')
+        items_data = data.get('items')
+        mode = data.get('mode', '')  # Extract mode early
+        coupon = data.get('coupon', '')  # Extract mode early
         
+        # Razorpay fields
+        razorpay_order_id = data.get('razorpay_order_id')
+        razorpay_payment_id = data.get('razorpay_payment_id')
+        razorpay_signature = data.get('razorpay_signature')
+
         # Check for Customer
         customer = Customer.objects.filter(
             name=customer_data.get('name'),
-            phone_number = customer_data.get('phone_number')
+            phone_number=customer_data.get('phone_number')
         ).first()
         
         if not customer:
-            # Create a customer in cas t does not exist
             customer = Customer.objects.create(
                 name=customer_data.get('name'),
                 phone_number=customer_data.get('phone_number')
@@ -238,19 +247,20 @@ def place_order(request, outlet_id):
             gst=Decimal('0.00'),
             status='PENDING',
             order_date=localtime(timezone.now()),
-            address=data.get('address', ''),
-            mode=data.get('mode', ''),
+            # address=data.get('address', ''),
+            mode=mode,
+            razorpay_order_id=razorpay_order_id if mode == 'upi' else None,
+            razorpay_payment_id=razorpay_payment_id if mode == 'upi' else None,
+            razorpay_signature=razorpay_signature if mode == 'upi' else None,
         )
-        
-        # Link the customer to the order
+
         customer.order = order
         customer.save()
-        
+
         total_price = Decimal('0.00')
         total_gst = Decimal('0.00')
         processed_items = []
 
-        # Process each order item
         for item_data in items_data:
             product_id = item_data.get('product')
             variant_id = item_data.get('product_variant')
@@ -276,19 +286,16 @@ def place_order(request, outlet_id):
             total_item_price = price * quantity
 
             if is_gst_inclusive:
-                # GST-inclusive price logic
                 rate_excluding_gst = price / (1 + gst / Decimal('100'))
                 gst_amount = total_item_price - (rate_excluding_gst * quantity)
                 amount_excluding_gst = total_item_price - gst_amount
             else:
-                # GST-exclusive price logic
                 gst_amount = (gst / Decimal('100')) * total_item_price
                 rate_excluding_gst = price
                 amount_excluding_gst = total_item_price
 
             total_item_gst_inclusive = total_item_price + gst_amount if not is_gst_inclusive else total_item_price
 
-            # Create OrderItem
             OrderItem.objects.create(
                 order=order,
                 product=product if product_id else None,
@@ -299,51 +306,39 @@ def place_order(request, outlet_id):
                 gst=gst_amount
             )
 
-            # Add calculated data to processed items for context
             processed_items.append({
                 "product_name": product.name,
                 "variant_name": variant.name if variant_id else None,
                 "quantity": quantity,
-                "price": round(rate_excluding_gst, 2),  # Rate excl. GST
-                "total_price": round(amount_excluding_gst, 2),  # Amount excl. GST
+                "price": round(rate_excluding_gst, 2),
+                "total_price": round(amount_excluding_gst, 2),
                 "gst": round(gst_amount, 2),
             })
 
             total_price += total_item_gst_inclusive
             total_gst += gst_amount
 
-        # Update the total price and GST of the order
-        subtotal = total_price - total_gst  # Calculate subtotal before GST
+        subtotal = total_price - total_gst
         order.total_price = total_price
         order.gst = total_gst
         order.save()
 
-        # Calculate CGST and SGST
         cgst = total_gst / 2
         sgst = total_gst / 2
 
-        # Serialize and return the created order with customer details
         order_serializer = OrderSerializer(order, context={'request': request})
         response_data = order_serializer.data
 
         response_data['subtotal'] = round(subtotal, 2)
-        
-        # print(localtime(timezone.now()))
-        # Format the order date
-        formatted_date = order.order_date.strftime("%d-%m-%Y %I:%M %p")
-        response_data['formatted_date'] = formatted_date
-
-        # Add customer data and processed items to the response manually
+        response_data['formatted_date'] = order.order_date.strftime("%d-%m-%Y %I:%M %p")
         response_data['customer'] = {
             "name": customer.name,
             "phone_number": customer.phone_number
         }
         response_data['items'] = processed_items
-
-        # Add CGST and SGST to the response
         response_data['cgst'] = round(cgst, 2)
         response_data['sgst'] = round(sgst, 2)
-        
+
         return Response(response_data, status=status.HTTP_201_CREATED)
 
     except Product.DoesNotExist:
@@ -361,6 +356,7 @@ def place_order(request, outlet_id):
             "error": True,
             "details": f"An error occurred: {str(e)}"
         }, status=500)
+
         
         
     
@@ -648,4 +644,48 @@ def get_banners(request,outlet_id):
 
 
 
+
+
+
+@swagger_auto_schema(
+    method='get',
+    operation_description="Retrieve all active coupons with their details like min cart value, expiry, applicable products/categories, and discount rules.",
+    responses={
+        200: openapi.Response(
+            description="Successful Response",
+            schema=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'error': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                    'details': openapi.Schema(type=openapi.TYPE_STRING),
+                    'coupons': openapi.Schema(
+                        type=openapi.TYPE_ARRAY,
+                        items=openapi.Items(type=openapi.TYPE_OBJECT)
+                    ),
+                },
+            )
+        )
+    }
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def active_coupons(request,outlet_id):
+    try:
+        # Check if the outlet exists
+        outlet = Outlet.objects.filter(id=outlet_id).first()
+        now = timezone.now()
+        coupons = Coupon.objects.filter(outlet=outlet).filter(is_active=True).filter(
+            Q(expiry_date__isnull=True) | Q(expiry_date__gt=now)
+        )
+        serializer = CouponSerializer(coupons, many=True)
+        return Response({
+            "error": False,
+            "details": "Active coupons fetched successfully",
+            "coupons": serializer.data
+        })
+    except Exception as e:
+        return Response({
+            "error": True,
+            "details": f"An error occurred: {str(e)}"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
