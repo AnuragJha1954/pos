@@ -7,7 +7,8 @@ from .views import (
     orders_past_three_hours,
     order_details,
     create_stock_request,
-    print_kot
+    print_kot,
+    mark_items_stock_out
     )
 
 urlpatterns = [
@@ -18,7 +19,7 @@ urlpatterns = [
     path('<int:outlet_id>/get-categories/', category_list, name='Get Categories for Counter'),
     
     # Endpoint to fetch the list of products
-    path('products/', product_list, name='product_list'),
+    path('<int:outlet_id>/products/', product_list, name='product_list'),
 
     # Endpoint to place an order, passing outlet_id in the URL
     path('orders/<int:outlet_id>/place-order/', place_order, name='place_order'),
@@ -33,5 +34,8 @@ urlpatterns = [
 
     # Endpoint to create a stock request, passing outlet_id in the URL
     path('stock-requests/<int:outlet_id>/stock-requests/', create_stock_request, name='create_stock_request'),
+    
+    # Endpoint to mark items as stock out
+    path('stock-out/<int:outlet_id>/mark-stock-out/', mark_items_stock_out, name='mark-stock-out'),
     
 ]

@@ -311,45 +311,74 @@ def category_list(request, outlet_id):
 )
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def product_list(request):
+def product_list(request,outlet_id):
     try:
         # Get the search query parameter
         search_query = request.GET.get('product')
         
-        # Retrieve all products
-        products = Product.objects.select_related('category').prefetch_related('variants').all()
+        # Retrieve all products base query set
+        base_products = Product.objects.filter(outlet_id=outlet_id).select_related('category').prefetch_related('variants').all()
         
         # Apply search filter if search query is provided
         if search_query:
-            products = products.filter(name__icontains=search_query)
+            base_products = base_products.filter(name__icontains=search_query)
+        
+        
+        # Separate in-stock and stock-out products
+        in_stock_products = base_products.filter(is_stock_out=False)
+        stock_out_products = base_products.filter(is_stock_out=True)
+        
+        # Function to group products by category
+        def group_by_category(products_queryset):
+            category_dict = {}
+            for product in products_queryset:
+                category_id = product.category.id
+                category_name = product.category.name
+                if category_id not in category_dict:
+                    category_dict[category_id] = {
+                        "category_id": category_id,
+                        "category_name": category_name,
+                        "items": []
+                    }
+                product_data = ProductSerializer(product).data
+                category_dict[category_id]["items"].append(product_data)
+            return list(category_dict.values())
 
+        # # Group products by category
+        # category_dict = {}
+        # for product in products:
+        #     category_id = product.category.id
+        #     category_name = product.category.name
 
-        # Group products by category
-        category_dict = {}
-        for product in products:
-            category_id = product.category.id
-            category_name = product.category.name
+        #     # Initialize the category in the dictionary if not already present
+        #     if category_id not in category_dict:
+        #         category_dict[category_id] = {
+        #             "category_id": category_id,
+        #             "category_name": category_name,
+        #             "items": []
+        #         }
 
-            # Initialize the category in the dictionary if not already present
-            if category_id not in category_dict:
-                category_dict[category_id] = {
-                    "category_id": category_id,
-                    "category_name": category_name,
-                    "items": []
-                }
+        #     # Serialize the product and append it to the category's items
+        #     product_data = ProductSerializer(product).data
+        #     category_dict[category_id]["items"].append(product_data)
 
-            # Serialize the product and append it to the category's items
-            product_data = ProductSerializer(product).data
-            category_dict[category_id]["items"].append(product_data)
-
-        # Convert the dictionary to a list
-        response_data = list(category_dict.values())
-
-        return Response({
+        response_data = {
             "error": False,
             "details": "Products fetched successfully",
-            "categories": response_data
-        })
+            "categories": group_by_category(in_stock_products),
+            "stock_out_categories": group_by_category(stock_out_products),
+        }
+         
+        return Response(response_data, status=status.HTTP_200_OK)
+        
+        # # Convert the dictionary to a list
+        # response_data = list(category_dict.values())
+
+        # return Response({
+        #     "error": False,
+        #     "details": "Products fetched successfully",
+        #     "categories": response_data
+        # })
     except Exception as e:
         return Response({
             "error": True,
@@ -614,8 +643,8 @@ def print_kot(request, outlet_id):
 @permission_classes([AllowAny])
 def orders_past_three_hours(request, outlet_id):
     try:
-        # Calculate the time 3 hours ago from now
-        three_hours_ago = timezone.now() - timedelta(hours=3)
+        # Calculate the time 24 hours ago from now
+        three_hours_ago = timezone.now() - timedelta(hours=24)
 
         # Filter orders for the specific outlet and within the past three hours
         orders = Order.objects.filter(
@@ -863,6 +892,118 @@ def create_stock_request(request, outlet_id):
             "error": True,
             "details": f"An error occurred: {str(e)}"
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
+
+
+
+
+
+# {
+#   "product_ids": [1, 2],
+#   "product_variant_ids": [10, 11]
+# }
+
+
+
+@swagger_auto_schema(
+    method='post',
+    operation_description="Mark products and/or product variants as stock out for a specific outlet.",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'product_ids': openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Items(type=openapi.TYPE_INTEGER),
+                description="List of product IDs to mark as stock out."
+            ),
+            'product_variant_ids': openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Items(type=openapi.TYPE_INTEGER),
+                description="List of product variant IDs to mark as stock out."
+            ),
+        },
+        required=[],
+        example={
+            "product_ids": [1, 2],
+            "product_variant_ids": [10, 11]
+        }
+    ),
+    responses={
+        200: openapi.Response(
+            description="Stock out status updated successfully.",
+            examples={
+                "application/json": {
+                    "error": False,
+                    "details": "Stock out status updated successfully."
+                }
+            }
+        ),
+        400: openapi.Response(
+            description="Bad Request",
+            examples={
+                "application/json": {
+                    "error": True,
+                    "details": "Please provide either product_ids or product_variant_ids."
+                }
+            }
+        ),
+        500: openapi.Response(
+            description="Internal Server Error",
+            examples={
+                "application/json": {
+                    "error": True,
+                    "details": "An error occurred: ..."
+                }
+            }
+        ),
+    }
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def mark_items_stock_out(request, outlet_id):
+    try:
+        product_ids = request.data.get("product_ids", [])
+        variant_ids = request.data.get("product_variant_ids", [])
+
+        if not product_ids and not variant_ids:
+            return Response({
+                "error": True,
+                "details": "Please provide either product_ids or product_variant_ids."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Mark products and their variants as stock out
+        if product_ids:
+            products = Product.objects.filter(id__in=product_ids, outlet_id=outlet_id)
+            product_variants = ProductVariant.objects.filter(product__in=products)
+
+            products.update(is_stock_out=True)
+            product_variants.update(is_stock_out=True)
+
+        # Mark variants as stock out only if their parent product is not already included
+        if variant_ids:
+            variants = ProductVariant.objects.filter(
+                id__in=variant_ids,
+                product__outlet_id=outlet_id
+            ).exclude(product_id__in=product_ids)
+            variants.update(is_stock_out=True)
+
+        return Response({
+            "error": False,
+            "details": "Items Marked as Stocked Out successfully."
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({
+            "error": True,
+            "details": f"An error occurred: {str(e)}"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
 
 
 

@@ -114,13 +114,13 @@ class PlanAssignmentAccessAdmin(admin.ModelAdmin):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('name', 'price', 'outlet', 'category', 'is_gst_inclusive', 'gst_percentage','is_veg')
+    list_display = ('name', 'price', 'outlet', 'category', 'is_gst_inclusive', 'gst_percentage','is_veg','is_stock_out')
     search_fields = ('name', 'outlet__outlet_name', 'category__name')  # Search includes category name
-    list_filter = ('outlet', 'is_gst_inclusive', 'category','is_veg')  # Add category filter
+    list_filter = ('outlet', 'is_gst_inclusive', 'category','is_veg','is_stock_out')  # Add category filter
     readonly_fields = ('created_at', 'updated_at')
     fieldsets = (
         (None, {
-            'fields': ('name', 'price', 'image', 'description', 'outlet','is_veg', 'category', 'gst_percentage', 'is_gst_inclusive')
+            'fields': ('name', 'price', 'image', 'description', 'outlet','is_veg','is_stock_out', 'category', 'gst_percentage', 'is_gst_inclusive')
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
@@ -130,13 +130,13 @@ class ProductAdmin(admin.ModelAdmin):
 
 @admin.register(ProductVariant)
 class ProductVariantAdmin(admin.ModelAdmin):
-    list_display = ('name', 'product', 'price', 'is_gst_inclusive')
+    list_display = ('name', 'product', 'price', 'is_gst_inclusive','is_stock_out')
     search_fields = ('name', 'product__name')
-    list_filter = ('is_gst_inclusive', 'product')
+    list_filter = ('is_gst_inclusive', 'product','is_stock_out')
     readonly_fields = ('created_at', 'updated_at')
     fieldsets = (
         (None, {
-            'fields': ('product', 'name', 'price', 'is_gst_inclusive', 'extra_description')
+            'fields': ('product', 'name', 'price', 'is_gst_inclusive','is_stock_out', 'extra_description')
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),

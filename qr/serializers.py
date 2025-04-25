@@ -26,7 +26,7 @@ from v1.models import (
 class ProductVariantSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductVariant
-        fields = ['id', 'name', 'price', 'is_gst_inclusive', 'extra_description', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'price', 'is_gst_inclusive', 'extra_description', 'created_at', 'updated_at','is_stock_out']
 
     # def to_representation(self, instance):
     #     """Adjust the variant price based on GST inclusion."""
@@ -54,7 +54,7 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'price', 'description', 'gst_percentage', 
             'is_gst_inclusive', 'created_at', 'updated_at', 
-            'category', 'variants', 'image_url', 'is_veg'
+            'category', 'variants', 'image_url', 'is_veg', 'is_stock_out'
         ]
 
 

@@ -59,7 +59,7 @@ class CustomUserCounterLoginSerializer(serializers.Serializer):
 class ProductVariantSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductVariant
-        fields = ['id', 'name', 'price', 'is_gst_inclusive', 'extra_description', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'price', 'is_gst_inclusive', 'extra_description', 'created_at', 'updated_at','is_stock_out']
 
 class ProductSerializer(serializers.ModelSerializer):
     variants = ProductVariantSerializer(many=True, read_only=True)
@@ -71,7 +71,7 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'price', 'description', 'gst_percentage', 
             'is_gst_inclusive', 'created_at', 'updated_at', 
-            'category', 'variants', 'image_url', 'is_veg'
+            'category', 'variants', 'image_url', 'is_veg','is_stock_out'
         ]
 
     def get_image_url(self, obj):

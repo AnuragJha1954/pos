@@ -169,7 +169,7 @@ class Product(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     category = models.ForeignKey('Category', on_delete=models.CASCADE, related_name='products')  # Add category field
     is_veg = models.BooleanField(default=True, help_text="Indicates if the item is veg.")
-
+    is_stock_out = models.BooleanField(default=False, help_text="True if the product is out of stock")
 
     def __str__(self):
         return self.name
@@ -192,6 +192,7 @@ class ProductVariant(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_stock_out = models.BooleanField(default=False, help_text="True if the product is out of stock")
 
     def __str__(self):
         return f"{self.product.name} - {self.name}"
