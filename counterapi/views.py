@@ -16,6 +16,7 @@ from django.http import JsonResponse
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from firebase_admin import messaging
 
 from rest_framework import status
 from rest_framework.response import Response
@@ -1008,7 +1009,33 @@ def mark_items_stock_out(request, outlet_id):
 
 
 
+@api_view(['POST']) 
+@permission_classes([AllowAny])
+def send_order_notification(request):
+    registration_token = ""
+    try:
+        # Create FCM message
+        message = messaging.Message(
+            notification=messaging.Notification(
+                title="New Order Alert",
+                body="Test Order ID",
+            ),
+            token=registration_token,
+        )
 
+        # Send the message
+        response = messaging.send(message)
+        return Response(
+            {"error": False, "detail": "Message sent successfully", "response": response},
+            status=status.HTTP_200_OK,
+        )
+
+    except Exception as e:
+        return Response(
+            {"error": True, "detail": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+    
 
 
 

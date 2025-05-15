@@ -7,8 +7,13 @@ from v1.models import (
     Outlet,
     Order,
     OrderItem,
-    Coupon
-    
+    Coupon, 
+    RazorpayCredential,
+    Company
+)
+
+from .models import (
+    QRCustomization
 )
 
 
@@ -59,9 +64,9 @@ class ProductSerializer(serializers.ModelSerializer):
 
 
     def get_image_url(self, obj):
-        # Return the absolute URL of the image if it exists
-        if obj.image:
-            return obj.image.url
+        request = self.context.get('request')
+        if obj.image and request is not None:
+            return request.build_absolute_uri(obj.image.url)
         return None
 
 
@@ -127,6 +132,50 @@ class CouponSerializer(serializers.ModelSerializer):
             'max_discount_amount', 'min_cart_value', 'expiry_date',
             'products', 'categories', 'is_active'
         ]
+
+
+
+class RazorpayCredentialSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RazorpayCredential
+        fields = ['razorpay_client_id', 'razorpay_client_secret']
+
+
+
+
+class QRCustomizationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = QRCustomization
+        fields = ['qr_tagline', 'qr_logo', 'theme_color']
+        
+    def get_qr_logo(self, obj):
+        request = self.context.get('request')
+        return request.build_absolute_uri(obj.qr_logo.url) if obj.qr_logo and request else None
+
+class CompanySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Company
+        fields = ['name', 'address']
+        ref_name = 'QrCompanySerializer'
+
+class OutletSerializer(serializers.ModelSerializer):
+    company_details = CompanySerializer(source='company')
+    qr_customization_details = QRCustomizationSerializer(source='qr_customization', many=False)
+
+    class Meta:
+        model = Outlet
+        fields = [
+            'outlet_name', 'address', 'phone_number', 'gst_number',
+            'opening_hours', 'is_active','logo',
+            'company_details', 'qr_customization_details'
+        ]
+        ref_name = 'QrOutletSerializer'
+        
+        
+        def get_logo(self, obj):
+            request = self.context.get('request')
+            return request.build_absolute_uri(obj.logo.url) if obj.logo and request else None
+
 
 
 

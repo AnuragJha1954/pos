@@ -9,7 +9,9 @@ from .models import (
     ProductVariant,
     Menu,
     Category,
-    StockRequest
+    StockRequest,
+    FCMToken,
+    EmployeeCredentials
 )
 from users.models import CustomUser
 
@@ -31,6 +33,7 @@ class EmployeeCreateSerializer(serializers.Serializer):
     address = serializers.CharField(required=False, allow_blank=True)
     date_of_birth = serializers.DateField(required=False, allow_null=True)
     role = serializers.ChoiceField(choices=Employee.ROLE_CHOICES)
+    permissions = serializers.JSONField(required=False)
 
     def create_employee_user(self, validated_data, company):
         # Create a unique username from the first and last name
@@ -207,3 +210,70 @@ class ApproveStockRequestSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+
+
+
+class FCMTokenSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FCMToken
+        fields = ['outlet', 'token']
+
+
+
+
+
+
+
+class EmployeeListSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
+    role_display = serializers.CharField(source='get_role_display', read_only=True)
+
+    class Meta:
+        model = Employee
+        fields = [
+            "id",
+            "user_id",
+            "first_name",
+            "last_name",
+            "email",
+            "phone_number",
+            "address",
+            "role",
+            "role_display",
+            "employee_code",
+            "is_active",
+            "permissions",
+        ]
+
+
+
+
+
+
+class EmployeePermissionsUpdateSerializer(serializers.Serializer):
+    permissions = serializers.DictField(child=serializers.BooleanField(), required=True)
+
+
+
+
+
+class EmployeeCredentialsSerializer(serializers.ModelSerializer):
+    employee_id = serializers.IntegerField(source='employee.id', read_only=True)
+
+    class Meta:
+        model = EmployeeCredentials
+        fields = ['employee_id', 'email', 'password', 'created_at']
+
+
+
+
+
+class ManageEmployeeCredentialsSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True, max_length=128)
+    
+    
+    
+    
+    
+    

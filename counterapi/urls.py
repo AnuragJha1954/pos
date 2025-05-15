@@ -8,7 +8,8 @@ from .views import (
     order_details,
     create_stock_request,
     print_kot,
-    mark_items_stock_out
+    mark_items_stock_out,
+    send_order_notification
     )
 
 urlpatterns = [
@@ -37,5 +38,6 @@ urlpatterns = [
     
     # Endpoint to mark items as stock out
     path('stock-out/<int:outlet_id>/mark-stock-out/', mark_items_stock_out, name='mark-stock-out'),
+    path('test/', send_order_notification, name='send_order_notification'),
     
 ]

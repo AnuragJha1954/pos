@@ -8,6 +8,7 @@ from django.http import JsonResponse
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
+from firebase_admin import messaging
 
 from rest_framework import status
 from rest_framework.response import Response
@@ -17,6 +18,7 @@ from rest_framework.authentication import TokenAuthentication
 from rest_framework.authtoken.models import Token
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.exceptions import NotFound
+
 
 
 from .models import (
@@ -30,7 +32,9 @@ from .models import (
     ProductVariant,
     Menu,
     Category,
-    StockRequest
+    StockRequest, 
+    FCMToken,
+    EmployeeCredentials
 )
 
 from .serializers import (
@@ -44,7 +48,11 @@ from .serializers import (
     CategorySerializer,
     EmployeeSerializer,
     StockRequestListSerializer,
-    ApproveStockRequestSerializer
+    ApproveStockRequestSerializer,
+    EmployeeListSerializer,
+    EmployeePermissionsUpdateSerializer,
+    EmployeeCredentialsSerializer,
+    ManageEmployeeCredentialsSerializer
 )
 
 
@@ -212,7 +220,21 @@ def grant_outlet_access(request, outlet_id, user_id,manager_id):
 
 
 
-
+## Sample Body
+# {
+#   "first_name": "Rahul",
+#   "last_name": "Sharma",
+#   "email": "rahul.sharma@example.com",
+#   "phone_number": "9876543210",
+#   "address": "123 MG Road, Bengaluru",
+#   "date_of_birth": "1995-06-15",
+#   "role": "store_admin",
+#   "permissions": {
+#     "can_add_product": true,
+#     "can_view_reports": true,
+#     "can_manage_orders": false
+#   }
+# }
 
 
 
@@ -278,7 +300,8 @@ def create_employee(request, user_id):
             address=validated_data.get('address'),
             date_of_birth=validated_data.get('date_of_birth'),
             role=validated_data['role'],
-            is_active=True
+            is_active=True,
+            permissions=validated_data.get('permissions', {})
         )
 
         return Response({
@@ -1019,5 +1042,297 @@ def approve_stock_requests(request, outlet_id,user_id):
 
 
 
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def create_fcm_token(request, outlet_id):
+    try:
+        # Get outlet by ID
+        outlet = get_object_or_404(Outlet, id=outlet_id)
+
+        # Extract token from request data
+        token = request.data.get("token")
+
+        if not token:
+            return Response(
+                {"error": True, "detail": "Token is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Check if token already exists for this outlet
+        existing_token = FCMToken.objects.filter(outlet=outlet).first()
+
+        if existing_token:
+            existing_token.token = token
+            existing_token.save()
+            return Response(
+                {"error": False, "detail": "FCM Token updated successfully"},
+                status=status.HTTP_200_OK,
+            )
+        else:
+            FCMToken.objects.create(outlet=outlet, token=token)
+            return Response(
+                {"error": False, "detail": "FCM Token created successfully"},
+                status=status.HTTP_201_CREATED,
+            )
+
+    except Exception as e:
+        return Response(
+            {"error": True, "detail": str(e)},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='get',
+    operation_summary="Get all employees for a user's company",
+    manual_parameters=[
+        openapi.Parameter('Authorization', openapi.IN_HEADER, description="Token", type=openapi.TYPE_STRING),
+    ],
+    responses={
+        200: openapi.Response(description="Success", schema=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'error': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                'detail': openapi.Schema(type=openapi.TYPE_STRING),
+                'employees': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_OBJECT)),
+            }
+        )),
+        401: "Unauthorized",
+        403: "Forbidden"
+    }
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_employees_by_user(request, user_id):
+    # Check for Authorization token
+    token_key = request.headers.get("Authorization")
+    if not token_key:
+        return Response({"error": "Authorization token is missing"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    # Validate token
+    try:
+        token = Token.objects.get(key=token_key)
+        if token.user.id != user_id:
+            return Response({"error": True, "detail": "Token does not belong to this user"}, status=status.HTTP_403_FORBIDDEN)
+        requesting_user = token.user
+    except Token.DoesNotExist:
+        return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    # Get requesting user's employee record and company
+    try:
+        employee = Employee.objects.get(user=requesting_user)
+        company = employee.company
+    except Employee.DoesNotExist:
+        return Response({"error": True, "detail": "User is not associated with any employee record"}, status=status.HTTP_403_FORBIDDEN)
+
+    # Get all employees of the same company
+    employees = Employee.objects.filter(company=company)
+
+    # Serialize and return
+    serializer = EmployeeListSerializer(employees, many=True)
+    return Response({"error": False, "detail":"Employess fetched successfully", "employees": serializer.data}, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='patch',
+    operation_summary="Update an employee's permissions",
+    manual_parameters=[
+        openapi.Parameter('Authorization', openapi.IN_HEADER, description="Token", type=openapi.TYPE_STRING),
+    ],
+    request_body=EmployeePermissionsUpdateSerializer,
+    responses={
+        200: openapi.Response(description="Permissions updated", schema=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "error": openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                "detail": openapi.Schema(type=openapi.TYPE_STRING),
+                "permissions": openapi.Schema(type=openapi.TYPE_OBJECT),
+            }
+        )),
+        400: "Bad Request",
+        403: "Forbidden",
+        404: "Employee not found"
+    }
+)
+@api_view(['PATCH'])
+@permission_classes([AllowAny])
+def update_employee_permissions(request,user_id, employee_id):
+    # Check for Authorization token
+    token_key = request.headers.get("Authorization")
+    if not token_key:
+        return Response({"error": "Authorization token is missing"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    # Validate token
+    try:
+        token = Token.objects.get(key=token_key)
+        if token.user.id != user_id:
+            return Response({"error": True, "detail": "Token does not belong to this user"}, status=status.HTTP_403_FORBIDDEN)
+        requesting_user = token.user
+    except Token.DoesNotExist:
+        return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    # Get the employee to update
+    try:
+        employee = Employee.objects.get(id=employee_id)
+    except Employee.DoesNotExist:
+        return Response({"error": "Employee not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    # Deserialize and validate permissions data
+    serializer = EmployeePermissionsUpdateSerializer(data=request.data)
+    if serializer.is_valid():
+        new_permissions = serializer.validated_data['permissions']
+
+        # Merge existing permissions with new ones (update or add)
+        current_permissions = employee.permissions or {}
+        current_permissions.update(new_permissions)
+        employee.permissions = current_permissions
+        employee.save()
+
+        return Response({
+            "error": False,
+            "detail": "Permissions updated successfully",
+            "permissions": employee.permissions
+        }, status=status.HTTP_200_OK)
+
+    return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='get',
+    operation_summary="Get credentials for an employee",
+    manual_parameters=[
+        openapi.Parameter('Authorization', openapi.IN_HEADER, description="Token", type=openapi.TYPE_STRING),
+    ],
+    responses={
+        200: openapi.Response(description="Success", schema=EmployeeCredentialsSerializer),
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Credentials not found"
+    }
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_employee_credentials(request, employee_id,user_id):
+    # Check for Authorization token
+    token_key = request.headers.get("Authorization")
+    if not token_key:
+        return Response({"error": "Authorization token is missing"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    # Validate token
+    try:
+        token = Token.objects.get(key=token_key)
+        if token.user.id != user_id:
+            return Response({"error": True, "detail": "Token does not belong to this user"}, status=status.HTTP_403_FORBIDDEN)
+        # requesting_user = token.user
+    except Token.DoesNotExist:
+        return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
+    
+    # get credentials process
+    try:
+        credentials = EmployeeCredentials.objects.get(employee_id=employee_id)
+    except EmployeeCredentials.DoesNotExist:
+        return Response({"error": "Credentials not found for this employee"}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = EmployeeCredentialsSerializer(credentials)
+    return Response({
+        "error": False,
+        "credentials": serializer.data
+    }, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='post',
+    operation_summary="Create or update employee credentials",
+    manual_parameters=[
+        openapi.Parameter('Authorization', openapi.IN_HEADER, description="Token", type=openapi.TYPE_STRING),
+    ],
+    request_body=ManageEmployeeCredentialsSerializer,
+    responses={
+        201: openapi.Response(description="Credentials created"),
+        200: openapi.Response(description="Credentials updated"),
+        400: "Invalid input",
+        401: "Unauthorized",
+        403: "Forbidden"
+    }
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def manage_employee_credentials(request, employee_id,user_id):
+     # Check for Authorization token
+    token_key = request.headers.get("Authorization")
+    if not token_key:
+        return Response({"error": "Authorization token is missing"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    # Validate token
+    try:
+        token = Token.objects.get(key=token_key)
+        if token.user.id != user_id:
+            return Response({"error": True, "detail": "Token does not belong to this user"}, status=status.HTTP_403_FORBIDDEN)
+        # requesting_user = token.user
+    except Token.DoesNotExist:
+        return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
+    
+    # credentils logic starts here
+    try:
+        employee = Employee.objects.get(id=employee_id)
+        user = employee.user
+    except Employee.DoesNotExist:
+        return Response({"error": "Employee not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = ManageEmployeeCredentialsSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    validated_data = serializer.validated_data
+    new_email = validated_data['email']
+    new_password = validated_data['password']
+
+    # Create or update the credentials
+    credentials, created = EmployeeCredentials.objects.get_or_create(employee=employee)
+
+    credentials.email = new_email
+    credentials.password = new_password
+    credentials.save()
+
+    # Also update in CustomUser
+    user.email = new_email
+    user.set_password(new_password)
+    user.save()
+
+    return Response({
+        "error": False,
+        "message": "Credentials created successfully." if created else "Credentials updated successfully."
+    }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
 

@@ -14,7 +14,10 @@ from .models import (
     OrderItem,
     Customer,
     StockRequest,
-    Coupon
+    Coupon,
+    RazorpayCredential,
+    FCMToken,
+    EmployeeCredentials
     )
 # Register your models here.
 @admin.register(Company)
@@ -235,3 +238,17 @@ class CouponAdmin(admin.ModelAdmin):
     )
     filter_horizontal = ('products', 'categories')  # Improves selection UI for M2M fields
 
+
+
+
+@admin.register(RazorpayCredential)
+class RazorpayCredentialAdmin(admin.ModelAdmin):
+    list_display = ('outlet', 'razorpay_client_id', 'created_at', 'updated_at')
+    search_fields = ('outlet__outlet_name', 'razorpay_client_id')
+    readonly_fields = ('created_at', 'updated_at')
+
+
+
+
+admin.site.register(FCMToken)
+admin.site.register(EmployeeCredentials)

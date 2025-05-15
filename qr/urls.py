@@ -5,7 +5,9 @@ from .views import (
     place_order,
     random_products,
     get_banners,
-    active_coupons
+    active_coupons,
+    get_razorpay_credentials,
+    get_outlet_details
 )
 
 urlpatterns = [
@@ -15,4 +17,6 @@ urlpatterns = [
     path('special-menu/<int:outlet_id>/', random_products, name='random_products'),
     path('get-advertisement-banners/<int:outlet_id>/', get_banners, name='get_banners'),
     path('get-coupons/<int:outlet_id>/', active_coupons, name='active-coupons'),
+    path('razorpay/<int:outlet_id>/', get_razorpay_credentials, name='get_razorpay_credentials'),
+    path('get-outlet-details/<int:outlet_id>/', get_outlet_details, name='get_outlet_details'),
 ]

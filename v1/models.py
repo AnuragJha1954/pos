@@ -129,6 +129,7 @@ class Employee(models.Model):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     is_active = models.BooleanField(default=True)
     employee_code = models.CharField(max_length=8, unique=True, blank=True, null=True)
+    permissions = models.JSONField(default=dict, blank=True, null=True)
 
     def __str__(self):
         return f"{self.first_name} {self.last_name} - {self.get_role_display()}"
@@ -389,4 +390,38 @@ class Coupon(models.Model):
 
 
 
+class RazorpayCredential(models.Model):
+    outlet = models.OneToOneField(Outlet, on_delete=models.CASCADE, related_name='razorpay_credential')
+    razorpay_client_id = models.CharField(max_length=100)
+    razorpay_client_secret = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Razorpay Credentials for {self.outlet.outlet_name}"
+
+
+
+
+
+class FCMToken(models.Model):
+    outlet = models.ForeignKey('Outlet', on_delete=models.CASCADE, related_name='fcmtokens')  # 👈 ForeignKey to Outlet
+    token = models.CharField(max_length=500)  # Adjust max_length as needed
+
+    def __str__(self):
+        return f"FCM Token for {self.outlet.outlet_name}"
+    
+    
+
+
+
+
+class EmployeeCredentials(models.Model):
+    employee = models.OneToOneField('Employee', on_delete=models.CASCADE, related_name='credentials')
+    email = email = models.EmailField(unique=True)
+    password = models.CharField(max_length=128)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Credentials for {self.employee}"
 

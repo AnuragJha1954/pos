@@ -2,6 +2,8 @@ from django.shortcuts import render
 
 import random
 import string
+import base64
+import json
 
 from decimal import Decimal
 
@@ -20,6 +22,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 from django.utils.timezone import localtime
 from django.db.models import Q
+from django.conf import settings
 
 from v1.models import (
     Outlet,
@@ -29,7 +32,12 @@ from v1.models import (
     Order,
     OrderItem,
     Customer,
-    Coupon
+    Coupon,
+    RazorpayCredential
+)
+
+from .models import (
+    QRCustomization
 )
 
 from .serializers import (
@@ -37,7 +45,9 @@ from .serializers import (
     ProductVariantSerializer,
     OrderItemSerializer,
     OrderSerializer,
-    CouponSerializer
+    CouponSerializer,
+    RazorpayCredentialSerializer,
+    OutletSerializer
 )
 
 
@@ -148,7 +158,7 @@ def product_list(request, outlet_id):
                 }
 
             # Serialize the product and append it to the category's items
-            product_data = ProductSerializer(product).data
+            product_data = ProductSerializer(product, context={'request': request}).data
             category_dict[category_id]["items"].append(product_data)
 
         # Convert the dictionary to a list
@@ -688,4 +698,122 @@ def active_coupons(request,outlet_id):
             "error": True,
             "details": f"An error occurred: {str(e)}"
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='get',
+    manual_parameters=[
+        openapi.Parameter(
+            'outlet_id', openapi.IN_PATH,
+            description="ID of the outlet",
+            type=openapi.TYPE_INTEGER
+        )
+    ],
+    responses={
+        200: openapi.Response(
+            description="Base64 encoded JSON with Razorpay credentials",
+            examples={
+                "application/json": {
+                    "data": "eyJlcnJvciI6ZmFsc2UsImRldGFpbHMiOnsicmF6b3JwYXlfY2xpZW50X2lkIjoiY2xpZW50X2lkXzEyMyIsInJhem9ycGF5X3NlY3JldCI6InNlY3JldF8xMjMifX0="
+                }
+            }
+        )
+    }
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_razorpay_credentials(request, outlet_id):
+    try:
+        credential = RazorpayCredential.objects.get(outlet_id=outlet_id)
+        serializer = RazorpayCredentialSerializer(credential)
+        
+        response_data = {
+            "error": False,
+            "credentials": serializer.data
+        }
+    except RazorpayCredential.DoesNotExist:
+        response_data = {
+            "error": True,
+            "details": "Credentials not found for this outlet."
+        }
+
+    # Base64 encode the full response
+    json_data = json.dumps(response_data)
+    base64_data = base64.b64encode(json_data.encode()).decode()
+
+    return Response({base64_data})
+
+
+
+
+#   name: "Mantra POS",
+#   description: "Enjoy your meal!",
+#   image: "/window.svg",
+#   theme: {
+#     color: "#F37254",
+#     backdrop_color: "#fff",
+#   },
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='get',
+    responses={200: OutletSerializer()}
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_outlet_details(request, outlet_id):
+    # Retrieve the outlet object or return 404 if not found
+    outlet = get_object_or_404(Outlet, id=outlet_id)
+
+    # Retrieve the associated company object
+    company = outlet.company
+
+    # Retrieve the QR customization for the outlet, if any
+    qr_customization = QRCustomization.objects.filter(outlet=outlet).first()
+
+    # Prepare the response data
+    data = {
+        "outlet_details": {
+            "outlet_name": outlet.outlet_name,
+            "address": outlet.address,
+            "phone_number": outlet.phone_number,
+            "gst_number": outlet.gst_number,
+            "opening_hours": outlet.opening_hours,
+            "is_active": outlet.is_active,
+            "logo": request.build_absolute_uri(outlet.logo.url) if outlet.logo else None,
+        },
+        "company_details": {
+            "company_name": company.name,
+            "address": company.address,
+        },
+        "qr_customization_details": {
+            "qr_tagline": qr_customization.qr_tagline if qr_customization else None,
+            "qr_logo": request.build_absolute_uri(qr_customization.qr_logo.url) if qr_customization and qr_customization.qr_logo else None,
+            "theme_color": qr_customization.theme_color if qr_customization else None,
+        }
+    }
+
+    return Response(data, status=status.HTTP_200_OK)
+
+# def get_outlet_details(request, outlet_id):
+#     # Retrieve the outlet object or return 404 if not found
+#     outlet = get_object_or_404(Outlet, id=outlet_id)
+
+#     # Use the serializer to return the outlet, company, and QR customization data
+#     serializer = OutletSerializer(outlet, context={'request': request})
+
+#     return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+
 

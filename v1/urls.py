@@ -12,6 +12,10 @@ urlpatterns = [
     # Employee related URLs
     path('create_employee/<int:user_id>/', views.create_employee, name='create_employee'),
     path('update_profile/<int:employee_id>/<int:user_id>/', views.update_profile, name='update_profile'),
+    path('get-employees/<int:user_id>/', views.get_employees_by_user, name='get_employees_by_user'),
+    path('update-permissions/<int:user_id>/<int:employee_id>/', views.update_employee_permissions, name='update_employee_permissions'),
+    path('get-credentials/<int:employee_id>/<int:user_id>/', views.get_employee_credentials, name='get_employee_credentials'),
+    path('manage-credentials/<int:employee_id>/<int:user_id>/', views.manage_employee_credentials, name='manage_employee_credentials'),
 
     
     # Product related URLs
