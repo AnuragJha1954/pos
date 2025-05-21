@@ -16,6 +16,7 @@ from django.http import JsonResponse
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+
 from firebase_admin import messaging
 
 from rest_framework import status
@@ -54,7 +55,8 @@ from v1.models import (
     StockRequest,
     Employee,
     PlanAssignment,
-    Plan
+    Plan,
+    FCMToken
     )
 
 
@@ -391,8 +393,27 @@ def product_list(request,outlet_id):
         
 
 
+def send_order_notification(registration_token):
+    try:
+        message = messaging.Message(
+            notification=messaging.Notification(
+                title="Order Received",
+                body="New Order Alert",
+            ),
+            token=registration_token,
+        )
 
+        response = messaging.send(message)
+        return {
+            "error": False,
+            "detail": "Message sent successfully and response from firebase is"+ response
+        }
 
+    except Exception as e:
+        return {
+            "error": True,
+            "detail": str(e)
+        }
 
 
 # {
@@ -563,6 +584,17 @@ def place_order(request, outlet_id):
         # Add CGST and SGST to the response
         response_data['cgst'] = round(cgst, 2)
         response_data['sgst'] = round(sgst, 2)
+        
+        
+        #FCM message integration
+        fcm_token_obj = FCMToken.objects.filter(outlet_id=outlet_id).first()
+        if fcm_token_obj:
+            notification_result = send_order_notification(fcm_token_obj.token)
+            print("Notification response:", notification_result)
+        else:
+            print("No FCM token found for this outlet.")
+
+
 
         # Pass the response data directly to the bill.html template
         return render(request, "bill.html", response_data)
@@ -582,8 +614,6 @@ def place_order(request, outlet_id):
             "error": True,
             "details": f"An error occurred: {str(e)}"
         }, status=500)
-
-
 
 
 
@@ -1009,33 +1039,38 @@ def mark_items_stock_out(request, outlet_id):
 
 
 
-@api_view(['POST']) 
-@permission_classes([AllowAny])
-def send_order_notification(request):
-    registration_token = ""
-    try:
-        # Create FCM message
-        message = messaging.Message(
-            notification=messaging.Notification(
-                title="New Order Alert",
-                body="Test Order ID",
-            ),
-            token=registration_token,
-        )
-
-        # Send the message
-        response = messaging.send(message)
-        return Response(
-            {"error": False, "detail": "Message sent successfully", "response": response},
-            status=status.HTTP_200_OK,
-        )
-
-    except Exception as e:
-        return Response(
-            {"error": True, "detail": str(e)},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
+# @api_view(['POST']) 
+# @permission_classes([AllowAny])
+# def send_order_notification(request):
+#     registration_token = "fQVyajuyEYi_ZHPHEdR3se:APA91bEeDQbun4AVsH2Dm1axS2LwGpt2WFLql6NjBzrfCY8KnYRdmmJDQzHU3LpBiG_rsUX9fgV2OoxFBcmC9RHyAIiedz2GAvAKxGdDiiQWOpNUr2_8ggA"
     
+#     try:
+#         message = messaging.Message(
+#             notification=messaging.Notification(
+#                 title="Order Recieved",
+#                 body="New Order Alert",
+#             ),
+#             token=registration_token,
+#         )
+
+#         response = messaging.send(message)
+#         return Response(
+#             {
+#                 "error": False,
+#                 "detail": "Message sent successfully",
+#                 "response": response
+#             },
+#             status=status.HTTP_200_OK,
+#         )
+
+#     except Exception as e:
+#         return Response(
+#             {
+#                 "error": True,
+#                 "detail": str(e)
+#             },
+#             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#         )
 
 
 

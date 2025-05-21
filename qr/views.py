@@ -16,6 +16,8 @@ from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
+from firebase_admin import messaging
+
 from django.shortcuts import get_object_or_404
 from django.shortcuts import render
 from django.http import JsonResponse
@@ -33,7 +35,8 @@ from v1.models import (
     OrderItem,
     Customer,
     Coupon,
-    RazorpayCredential
+    RazorpayCredential,
+    FCMToken
 )
 
 from .models import (
@@ -180,7 +183,27 @@ def product_list(request, outlet_id):
     
 
 
+def send_order_notification(registration_token):
+    try:
+        message = messaging.Message(
+            notification=messaging.Notification(
+                title="Order Received",
+                body="New Order Alert",
+            ),
+            token=registration_token,
+        )
 
+        response = messaging.send(message)
+        return {
+            "error": False,
+            "detail": "Message sent successfully and response from firebase is"+ response
+        }
+
+    except Exception as e:
+        return {
+            "error": True,
+            "detail": str(e)
+        }
 
 
 
@@ -348,6 +371,17 @@ def place_order(request, outlet_id):
         response_data['items'] = processed_items
         response_data['cgst'] = round(cgst, 2)
         response_data['sgst'] = round(sgst, 2)
+        
+        
+        #FCM message integration
+        fcm_token_obj = FCMToken.objects.filter(outlet_id=outlet_id).first()
+        if fcm_token_obj:
+            notification_result = send_order_notification(fcm_token_obj.token)
+            print("Notification response:", notification_result)
+        else:
+            print("No FCM token found for this outlet.")
+        
+        
 
         return Response(response_data, status=status.HTTP_201_CREATED)
 
