@@ -13,7 +13,9 @@ from v1.models import (
 )
 
 from .models import (
-    QRCustomization
+    QRCustomization,
+    SpecialMenu,
+    AdvertisementBanner
 )
 
 
@@ -146,7 +148,7 @@ class RazorpayCredentialSerializer(serializers.ModelSerializer):
 class QRCustomizationSerializer(serializers.ModelSerializer):
     class Meta:
         model = QRCustomization
-        fields = ['qr_tagline', 'qr_logo', 'theme_color']
+        fields = ['qr_tagline', 'qr_logo', 'theme_color','color_palette']
         
     def get_qr_logo(self, obj):
         request = self.context.get('request')
@@ -180,3 +182,30 @@ class OutletSerializer(serializers.ModelSerializer):
 
 
 
+
+
+class AdvertisementBannerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AdvertisementBanner
+        fields = ['image_url', 'redirect_url']
+
+
+
+
+
+
+
+class SpecialMenuSerializer(serializers.ModelSerializer):
+    products = serializers.PrimaryKeyRelatedField(
+        queryset=Product.objects.all(),
+        many=True
+    )
+
+    class Meta:
+        model = SpecialMenu
+        fields = ['id', 'name', 'products']
+
+    def validate_products(self, value):
+        if len(value) > 5:
+            raise serializers.ValidationError("A Special Menu can contain a maximum of 5 products.")
+        return value

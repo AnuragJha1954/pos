@@ -40,7 +40,9 @@ from v1.models import (
 )
 
 from .models import (
-    QRCustomization
+    QRCustomization,
+    SpecialMenu,
+    AdvertisementBanner
 )
 
 from .serializers import (
@@ -50,7 +52,10 @@ from .serializers import (
     OrderSerializer,
     CouponSerializer,
     RazorpayCredentialSerializer,
-    OutletSerializer
+    OutletSerializer,
+    QRCustomizationSerializer,
+    AdvertisementBannerSerializer,
+    SpecialMenuSerializer
 )
 
 
@@ -533,55 +538,36 @@ def place_order(request, outlet_id):
     
     
 
+special_menu_get_response = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    properties={
+        "error": openapi.Schema(type=openapi.TYPE_BOOLEAN),
+        "details": openapi.Schema(type=openapi.TYPE_STRING),
+        "menu_name": openapi.Schema(type=openapi.TYPE_STRING),
+        "products": openapi.Schema(
+            type=openapi.TYPE_ARRAY,
+            items=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                # You can define nested product structure or just refer to ProductSerializer output
+                # For simplicity, just type object here
+                description="Product with variants"
+            ),
+        ),
+    },
+)
+
 @swagger_auto_schema(
     method='get',
-    operation_summary="Get random products",
-    operation_description="Fetch up to three random products from the database along with their variants. If less than three products exist, it returns the available products.",
     responses={
-        200: openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "error": openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Indicates success or failure"),
-                "details": openapi.Schema(type=openapi.TYPE_STRING, description="Message describing the result"),
-                "products": openapi.Schema(
-                    type=openapi.TYPE_ARRAY,
-                    items=openapi.Schema(
-                        type=openapi.TYPE_OBJECT,
-                        properties={
-                            "id": openapi.Schema(type=openapi.TYPE_INTEGER, description="Product ID"),
-                            "name": openapi.Schema(type=openapi.TYPE_STRING, description="Product name"),
-                            "price": openapi.Schema(type=openapi.TYPE_STRING, description="Product price"),
-                            "is_veg": openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Indicates if the product is veg"),
-                            "variants": openapi.Schema(
-                                type=openapi.TYPE_ARRAY,
-                                items=openapi.Schema(
-                                    type=openapi.TYPE_OBJECT,
-                                    properties={
-                                        "id": openapi.Schema(type=openapi.TYPE_INTEGER, description="Variant ID"),
-                                        "name": openapi.Schema(type=openapi.TYPE_STRING, description="Variant name"),
-                                        "price": openapi.Schema(type=openapi.TYPE_STRING, description="Variant price"),
-                                    }
-                                ),
-                                description="List of product variants"
-                            ),
-                        }
-                    ),
-                    description="List of random products with variants"
-                )
-            }
-        ),
-        500: openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "error": openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Indicates failure"),
-                "details": openapi.Schema(type=openapi.TYPE_STRING, description="Error message")
-            }
-        )
-    }
+        200: special_menu_get_response,
+        404: 'Outlet not found',
+        500: 'Internal Server Error',
+    },
+    operation_summary="Get the special menu and its products (with variants) for an outlet"
 )
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def random_products(request, outlet_id):
+def get_special_menu(request, outlet_id):
     try:
         # Check if the outlet exists
         outlet = Outlet.objects.filter(id=outlet_id).first()
@@ -591,32 +577,27 @@ def random_products(request, outlet_id):
                 "details": "Outlet not found."
             }, status=status.HTTP_404_NOT_FOUND)
 
-        # Get all products for the specified outlet
-        products = list(Product.objects.filter(outlet=outlet).prefetch_related('variants'))
+        # Get special menu for the outlet
+        special_menu = SpecialMenu.objects.filter(outlet=outlet).prefetch_related('products__variants').first()
+        if not special_menu:
+            return Response({
+                "error": False,
+                "details": "No special menu found for this outlet.",
+                "products": []
+            }, status=status.HTTP_200_OK)
 
-        # Shuffle the products list to randomize the selection
-        random.shuffle(products)
-
-        # If the number of products is less than 3, return only one product
-        if len(products) < 3:
-            selected_products = products[:1]
-        else:
-            selected_products = products[:3]
-
-        # Serialize the selected products along with their variants
-        product_list = []
-        for product in selected_products:
-            product_data = ProductSerializer(product).data
-            variants = product.variants.all()
-            variant_data = ProductVariantSerializer(variants, many=True).data
-            product_data['variants'] = variant_data
-            product_list.append(product_data)
+        # Serialize the products with variants
+        serializer_context = {'request': request}
+        products = special_menu.products.all()
+        product_data = ProductSerializer(products, many=True, context=serializer_context).data
 
         return Response({
             "error": False,
-            "details": "Random products fetched successfully.",
-            "products": product_list
+            "details": "Special menu fetched successfully.",
+            "menu_name": special_menu.name,
+            "products": product_data
         }, status=status.HTTP_200_OK)
+
     except Exception as e:
         return Response({
             "error": True,
@@ -658,23 +639,15 @@ def random_products(request, outlet_id):
 )
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def get_banners(request,outlet_id):
+def get_banners(request, outlet_id):
     try:
-        banners = [
-            {
-                "image_url": "https://images.pexels.com/photos/12935078/pexels-photo-12935078.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
-                "redirect_url": "https://mantrapos.com/"
-            },
-            {
-                "image_url": "https://images.pexels.com/photos/4921260/pexels-photo-4921260.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
-                "redirect_url": "https://mantrapos.com/"
-            }
-        ]
+        banners = AdvertisementBanner.objects.filter(outlet_id=outlet_id)
+        serializer = AdvertisementBannerSerializer(banners, many=True)
 
         return Response({
             "error": False,
             "details": "Active Banners fetched successfully.",
-            "banners": banners
+            "banners": serializer.data
         }, status=status.HTTP_200_OK)
 
     except Exception as e:
@@ -682,6 +655,70 @@ def get_banners(request,outlet_id):
             "error": True,
             "details": f"An error occurred: {str(e)}"
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
+
+
+
+banner_request = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    required=['image_url', 'redirect_url'],
+    properties={
+        'image_url': openapi.Schema(type=openapi.TYPE_STRING, description='URL of the banner image'),
+        'redirect_url': openapi.Schema(type=openapi.TYPE_STRING, description='URL to redirect when banner clicked'),
+    },
+)
+
+banner_response = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    properties={
+        "error": openapi.Schema(type=openapi.TYPE_BOOLEAN),
+        "details": openapi.Schema(type=openapi.TYPE_STRING),
+        "banner": openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "image_url": openapi.Schema(type=openapi.TYPE_STRING),
+                "redirect_url": openapi.Schema(type=openapi.TYPE_STRING),
+                "outlet": openapi.Schema(type=openapi.TYPE_INTEGER),
+            },
+        ),
+    },
+)
+
+@swagger_auto_schema(
+    method='post',
+    request_body=banner_request,
+    responses={
+        201: banner_response,
+        400: 'Bad Request',
+        404: 'Outlet not found'
+    },
+    operation_summary="Add an advertisement banner for an outlet"
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def add_advertisement_banner(request, outlet_id):
+    try:
+        outlet = Outlet.objects.get(id=outlet_id)
+    except Outlet.DoesNotExist:
+        return Response({"error": True, "details": "Outlet not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = AdvertisementBannerSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save(outlet=outlet)
+        return Response({
+            "error": False,
+            "details": "Banner added successfully.",
+            "banner": serializer.data
+        }, status=status.HTTP_201_CREATED)
+    return Response({
+        "error": True,
+        "details": serializer.errors
+    }, status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -846,6 +883,234 @@ def get_outlet_details(request, outlet_id):
 #     serializer = OutletSerializer(outlet, context={'request': request})
 
 #     return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+
+
+@swagger_auto_schema(
+    method='post',
+    request_body=RazorpayCredentialSerializer,
+    responses={
+        200: RazorpayCredentialSerializer,
+        400: 'Bad Request',
+        404: 'Outlet not found'
+    },
+    operation_summary="Add or update Razorpay credentials for an outlet"
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def add_or_update_razorpay_credentials(request, outlet_id):
+    try:
+        outlet = Outlet.objects.get(id=outlet_id)
+    except Outlet.DoesNotExist:
+        return Response({"detail": "Outlet not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        credential = RazorpayCredential.objects.get(outlet=outlet)
+        serializer = RazorpayCredentialSerializer(credential, data=request.data)
+    except RazorpayCredential.DoesNotExist:
+        serializer = RazorpayCredentialSerializer(data=request.data)
+
+    if serializer.is_valid():
+        serializer.save(outlet=outlet)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='post',
+    request_body=QRCustomizationSerializer,
+    responses={
+        200: QRCustomizationSerializer,
+        400: 'Bad Request',
+        404: 'Outlet not found'
+    },
+    operation_summary="Add or update QR customization settings for an outlet"
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def add_or_update_qr_customization(request, outlet_id):
+    try:
+        outlet = Outlet.objects.get(id=outlet_id)
+    except Outlet.DoesNotExist:
+        return Response({"detail": "Outlet not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        customization = QRCustomization.objects.get(outlet=outlet)
+        serializer = QRCustomizationSerializer(customization, data=request.data, partial=True)
+    except QRCustomization.DoesNotExist:
+        serializer = QRCustomizationSerializer(data=request.data)
+
+    if serializer.is_valid():
+        serializer.save(outlet=outlet)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
+
+
+# {
+#   "name": "Evening Snacks",
+#   "products": [1, 2, 3]
+# }
+
+special_menu_request = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    required=['name', 'products'],
+    properties={
+        'name': openapi.Schema(type=openapi.TYPE_STRING, description='Special menu name'),
+        'products': openapi.Schema(
+            type=openapi.TYPE_ARRAY,
+            items=openapi.Items(type=openapi.TYPE_INTEGER),
+            description='List of product IDs (max 5)'
+        ),
+    },
+)
+
+special_menu_response = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    properties={
+        "error": openapi.Schema(type=openapi.TYPE_BOOLEAN),
+        "details": openapi.Schema(type=openapi.TYPE_STRING),
+        "menu": openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "name": openapi.Schema(type=openapi.TYPE_STRING),
+                "products": openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_INTEGER)),
+            },
+        ),
+    },
+)
+
+@swagger_auto_schema(
+    method='post',
+    request_body=special_menu_request,
+    responses={
+        201: special_menu_response,
+        400: 'Bad Request',
+        404: 'Outlet not found'
+    },
+    operation_summary="Create a special menu for an outlet"
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def add_special_menu(request, outlet_id):
+    try:
+        outlet = Outlet.objects.get(id=outlet_id)
+    except Outlet.DoesNotExist:
+        return Response({"error": True, "details": "Outlet not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = SpecialMenuSerializer(data=request.data)
+    if serializer.is_valid():
+        if len(serializer.validated_data['products']) > 5:
+            return Response({
+                "error": True,
+                "details": "A Special Menu can contain a maximum of 5 products."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        special_menu = serializer.save(outlet=outlet)
+        return Response({
+            "error": False,
+            "details": "Special Menu created successfully.",
+            "menu": SpecialMenuSerializer(special_menu).data
+        }, status=status.HTTP_201_CREATED)
+    return Response({"error": True, "details": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
+
+
+
+update_name_request = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    required=['name'],
+    properties={
+        'name': openapi.Schema(type=openapi.TYPE_STRING, description='New name for the special menu'),
+    },
+)
+
+update_name_response = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    properties={
+        "error": openapi.Schema(type=openapi.TYPE_BOOLEAN),
+        "details": openapi.Schema(type=openapi.TYPE_STRING),
+        "menu_name": openapi.Schema(type=openapi.TYPE_STRING),
+    },
+)
+
+@swagger_auto_schema(
+    method='patch',
+    request_body=update_name_request,
+    responses={
+        200: update_name_response,
+        400: 'Bad Request',
+        404: 'Outlet or special menu not found'
+    },
+    operation_summary="Update the name of the special menu for an outlet"
+)
+@api_view(['PATCH'])
+@permission_classes([AllowAny])
+def update_special_menu_name(request, outlet_id):
+    try:
+        outlet = Outlet.objects.filter(id=outlet_id).first()
+        if not outlet:
+            return Response({
+                "error": True,
+                "details": "Outlet not found."
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        special_menu = SpecialMenu.objects.filter(outlet=outlet).first()
+        if not special_menu:
+            return Response({
+                "error": True,
+                "details": "Special menu not found for this outlet."
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        new_name = request.data.get("name")
+        if not new_name:
+            return Response({
+                "error": True,
+                "details": "Name is required."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        special_menu.name = new_name
+        special_menu.save()
+
+        return Response({
+            "error": False,
+            "details": "Special menu name updated successfully.",
+            "menu_name": special_menu.name
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({
+            "error": True,
+            "details": f"An error occurred: {str(e)}"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 
