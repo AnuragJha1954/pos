@@ -12,7 +12,8 @@ from .views import (
     add_or_update_qr_customization,
     add_advertisement_banner,
     add_special_menu,
-    update_special_menu_name
+    update_special_menu_name,
+    generate_table_qrs
 )
 
 urlpatterns = [
@@ -29,5 +30,6 @@ urlpatterns = [
     path('qr-customization/add/<int:outlet_id>/', add_or_update_qr_customization, name='qr-customization'),
     path('special-menu/add/<int:outlet_id>/', add_special_menu, name='add-special-menu'),
     path('special-menu/update-name/<int:outlet_id>/', update_special_menu_name, name='update_special_menu_name'),
+    path('generate-qr/<int:outlet_id>/', generate_table_qrs, name='generate_table_qrs'),
 
 ]

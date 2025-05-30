@@ -42,7 +42,9 @@ from v1.models import (
 from .models import (
     QRCustomization,
     SpecialMenu,
-    AdvertisementBanner
+    AdvertisementBanner,
+    OutletTableConfiguration,
+    TableQR
 )
 
 from .serializers import (
@@ -55,7 +57,9 @@ from .serializers import (
     OutletSerializer,
     QRCustomizationSerializer,
     AdvertisementBannerSerializer,
-    SpecialMenuSerializer
+    SpecialMenuSerializer,
+    OutletTableConfigurationSerializer,
+    TableQRSerializer
 )
 
 
@@ -259,6 +263,7 @@ def place_order(request, outlet_id):
         items_data = data.get('items')
         mode = data.get('mode', '')  # Extract mode early
         coupon = data.get('coupon', '')  # Extract mode early
+        table_number = data.get('table_number')
         
         # Razorpay fields
         razorpay_order_id = data.get('razorpay_order_id')
@@ -287,6 +292,7 @@ def place_order(request, outlet_id):
             order_date=localtime(timezone.now()),
             # address=data.get('address', ''),
             mode=mode,
+            table_number=table_number,  # ✅ Save table number here
             razorpay_order_id=razorpay_order_id if mode == 'upi' else None,
             razorpay_payment_id=razorpay_payment_id if mode == 'upi' else None,
             razorpay_signature=razorpay_signature if mode == 'upi' else None,
@@ -1114,5 +1120,46 @@ def update_special_menu_name(request, outlet_id):
 
 
 
+@swagger_auto_schema(
+    method='post',
+    operation_summary="Generate QR codes for tables or outlet",
+    operation_description="""
+This endpoint generates QR codes for a given outlet.  
+If `number_of_tables` > 0, it creates a QR for each table in the format:  
+**qr.mantrapos.com/outlet_id/table_number**  
+Otherwise, it generates a single outlet QR in the format:  
+**qr.mantrapos.com/outlet_id**
+""",
+    request_body=OutletTableConfigurationSerializer,
+    responses={
+        200: TableQRSerializer(many=True),
+        400: 'Bad Request',
+        404: 'Outlet not found'
+    }
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def generate_table_qrs(request, outlet_id):
+    try:
+        outlet = Outlet.objects.get(id=outlet_id)
+    except Outlet.DoesNotExist:
+        return Response({'error': 'Outlet not found'}, status=status.HTTP_404_NOT_FOUND)
 
+    serializer = OutletTableConfigurationSerializer(data=request.data)
+    if serializer.is_valid():
+        number_of_tables = serializer.validated_data['number_of_tables']
 
+        config, created = OutletTableConfiguration.objects.get_or_create(outlet=outlet)
+        if config.number_of_tables != number_of_tables:
+            config.number_of_tables = number_of_tables
+            config.save()
+
+        if number_of_tables > 0:
+            qrs = TableQR.objects.filter(outlet=outlet).order_by('table_number')
+        else:
+            qrs = TableQR.objects.filter(outlet=outlet, table_number__isnull=True)
+
+        qr_serializer = TableQRSerializer(qrs, many=True, context={'request': request})
+        return Response(qr_serializer.data, status=status.HTTP_200_OK)
+    
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -34,7 +34,7 @@ class OrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ['order_number', 'order_date', 'total_price', 'gst', 'status', 'address', 'mode', 'items', 'customers']
+        fields = ['order_number', 'order_date', 'total_price', 'gst', 'status', 'address', 'mode', 'items', 'customers','table_number']
         ref_name = 'KotOrderSerializer'
 
 

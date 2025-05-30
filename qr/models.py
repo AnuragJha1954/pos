@@ -1,5 +1,9 @@
 from django.db import models
 from django.core.exceptions import ValidationError
+from django.conf import settings
+from django.core.files.base import ContentFile
+import qrcode
+from io import BytesIO
 from v1.models import Outlet, Product
 # Create your models here.
 class QRCustomization(models.Model):
@@ -50,3 +54,62 @@ class AdvertisementBanner(models.Model):
 
     def __str__(self):
         return f"Banner for {self.outlet.outlet_name}"
+
+
+
+
+class OutletTableConfiguration(models.Model):
+    outlet = models.OneToOneField(Outlet, on_delete=models.CASCADE, related_name='table_config')
+    number_of_tables = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.number_of_tables > 0:
+            for i in range(1, self.number_of_tables + 1):
+                TableQR.objects.get_or_create(
+                    outlet=self.outlet,
+                    table_number=i
+                )
+        else:
+            TableQR.objects.get_or_create(
+                outlet=self.outlet,
+                table_number=None
+            )
+
+    def __str__(self):
+        return f"{self.outlet.outlet_name} - Tables: {self.number_of_tables}"
+
+
+
+
+
+
+
+class TableQR(models.Model):
+    outlet = models.ForeignKey(Outlet, on_delete=models.CASCADE, related_name='table_qrs')
+    table_number = models.PositiveIntegerField(null=True, blank=True)
+    qr_image = models.ImageField(upload_to='qr_codes/', blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('outlet', 'table_number')
+
+    def save(self, *args, **kwargs):
+        if self.table_number:
+            qr_url = f"https://qr.mantrapos.com/{self.outlet.id}/{self.table_number}"
+        else:
+            qr_url = f"https://qr.mantrapos.com/{self.outlet.id}/"
+
+        qr = qrcode.make(qr_url)
+        buffer = BytesIO()
+        qr.save(buffer, format="PNG")
+        filename = f'qr_{self.outlet.id}_{self.table_number or "outlet"}.png'
+        filebuffer = ContentFile(buffer.getvalue())
+        self.qr_image.save(filename, filebuffer, save=False)
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"QR for {self.outlet.outlet_name} - Table {self.table_number or 'Outlet'}"
+

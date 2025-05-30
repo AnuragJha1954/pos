@@ -259,6 +259,9 @@ class Order(models.Model):
     mode = models.CharField(max_length=10, choices=MODE_CHOICES, blank=True, null=True)  # New mode field
     updated_at = models.DateTimeField(auto_now=True)
     
+    # 🔽 New field for table management
+    table_number = models.PositiveIntegerField(null=True, blank=True, help_text="Table number if dine-in, else leave empty.")
+    
     # Razorpay-related fields
     razorpay_order_id = models.CharField(max_length=100, blank=True, null=True)
     razorpay_payment_id = models.CharField(max_length=100, blank=True, null=True)

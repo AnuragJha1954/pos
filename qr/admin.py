@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import QRCustomization, SpecialMenu, AdvertisementBanner
+from .models import QRCustomization, SpecialMenu, AdvertisementBanner, OutletTableConfiguration, TableQR
 
 
 @admin.register(QRCustomization)
@@ -23,3 +23,11 @@ class AdvertisementBannerAdmin(admin.ModelAdmin):
     list_display = ('id', 'outlet', 'image_url', 'redirect_url', 'created_at')
     search_fields = ('outlet__outlet_name', 'image_url', 'redirect_url')
     list_filter = ('created_at',)
+
+@admin.register(OutletTableConfiguration)
+class OutletTableConfigurationAdmin(admin.ModelAdmin):
+    list_display = ['outlet', 'number_of_tables']
+
+@admin.register(TableQR)
+class TableQRAdmin(admin.ModelAdmin):
+    list_display = ['outlet', 'table_number', 'qr_image']

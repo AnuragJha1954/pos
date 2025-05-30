@@ -15,7 +15,9 @@ from v1.models import (
 from .models import (
     QRCustomization,
     SpecialMenu,
-    AdvertisementBanner
+    AdvertisementBanner,
+    OutletTableConfiguration,
+    TableQR
 )
 
 
@@ -106,7 +108,7 @@ class OrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ['outlet', 'order_number', 'order_date', 'total_price', 'gst', 'status', 'address', 'mode', 'items']
+        fields = ['outlet', 'order_number', 'order_date', 'total_price', 'gst', 'status', 'address', 'mode', 'items','table_number']
         depth=1
         ref_name = 'CounterOrderSerializer'
 
@@ -209,3 +211,35 @@ class SpecialMenuSerializer(serializers.ModelSerializer):
         if len(value) > 5:
             raise serializers.ValidationError("A Special Menu can contain a maximum of 5 products.")
         return value
+
+
+
+
+
+
+class TableQRSerializer(serializers.ModelSerializer):
+    table_number = serializers.IntegerField(required=False)
+    qr_image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TableQR
+        fields = ['table_number', 'qr_image']
+
+    def get_qr_image(self, obj):
+        request = self.context.get('request')
+        if obj.qr_image and request:
+            return request.build_absolute_uri(obj.qr_image.url)
+        elif obj.qr_image:
+            return obj.qr_image.url
+        return None
+
+
+
+class OutletTableConfigurationSerializer(serializers.Serializer):
+    number_of_tables = serializers.IntegerField(min_value=0)
+
+    def validate_number_of_tables(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Number of tables must be 0 or more.")
+        return value
+

@@ -179,9 +179,32 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ('order_number', 'order_date', 'total_price', 'gst', 'status')
-    search_fields = ('order_number',)
-    list_filter = ('status', 'order_date')
+    list_display = (
+        'order_number',
+        'outlet',
+        'order_date',
+        'status',
+        'total_price',
+        'mode',
+        'table_number',
+        'updated_at',
+    )
+    list_filter = (
+        'status',
+        'mode',
+        'order_date',
+        'outlet',
+    )
+    search_fields = (
+        'order_number',
+        'razorpay_order_id',
+        'razorpay_payment_id',
+        'razorpay_signature',
+    )
+    readonly_fields = (
+        'order_date',
+        'updated_at',
+    )
     ordering = ('-order_date',)
 
 
