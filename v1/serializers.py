@@ -363,8 +363,10 @@ class OrderDetailSerializer(serializers.ModelSerializer):
 
 
 
-
-
+class OrderBillSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Order
+        fields = ['order_number']
 
 
 

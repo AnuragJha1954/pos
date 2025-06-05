@@ -1,9 +1,12 @@
 import random
 import string
 
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404,render
 from django.contrib.auth import get_user_model
 from django.http import JsonResponse
+from django.utils.timezone import localtime
+from django.template.loader import render_to_string
+from django.http import HttpResponse
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -57,7 +60,8 @@ from .serializers import (
     EmployeeCredentialsSerializer,
     ManageEmployeeCredentialsSerializer,
     OrderSerializer,
-    OrderDetailSerializer
+    OrderDetailSerializer,
+    OrderBillSerializer
 )
 
 
@@ -1621,4 +1625,67 @@ def get_order_details_by_number(request, order_number):
     return Response(serializer.data)
 
 
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='get',
+    manual_parameters=[
+        openapi.Parameter('order_number', openapi.IN_PATH, description="Unique order number", type=openapi.TYPE_STRING),
+    ],
+    responses={200: 'HTML bill rendered'}
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def generate_order_bill(request, order_number):
+    order = get_object_or_404(Order, order_number=order_number)
+    outlet = order.outlet
+    customer = order.customers.first()  # assuming one customer per order
+
+    items_data = []
+    subtotal = 0
+
+    for item in order.items.all():
+        product_name = item.product.name if item.product else None
+        variant_name = item.product_variant.name if item.product_variant else None
+
+        items_data.append({
+            'product_name': product_name,
+            'variant_name': variant_name,
+            'quantity': item.quantity,
+            'price': item.price,
+            'total_price': item.total_price
+        })
+
+        subtotal += item.total_price or 0
+
+    cgst = sgst = float(order.gst) / 2 if order.gst else 0
+    formatted_date = localtime(order.order_date).strftime('%d-%m-%Y %I:%M %p')
+
+    context = {
+        "outlet": {
+            "logo": outlet.logo.url if outlet.logo else '',
+            "outlet_name": outlet.outlet_name,
+            "address": outlet.address,
+            "phone_number": outlet.phone_number
+        },
+        "customer": {
+            "name": customer.name if customer else '',
+            "phone_number": customer.phone_number if customer else ''
+        },
+        "order_number": order.order_number,
+        "formatted_date": formatted_date,
+        "items": items_data,
+        "subtotal": subtotal,
+        "cgst": f"{cgst:.2f}",
+        "sgst": f"{sgst:.2f}",
+        "total_price": order.total_price,
+        "mode": order.mode
+    }
+
+    html_content = render_to_string("bill.html", context)
+    return HttpResponse(html_content)
 

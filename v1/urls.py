@@ -44,5 +44,6 @@ urlpatterns = [
     # Order related URLs
     path('get-orders-list/<int:company_id>/', views.get_company_orders, name='company-orders'),
     path('get-order-details/<str:order_number>/', views.get_order_details_by_number, name='get_order_details_by_number'),
+    path('genrate-bill/<str:order_number>/', views.generate_order_bill, name='generate_order_bill'),
 
 ]
