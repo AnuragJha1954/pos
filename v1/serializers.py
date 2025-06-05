@@ -11,7 +11,10 @@ from .models import (
     Category,
     StockRequest,
     FCMToken,
-    EmployeeCredentials
+    EmployeeCredentials,
+    Order,
+    OrderItem, 
+    Customer
 )
 from users.models import CustomUser
 
@@ -275,5 +278,100 @@ class ManageEmployeeCredentialsSerializer(serializers.Serializer):
     
     
     
-    
-    
+
+
+
+class OrderItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrderItem
+        fields = ['id', 'product', 'product_variant', 'quantity', 'price', 'total_price', 'gst']
+        ref_name = 'PanelOrderItemSerializer'
+
+class CustomerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Customer
+        fields = ['name', 'phone_number']
+        ref_name = 'PanelCustomerSerializer'
+
+class OrderSerializer(serializers.ModelSerializer):
+    items = OrderItemSerializer(many=True, read_only=True)
+    outlet_id = serializers.IntegerField(source='outlet.id', read_only=True)
+    outlet_name = serializers.CharField(source='outlet.outlet_name', read_only=True)
+    customers = CustomerSerializer(many=True, read_only=True)
+    ref_name = 'PanelOrderSerializer'
+
+    class Meta:
+        model = Order
+        fields = [
+            'id', 'order_number', 'order_date', 'total_price', 'gst', 'status',
+            'address', 'mode', 'updated_at', 'table_number',
+            'outlet_id', 'outlet_name', 'customers', 'items'
+        ]
+
+
+
+
+
+
+
+
+# Serializers start for particular order details
+
+class ProductInlineSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Product
+        fields = ['id', 'name', 'price', 'image', 'description', 'is_gst_inclusive', 'is_veg']
+
+class ProductVariantInlineSerializer(serializers.ModelSerializer):
+    product = ProductInlineSerializer()
+
+    class Meta:
+        model = ProductVariant
+        fields = ['id', 'name', 'price', 'is_gst_inclusive', 'extra_description', 'product']
+
+
+class OrderItemDetailSerializer(serializers.ModelSerializer):
+    product = ProductInlineSerializer()
+    product_variant = ProductVariantInlineSerializer()
+
+    class Meta:
+        model = OrderItem
+        fields = ['id', 'product', 'product_variant', 'quantity', 'price', 'total_price', 'gst']
+
+
+class CustomerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Customer
+        fields = ['name', 'phone_number']
+
+
+class OrderDetailSerializer(serializers.ModelSerializer):
+    items = OrderItemDetailSerializer(many=True)
+    customers = CustomerSerializer(many=True)
+    outlet_id = serializers.IntegerField(source='outlet.id')
+    outlet_name = serializers.CharField(source='outlet.outlet_name')
+
+    class Meta:
+        model = Order
+        fields = [
+            'order_number', 'order_date', 'total_price', 'gst', 'status', 'mode',
+            'table_number', 'razorpay_order_id', 'razorpay_payment_id', 'razorpay_signature',
+            'items', 'customers', 'outlet_id', 'outlet_name'
+        ]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

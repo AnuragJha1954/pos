@@ -34,7 +34,10 @@ from .models import (
     Category,
     StockRequest, 
     FCMToken,
-    EmployeeCredentials
+    EmployeeCredentials,
+    Order,
+    OrderItem,
+    Customer
 )
 
 from .serializers import (
@@ -52,7 +55,9 @@ from .serializers import (
     EmployeeListSerializer,
     EmployeePermissionsUpdateSerializer,
     EmployeeCredentialsSerializer,
-    ManageEmployeeCredentialsSerializer
+    ManageEmployeeCredentialsSerializer,
+    OrderSerializer,
+    OrderDetailSerializer
 )
 
 
@@ -216,6 +221,196 @@ def grant_outlet_access(request, outlet_id, user_id,manager_id):
     
     
     
+
+
+
+
+
+@swagger_auto_schema(
+    method='get',
+    manual_parameters=[
+        openapi.Parameter('company_id', openapi.IN_PATH, description="Company ID", type=openapi.TYPE_INTEGER)
+    ],
+    responses={200: OutletSerializer(many=True)}
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])  # Adjust as per your authentication
+def list_company_outlets(request, company_id,user_id):
+    # Manually handle token authentication
+    token_key = request.headers.get("Authorization")
+    if not token_key:
+        return Response({"error": "Authorization token is missing"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    # Validate the token and retrieve the user
+    try:
+        token = Token.objects.get(key=token_key)
+        if token.user.id != user_id:  # Check if the token belongs to the user ID provided in the URL
+            return Response({"error":True,"detail": "Token is not valid. Invalid Authentication Header"}, status=status.HTTP_403_FORBIDDEN)
+        
+        requesting_user = token.user
+    except Token.DoesNotExist:
+        return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+   
+    # Verify if the requesting user has the "manager" role
+    try:
+        employee_record = Employee.objects.get(user=requesting_user)
+        if employee_record.role != 'manager':
+            return Response({"error":True, "detail":"Only a manager can get list of all outlets of a company"}, status=status.HTTP_403_FORBIDDEN)
+    except Employee.DoesNotExist:
+        return Response({"error":True, "detail": "User is not an employee or manager"}, status=status.HTTP_403_FORBIDDEN)
+    
+    
+    outlets = Outlet.objects.filter(company_id=company_id)
+    serializer = OutletSerializer(outlets, many=True)
+    return Response({"error": False, "outlets": serializer.data})
+
+
+
+
+
+@swagger_auto_schema(
+    method='get',
+    manual_parameters=[
+        openapi.Parameter('outlet_id', openapi.IN_PATH, description="Outlet ID", type=openapi.TYPE_INTEGER)
+    ],
+    responses={200: OutletSerializer()}
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_outlet_detail(request, outlet_id,user_id):
+    # Manually handle token authentication
+    token_key = request.headers.get("Authorization")
+    if not token_key:
+        return Response({"error": "Authorization token is missing"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    # Validate the token and retrieve the user
+    try:
+        token = Token.objects.get(key=token_key)
+        if token.user.id != user_id:  # Check if the token belongs to the user ID provided in the URL
+            return Response({"error":True,"detail": "Token is not valid. Invalid Authentication Header"}, status=status.HTTP_403_FORBIDDEN)
+        
+        requesting_user = token.user
+    except Token.DoesNotExist:
+        return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+   
+    # Verify if the requesting user has the "manager" role
+    try:
+        employee_record = Employee.objects.get(user=requesting_user)
+        if employee_record.role != 'manager':
+            return Response({"error":True, "detail":"Only a manager can get specific outlet details"}, status=status.HTTP_403_FORBIDDEN)
+    except Employee.DoesNotExist:
+        return Response({"error":True, "detail": "User is not an employee or manager"}, status=status.HTTP_403_FORBIDDEN)
+    
+    
+    outlet = get_object_or_404(Outlet, id=outlet_id)
+    serializer = OutletSerializer(outlet)
+    return Response({"error": False, "outlet": serializer.data})
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='put',
+    manual_parameters=[
+        openapi.Parameter('outlet_id', openapi.IN_PATH, description="Outlet ID", type=openapi.TYPE_INTEGER),
+        openapi.Parameter('Authorization', openapi.IN_HEADER, description="User token", type=openapi.TYPE_STRING)
+    ],
+    request_body=OutletSerializer,
+    responses={200: OutletSerializer()}
+)
+@api_view(['PUT'])
+@permission_classes([AllowAny])
+def update_outlet(request, outlet_id,user_id):
+    # Manually handle token authentication
+    token_key = request.headers.get("Authorization")
+    if not token_key:
+        return Response({"error": "Authorization token is missing"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    # Validate the token and retrieve the user
+    try:
+        token = Token.objects.get(key=token_key)
+        if token.user.id != user_id:  # Check if the token belongs to the user ID provided in the URL
+            return Response({"error":True,"detail": "Token is not valid. Invalid Authentication Header"}, status=status.HTTP_403_FORBIDDEN)
+        
+        requesting_user = token.user
+    except Token.DoesNotExist:
+        return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+   
+    # Verify if the requesting user has the "manager" role
+    try:
+        employee_record = Employee.objects.get(user=requesting_user)
+        if employee_record.role != 'manager':
+            return Response({"error":True, "detail":"Only a manager can update outlets"}, status=status.HTTP_403_FORBIDDEN)
+    except Employee.DoesNotExist:
+        return Response({"error":True, "detail": "User is not an employee or manager"}, status=status.HTTP_403_FORBIDDEN)
+    
+    
+    outlet = get_object_or_404(Outlet, id=outlet_id)
+    serializer = OutletSerializer(outlet, data=request.data, partial=True)
+    
+    if serializer.is_valid():
+        serializer.save()
+        return Response({"error": False, "detail": "Outlet updated successfully", "outlet": serializer.data})
+    return Response({"error": True, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='delete',
+    manual_parameters=[
+        openapi.Parameter('outlet_id', openapi.IN_PATH, description="Outlet ID", type=openapi.TYPE_INTEGER),
+        openapi.Parameter('Authorization', openapi.IN_HEADER, description="User token", type=openapi.TYPE_STRING)
+    ],
+    responses={200: openapi.Response(description="Outlet deleted successfully")}
+)
+@api_view(['DELETE'])
+@permission_classes([AllowAny])
+def delete_outlet(request, outlet_id,user_id):
+    # Manually handle token authentication
+    token_key = request.headers.get("Authorization")
+    if not token_key:
+        return Response({"error": "Authorization token is missing"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    # Validate the token and retrieve the user
+    try:
+        token = Token.objects.get(key=token_key)
+        if token.user.id != user_id:  # Check if the token belongs to the user ID provided in the URL
+            return Response({"error":True,"detail": "Token is not valid. Invalid Authentication Header"}, status=status.HTTP_403_FORBIDDEN)
+        
+        requesting_user = token.user
+    except Token.DoesNotExist:
+        return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+   
+    # Verify if the requesting user has the "manager" role
+    try:
+        employee_record = Employee.objects.get(user=requesting_user)
+        if employee_record.role != 'manager':
+            return Response({"error":True, "detail":"Only a manager can delete outlets"}, status=status.HTTP_403_FORBIDDEN)
+    except Employee.DoesNotExist:
+        return Response({"error":True, "detail": "User is not an employee or manager"}, status=status.HTTP_403_FORBIDDEN)
+    
+    
+    outlet = get_object_or_404(Outlet, id=outlet_id)
+    outlet.delete()
+    return Response({"error": False, "detail": "Outlet deleted successfully"}, status=status.HTTP_200_OK)
+
+
+
+
+
+
 
 
 
@@ -1334,5 +1529,96 @@ def manage_employee_credentials(request, employee_id,user_id):
         "error": False,
         "message": "Credentials created successfully." if created else "Credentials updated successfully."
     }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='get',
+    manual_parameters=[
+        openapi.Parameter(
+            'company_id',
+            openapi.IN_PATH,
+            description="ID of the company",
+            type=openapi.TYPE_INTEGER,
+            required=True
+        ),
+        openapi.Parameter(
+            'page',
+            openapi.IN_QUERY,
+            description='Page number for pagination',
+            type=openapi.TYPE_INTEGER,
+            required=False
+        )
+    ],
+    responses={
+        200: openapi.Response(
+            description="List of company orders with pagination",
+            schema=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'orders': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_OBJECT)),
+                    'total_orders': openapi.Schema(type=openapi.TYPE_INTEGER),
+                    'current_page': openapi.Schema(type=openapi.TYPE_INTEGER),
+                    'total_pages': openapi.Schema(type=openapi.TYPE_INTEGER),
+                    'next_page_url': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI, nullable=True),
+                    'previous_page_url': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI, nullable=True),
+                }
+            )
+        )
+    }
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_company_orders(request, company_id):
+    company = get_object_or_404(Company, id=company_id)
+    orders = Order.objects.filter(outlet__company=company).order_by('-order_date')
+
+    paginator = PageNumberPagination()
+    paginator.page_size = 10
+    paginated_orders = paginator.paginate_queryset(orders, request)
+
+    serializer = OrderSerializer(paginated_orders, many=True)
+
+    return Response({
+        "total_orders": orders.count(),
+        "current_page": paginator.page.number,
+        "total_pages": paginator.page.paginator.num_pages,
+        "next_page_url": paginator.get_next_link(),
+        "previous_page_url": paginator.get_previous_link(),
+        "orders": serializer.data,
+    })
+
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='get',
+    manual_parameters=[
+        openapi.Parameter(
+            'order_number',
+            openapi.IN_PATH,
+            description="Order number (e.g. ABC1234567)",
+            type=openapi.TYPE_STRING
+        )
+    ],
+    responses={200: OrderDetailSerializer()}
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_order_details_by_number(request, order_number):
+    order = get_object_or_404(Order, order_number=order_number)
+    serializer = OrderDetailSerializer(order)
+    return Response(serializer.data)
+
 
 

@@ -4,7 +4,11 @@ from . import views
 urlpatterns = [
     
     # Outlet related URLs
-    path('create_outlet/<int:company_id>/<int:user_id>/', views.create_outlet, name='create_outlet'),
+    path('outlets/create/<int:company_id>/<int:user_id>/', views.create_outlet, name='create_outlet'),
+    path('outlets/list/<int:company_id>/<int:user_id>/', views.list_company_outlets,name='list_company_outlets'),
+    path('outlets/get-detail/<int:outlet_id>/<int:user_id>/', views.get_outlet_detail, name='get_outlet_detail'),
+    path('outlets/update/<int:outlet_id>/<int:user_id>/', views.update_outlet, name='update_outlet'),
+    path('outlets/delete/<int:outlet_id>/<int:user_id>/', views.delete_outlet, name='delete_outlet'),
     
     # Grant outlet access URLs
     path('grant_outlet_access/<int:outlet_id>/<int:user_id>/<int:manager_id>/', views.grant_outlet_access, name='grant_outlet_access'),
@@ -35,5 +39,10 @@ urlpatterns = [
     # Stock request related URLs
     path('stock-requests/<int:user_id>/<int:outlet_id>/pending/', views.get_pending_stock_requests, name='get_pending_stock_requests'),
     path('stock-requests/<int:user_id>/<int:outlet_id>/approve/', views.approve_stock_requests, name='approve_stock_requests'),
+    
+    
+    # Order related URLs
+    path('get-orders-list/<int:company_id>/', views.get_company_orders, name='company-orders'),
+    path('get-order-details/<str:order_number>/', views.get_order_details_by_number, name='get_order_details_by_number'),
 
 ]
