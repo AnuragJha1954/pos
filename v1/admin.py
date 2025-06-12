@@ -17,7 +17,8 @@ from .models import (
     Coupon,
     RazorpayCredential,
     FCMToken,
-    EmployeeCredentials
+    EmployeeCredentials,
+    RefundNote
     )
 # Register your models here.
 @admin.register(Company)
@@ -188,6 +189,7 @@ class OrderAdmin(admin.ModelAdmin):
         'mode',
         'table_number',
         'updated_at',
+        'note',
     )
     list_filter = (
         'status',
@@ -275,3 +277,13 @@ class RazorpayCredentialAdmin(admin.ModelAdmin):
 
 admin.site.register(FCMToken)
 admin.site.register(EmployeeCredentials)
+
+
+
+
+@admin.register(RefundNote)
+class RefundNoteAdmin(admin.ModelAdmin):
+    list_display = ('order', 'refund_title', 'refund_amount', 'created_at')
+    list_filter = ('created_at',)
+    search_fields = ('refund_title', 'refund_description', 'order__order_number')
+    ordering = ('-created_at',)

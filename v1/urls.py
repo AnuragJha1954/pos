@@ -45,5 +45,10 @@ urlpatterns = [
     path('get-orders-list/<int:company_id>/', views.get_company_orders, name='company-orders'),
     path('get-order-details/<str:order_number>/', views.get_order_details_by_number, name='get_order_details_by_number'),
     path('genrate-bill/<str:order_number>/', views.generate_order_bill, name='generate_order_bill'),
+    path('cancel-order/<str:order_number>/', views.cancel_order, name='cancel-order'),
+    
+    #Refund Note related Urls
+    path('refund-note/<str:order_number>/add/', views.add_refund_note, name='add-refund-note'),
+    path('refund-note/<str:order_number>/get/', views.get_refund_notes_by_order, name='get-refund-notes'),
 
 ]

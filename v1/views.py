@@ -1,6 +1,8 @@
 import random
 import string
 
+from datetime import datetime
+
 from django.shortcuts import get_object_or_404,render
 from django.contrib.auth import get_user_model
 from django.http import JsonResponse
@@ -40,7 +42,8 @@ from .models import (
     EmployeeCredentials,
     Order,
     OrderItem,
-    Customer
+    Customer,
+    RefundNote
 )
 
 from .serializers import (
@@ -61,7 +64,8 @@ from .serializers import (
     ManageEmployeeCredentialsSerializer,
     OrderSerializer,
     OrderDetailSerializer,
-    OrderBillSerializer
+    OrderBillSerializer,
+    RefundNoteSerializer
 )
 
 
@@ -1554,25 +1558,60 @@ def manage_employee_credentials(request, employee_id,user_id):
             required=True
         ),
         openapi.Parameter(
+            'order_number',
+            openapi.IN_QUERY,
+            description='Search by order number (partial match)',
+            type=openapi.TYPE_STRING,
+            required=False
+        ),
+        openapi.Parameter(
+            'outlet_name',
+            openapi.IN_QUERY,
+            description='Search by outlet name (partial match)',
+            type=openapi.TYPE_STRING,
+            required=False
+        ),
+        openapi.Parameter(
+            'order_date',
+            openapi.IN_QUERY,
+            description='Filter by exact order date (format: YYYY-MM-DD)',
+            type=openapi.TYPE_STRING,
+            required=False
+        ),
+        openapi.Parameter(
+            'start_date',
+            openapi.IN_QUERY,
+            description='Filter by start date for order date range (format: YYYY-MM-DD)',
+            type=openapi.TYPE_STRING,
+            required=False
+        ),
+        openapi.Parameter(
+            'end_date',
+            openapi.IN_QUERY,
+            description='Filter by end date for order date range (format: YYYY-MM-DD)',
+            type=openapi.TYPE_STRING,
+            required=False
+        ),
+        openapi.Parameter(
             'page',
             openapi.IN_QUERY,
             description='Page number for pagination',
             type=openapi.TYPE_INTEGER,
             required=False
-        )
+        ),
     ],
     responses={
         200: openapi.Response(
-            description="List of company orders with pagination",
+            description="List of company orders with pagination and filters",
             schema=openapi.Schema(
                 type=openapi.TYPE_OBJECT,
                 properties={
-                    'orders': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_OBJECT)),
                     'total_orders': openapi.Schema(type=openapi.TYPE_INTEGER),
                     'current_page': openapi.Schema(type=openapi.TYPE_INTEGER),
                     'total_pages': openapi.Schema(type=openapi.TYPE_INTEGER),
                     'next_page_url': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI, nullable=True),
                     'previous_page_url': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI, nullable=True),
+                    'orders': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_OBJECT)),
                 }
             )
         )
@@ -1583,6 +1622,36 @@ def manage_employee_credentials(request, employee_id,user_id):
 def get_company_orders(request, company_id):
     company = get_object_or_404(Company, id=company_id)
     orders = Order.objects.filter(outlet__company=company).order_by('-order_date')
+
+    # 🔍 Filter by order number
+    order_number = request.query_params.get('order_number')
+    if order_number:
+        orders = orders.filter(order_number__icontains=order_number)
+
+    # 🔍 Filter by outlet name
+    outlet_name = request.query_params.get('outlet_name')
+    if outlet_name:
+        orders = orders.filter(outlet__outlet_name__icontains=outlet_name)
+
+    # 🔍 Filter by specific order_date (YYYY-MM-DD)
+    order_date = request.query_params.get('order_date')
+    if order_date:
+        try:
+            date_obj = datetime.strptime(order_date, "%Y-%m-%d").date()
+            orders = orders.filter(order_date__date=date_obj)
+        except ValueError:
+            return Response({'detail': 'Invalid order_date format. Use YYYY-MM-DD.'}, status=400)
+
+    # 🔍 Filter by date range (start_date and end_date)
+    start_date = request.query_params.get('start_date')
+    end_date = request.query_params.get('end_date')
+    if start_date and end_date:
+        try:
+            start_obj = datetime.strptime(start_date, "%Y-%m-%d")
+            end_obj = datetime.strptime(end_date, "%Y-%m-%d")
+            orders = orders.filter(order_date__date__range=(start_obj.date(), end_obj.date()))
+        except ValueError:
+            return Response({'detail': 'Invalid start_date or end_date format. Use YYYY-MM-DD.'}, status=400)
 
     paginator = PageNumberPagination()
     paginator.page_size = 10
@@ -1688,4 +1757,107 @@ def generate_order_bill(request, order_number):
 
     html_content = render_to_string("bill.html", context)
     return HttpResponse(html_content)
+
+
+
+
+
+
+
+# {
+#     "refund_title": "Order Delay Compensation",
+#     "refund_description": "Customer received order late. 20% refund issued.",
+#     "refund_amount": 50.00
+# }
+
+
+
+@swagger_auto_schema(
+    method='post',
+    request_body=RefundNoteSerializer,
+    responses={
+        201: openapi.Response('Refund note created successfully', RefundNoteSerializer),
+        400: 'Bad Request',
+        404: 'Order not found'
+    },
+    operation_description="Add a refund note to an order using the order number and mark order as REFUNDED."
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def add_refund_note(request, order_number):
+    try:
+        order = Order.objects.get(order_number=order_number)
+    except Order.DoesNotExist:
+        return Response({'detail': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = RefundNoteSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save(order=order)
+
+        # ✅ Change order status to 'REFUNDED'
+        order.status = 'REFUNDED'
+        order.save(update_fields=['status'])
+
+        return Response({
+            'detail': 'Refund note added successfully and order status updated to REFUNDED',
+            'data': serializer.data
+        }, status=status.HTTP_201_CREATED)
+    
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+@swagger_auto_schema(
+    method='get',
+    responses={
+        200: openapi.Response('List of refund notes for the given order', RefundNoteSerializer(many=True)),
+        404: 'Order not found'
+    },
+    operation_description="Retrieve all refund notes for a given order by order number."
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_refund_notes_by_order(request, order_number):
+    try:
+        order = Order.objects.get(order_number=order_number)
+    except Order.DoesNotExist:
+        return Response({'detail': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    refund_notes = RefundNote.objects.filter(order=order)
+    serializer = RefundNoteSerializer(refund_notes, many=True)
+    return Response({'order_number': order_number, 'refund_notes': serializer.data}, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='post',
+    responses={
+        200: openapi.Response(description="Order cancelled successfully"),
+        404: "Order not found"
+    },
+    operation_description="Cancel an order using its order number. Updates the status to CANCELLED."
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def cancel_order(request, order_number):
+    try:
+        order = Order.objects.get(order_number=order_number)
+    except Order.DoesNotExist:
+        return Response({'detail': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    order.status = 'CANCELLED'
+    order.save(update_fields=['status'])
+
+    return Response({'error':False,'detail': f'Order {order_number} cancelled successfully'}, status=status.HTTP_200_OK)
+
+
+
+
+
+
 

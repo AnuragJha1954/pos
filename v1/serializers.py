@@ -14,7 +14,8 @@ from .models import (
     EmployeeCredentials,
     Order,
     OrderItem, 
-    Customer
+    Customer,
+    RefundNote
 )
 from users.models import CustomUser
 
@@ -305,7 +306,7 @@ class OrderSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'order_number', 'order_date', 'total_price', 'gst', 'status',
             'address', 'mode', 'updated_at', 'table_number',
-            'outlet_id', 'outlet_name', 'customers', 'items'
+            'outlet_id', 'outlet_name', 'customers', 'items','note'
         ]
 
 
@@ -356,7 +357,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
         fields = [
             'order_number', 'order_date', 'total_price', 'gst', 'status', 'mode',
             'table_number', 'razorpay_order_id', 'razorpay_payment_id', 'razorpay_signature',
-            'items', 'customers', 'outlet_id', 'outlet_name'
+            'items', 'customers', 'outlet_id', 'outlet_name', 'note'
         ]
 
 
@@ -373,7 +374,10 @@ class OrderBillSerializer(serializers.ModelSerializer):
 
 
 
-
+class RefundNoteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RefundNote
+        fields = ['refund_title', 'refund_description', 'refund_amount']
 
 
 
