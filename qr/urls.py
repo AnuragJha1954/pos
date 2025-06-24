@@ -13,7 +13,10 @@ from .views import (
     add_advertisement_banner,
     add_special_menu,
     update_special_menu_name,
-    generate_table_qrs
+    generate_table_qrs,
+    add_colors_to_palette,
+    remove_colors_from_palette,
+    delete_advertisement_banner
 )
 
 urlpatterns = [
@@ -23,6 +26,7 @@ urlpatterns = [
     path('special-menu/<int:outlet_id>/', get_special_menu, name='get_special_menu'),
     path('get-advertisement-banners/<int:outlet_id>/', get_banners, name='get_banners'),
     path('add-advertisement-banners/<int:outlet_id>/', add_advertisement_banner, name='add-advertisement-banner'),
+    path('delete-advertisement-banners/<int:outlet_id>/<int:banner_id>/', delete_advertisement_banner, name='add-advertisement-banner'),
     path('get-coupons/<int:outlet_id>/', active_coupons, name='active-coupons'),
     path('razorpay/<int:outlet_id>/', get_razorpay_credentials, name='get_razorpay_credentials'),
     path('razorpay/add/<int:outlet_id>/', add_or_update_razorpay_credentials, name='razorpay-credential'),
@@ -31,5 +35,6 @@ urlpatterns = [
     path('special-menu/add/<int:outlet_id>/', add_special_menu, name='add-special-menu'),
     path('special-menu/update-name/<int:outlet_id>/', update_special_menu_name, name='update_special_menu_name'),
     path('generate-qr/<int:outlet_id>/', generate_table_qrs, name='generate_table_qrs'),
-
+    path('qr-customization/colors/<int:outlet_id>/add/',add_colors_to_palette,name='add_colors_to_palette'),
+    path('qr-customization/colors/<int:outlet_id>/remove/',remove_colors_from_palette,name='remove_colors_from_palette'),
 ]

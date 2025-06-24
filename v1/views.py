@@ -1,5 +1,6 @@
 import random
 import string
+import math
 
 from datetime import datetime
 
@@ -7,8 +8,10 @@ from django.shortcuts import get_object_or_404,render
 from django.contrib.auth import get_user_model
 from django.http import JsonResponse
 from django.utils.timezone import localtime
+from django.utils.timezone import now
 from django.template.loader import render_to_string
 from django.http import HttpResponse
+from django.db.models import Q, Min
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -243,35 +246,41 @@ def grant_outlet_access(request, outlet_id, user_id,manager_id):
 )
 @api_view(['GET'])
 @permission_classes([AllowAny])  # Adjust as per your authentication
-def list_company_outlets(request, company_id,user_id):
-    # Manually handle token authentication
+def list_company_outlets(request, company_id, user_id):
     token_key = request.headers.get("Authorization")
     if not token_key:
         return Response({"error": "Authorization token is missing"}, status=status.HTTP_401_UNAUTHORIZED)
 
-    # Validate the token and retrieve the user
     try:
         token = Token.objects.get(key=token_key)
-        if token.user.id != user_id:  # Check if the token belongs to the user ID provided in the URL
-            return Response({"error":True,"detail": "Token is not valid. Invalid Authentication Header"}, status=status.HTTP_403_FORBIDDEN)
-        
+        if token.user.id != user_id:
+            return Response({"error": True, "detail": "Token is not valid. Invalid Authentication Header"}, status=status.HTTP_403_FORBIDDEN)
         requesting_user = token.user
     except Token.DoesNotExist:
         return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
 
-   
-    # Verify if the requesting user has the "manager" role
     try:
         employee_record = Employee.objects.get(user=requesting_user)
         if employee_record.role != 'manager':
-            return Response({"error":True, "detail":"Only a manager can get list of all outlets of a company"}, status=status.HTTP_403_FORBIDDEN)
+            return Response({"error": True, "detail": "Only a manager can get list of all outlets of a company"}, status=status.HTTP_403_FORBIDDEN)
     except Employee.DoesNotExist:
-        return Response({"error":True, "detail": "User is not an employee or manager"}, status=status.HTTP_403_FORBIDDEN)
-    
-    
+        return Response({"error": True, "detail": "User is not an employee or manager"}, status=status.HTTP_403_FORBIDDEN)
+
+    # Fetch outlets
     outlets = Outlet.objects.filter(company_id=company_id)
+    total_outlets = outlets.count()
+    active_outlets = outlets.filter(is_active=True).count()
+    inactive_outlets = outlets.filter(is_active=False).count()
+
     serializer = OutletSerializer(outlets, many=True)
-    return Response({"error": False, "outlets": serializer.data})
+    
+    return Response({
+        "error": False,
+        "outlets": serializer.data,
+        "total_outlets": total_outlets,
+        "total_active_outlets": active_outlets,
+        "total_inactive_outlets": inactive_outlets
+    }, status=status.HTTP_200_OK)
 
 
 
@@ -1330,16 +1339,114 @@ def get_employees_by_user(request, user_id):
     # Get requesting user's employee record and company
     try:
         employee = Employee.objects.get(user=requesting_user)
-        company = employee.company
+        base_company = employee.company
     except Employee.DoesNotExist:
         return Response({"error": True, "detail": "User is not associated with any employee record"}, status=status.HTTP_403_FORBIDDEN)
 
-    # Get all employees of the same company
-    employees = Employee.objects.filter(company=company)
+    # Optional filters
+    phone = request.query_params.get('phone')
+    name = request.query_params.get('name')
+    company_id = request.query_params.get('company_id')
+
+    # Start with employees of the base company
+    employees = Employee.objects.filter(company=base_company)
+
+    # Apply additional filters
+    if phone:
+        employees = employees.filter(phone_number__icontains=phone)
+    if name:
+        employees = employees.filter(
+            Q(first_name__icontains=name) |
+            Q(last_name__icontains=name)
+        )
+    if company_id:
+        employees = employees.filter(company__id=company_id)
 
     # Serialize and return
     serializer = EmployeeListSerializer(employees, many=True)
-    return Response({"error": False, "detail":"Employess fetched successfully", "employees": serializer.data}, status=status.HTTP_200_OK)
+    return Response({
+        "error": False,
+        "detail": "Employees fetched successfully",
+        "employees": serializer.data
+    }, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='post',
+    operation_summary="Toggle employee active/inactive status",
+    operation_description="Toggle the active status of an employee by ID. Only managers of the same company can perform this action.",
+    manual_parameters=[
+        openapi.Parameter(
+            'Authorization',
+            openapi.IN_HEADER,
+            description="Authorization token (without 'Token' prefix)",
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ],
+    responses={
+        200: openapi.Response(
+            description="Success response when employee status is toggled",
+            examples={
+                "application/json": {
+                    "error": False,
+                    "detail": "Employee has been activated successfully.",
+                    "employee_id": 12,
+                    "is_active": True
+                }
+            }
+        ),
+        401: openapi.Response(description="Unauthorized - Invalid or missing token"),
+        403: openapi.Response(description="Forbidden - Not allowed to perform this action"),
+        404: openapi.Response(description="Not found - Employee not found in your company")
+    }
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def toggle_employee_status(request, employee_id):
+    # Authorization check
+    token_key = request.headers.get("Authorization")
+    if not token_key:
+        return Response({"error": "Authorization token is missing"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    try:
+        token = Token.objects.get(key=token_key)
+        requesting_user = token.user
+    except Token.DoesNotExist:
+        return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    # Check if requesting user is an employee
+    try:
+        employee_user = Employee.objects.get(user=requesting_user)
+    except Employee.DoesNotExist:
+        return Response({"error": True, "detail": "Requesting user is not associated with an employee record"}, status=status.HTTP_403_FORBIDDEN)
+
+    # Only allow manager role to toggle status
+    if employee_user.role != 'manager':
+        return Response({"error": True, "detail": "Only manager can toggle employee status"}, status=status.HTTP_403_FORBIDDEN)
+
+    # Toggle target employee
+    try:
+        employee = Employee.objects.get(id=employee_id, company=employee_user.company)
+        employee.is_active = not employee.is_active
+        employee.save()
+        status_str = "activated" if employee.is_active else "deactivated"
+        return Response({
+            "error": False,
+            "detail": f"Employee has been {status_str} successfully.",
+            "employee_id": employee.id,
+            "is_active": employee.is_active
+        }, status=status.HTTP_200_OK)
+
+    except Employee.DoesNotExist:
+        return Response({"error": True, "detail": "Employee not found in your company"}, status=status.HTTP_404_NOT_FOUND)
+
 
 
 
@@ -1861,3 +1968,144 @@ def cancel_order(request, order_number):
 
 
 
+
+class FlatPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+
+    def get_page_metadata(self):
+        total_customers = self.page.paginator.count
+        total_pages = math.ceil(total_customers / self.page_size)
+        current_page = self.page.number
+        next_page = self.get_next_link()
+        previous_page = self.get_previous_link()
+        return {
+            "total_customers": total_customers,
+            "total_pages": total_pages,
+            "current_page": current_page,
+            "next_page_url": next_page,
+            "previous_page_url": previous_page,
+        }
+
+
+
+
+@swagger_auto_schema(
+    method='get',
+    operation_description="Get list of customers for a company with last order info and outlet details. Also returns outlet stats.",
+    manual_parameters=[
+        openapi.Parameter(
+            'company_id',
+            openapi.IN_PATH,
+            description="ID of the company",
+            type=openapi.TYPE_INTEGER,
+            required=True
+        ),
+        openapi.Parameter(
+            'outlet_id',
+            openapi.IN_QUERY,
+            description="Optional outlet ID to filter customers",
+            type=openapi.TYPE_INTEGER,
+            required=False
+        ),
+    ],
+    responses={
+        200: openapi.Response(
+            description="List of customers and outlet statistics",
+            examples={
+                "application/json": {
+                    "error": False,
+                    "customers": [
+                        {
+                            "name": "John Doe",
+                            "phone_number": "9876543210",
+                            "last_order_date": "2025-06-15T14:30:00Z",
+                            "outlet": {
+                                "id": 5,
+                                "name": "Outlet A"
+                            }
+                        }
+                    ],
+                    "outlet_summary": {
+                        "total_outlets": 8,
+                        "active_outlets": 6,
+                        "new_outlets_this_month": 2
+                    }
+                }
+            }
+        ),
+        404: "Company not found",
+        400: "Bad request"
+    }
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def list_company_customers(request, company_id):
+    outlet_id = request.query_params.get('outlet_id')
+    search_query = request.query_params.get('phone_number', '')
+    today = now()
+
+    # Validate company
+    try:
+        company = Company.objects.get(id=company_id)
+    except Company.DoesNotExist:
+        return Response({"error": True, "detail": "Company not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Get relevant outlets
+    all_outlets = Outlet.objects.filter(company=company)
+    if outlet_id:
+        all_outlets = all_outlets.filter(id=outlet_id)
+    outlet_ids = all_outlets.values_list('id', flat=True)
+
+    # Get orders and customers
+    orders = Order.objects.filter(outlet_id__in=outlet_ids)
+    customers = Customer.objects.filter(order__in=orders).distinct()
+
+    # Apply phone search if present
+    if search_query:
+        customers = customers.filter(phone_number__icontains=search_query)
+
+    # Stats
+    total_customers = customers.count()
+    active_customers = customers.filter(
+        order__order_date__year=today.year,
+        order__order_date__month=today.month
+    ).distinct().count()
+
+    # New customers this month
+    first_orders = customers.annotate(first_order=Min('order__order_date'))
+    new_customers_this_month = sum(
+        1 for c in first_orders if c.first_order and c.first_order.year == today.year and c.first_order.month == today.month
+    )
+
+    # Prepare customer data
+    customer_data = []
+    for customer in customers:
+        latest_order = orders.filter(customers=customer).order_by('-order_date').first()
+        if latest_order:
+            customer_data.append({
+                "name": customer.name,
+                "phone_number": customer.phone_number,
+                "last_order_date": latest_order.order_date,
+                "outlet": {
+                    "id": latest_order.outlet.id,
+                    "name": latest_order.outlet.outlet_name
+                }
+            })
+
+    # Paginate
+    paginator = FlatPagination()
+    paginated_data = paginator.paginate_queryset(customer_data, request)
+    page_metadata = paginator.get_page_metadata()
+
+    # Final response
+    return Response({
+        "total_customers": total_customers,
+        "active_customers": active_customers,
+        "new_customers_this_month": new_customers_this_month,
+        "total_pages": page_metadata["total_pages"],
+        "current_page": page_metadata["current_page"],
+        "next_page_url": page_metadata["next_page_url"],
+        "previous_page_url": page_metadata["previous_page_url"],
+        "customers": paginated_data
+    }, status=status.HTTP_200_OK)

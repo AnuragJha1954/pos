@@ -731,6 +731,45 @@ def add_advertisement_banner(request, outlet_id):
 
 
 
+@swagger_auto_schema(
+    method='delete',
+    manual_parameters=[
+        openapi.Parameter(
+            'outlet_id',
+            openapi.IN_PATH,
+            description="ID of the Outlet",
+            type=openapi.TYPE_INTEGER,
+            required=True
+        ),
+        openapi.Parameter(
+            'banner_id',
+            openapi.IN_PATH,
+            description="ID of the Advertisement Banner",
+            type=openapi.TYPE_INTEGER,
+            required=True
+        ),
+    ],
+    responses={
+        200: openapi.Response(description="Banner deleted successfully."),
+        404: openapi.Response(description="Banner not found for the given outlet."),
+    }
+)
+@api_view(['DELETE'])
+@permission_classes([AllowAny])
+def delete_advertisement_banner(request, outlet_id, banner_id):
+    try:
+        banner = AdvertisementBanner.objects.get(id=banner_id, outlet__id=outlet_id)
+    except AdvertisementBanner.DoesNotExist:
+        return Response({"error": True, "details": "Banner not found for the given outlet."}, status=status.HTTP_404_NOT_FOUND)
+    
+    banner.delete()
+    return Response({"error": False, "details": "Banner deleted successfully."}, status=status.HTTP_200_OK)
+
+
+
+
+
+
 
 
 
@@ -1163,3 +1202,142 @@ def generate_table_qrs(request, outlet_id):
         return Response(qr_serializer.data, status=status.HTTP_200_OK)
     
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+# {
+#   "colors": ["#FF5733", "#2196F3"]
+# }
+
+
+
+# {
+#   "colors": ["#FF5733", "#4CAF50", "#2196F3"]
+# }
+
+
+@swagger_auto_schema(
+    method='post',
+    operation_description="Add one or more colors to the QR customization's color palette.",
+    manual_parameters=[
+        openapi.Parameter(
+            'outlet_id',
+            openapi.IN_PATH,
+            description="ID of the Outlet",
+            type=openapi.TYPE_INTEGER,
+            required=True
+        )
+    ],
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=["colors"],
+        properties={
+            "colors": openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Items(type=openapi.TYPE_STRING, example="#FF5733"),
+                description="List of HEX color codes to add"
+            )
+        }
+    ),
+    responses={
+        200: openapi.Response(description="Colors added successfully."),
+        400: openapi.Response(description="Validation error."),
+        404: openapi.Response(description="QR Customization not found.")
+    }
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def add_colors_to_palette(request, outlet_id):
+    try:
+        customization = QRCustomization.objects.get(outlet_id=outlet_id)
+    except QRCustomization.DoesNotExist:
+        return Response({"error": True, "details": "QR Customization not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    new_colors = request.data.get("colors", [])
+    if not isinstance(new_colors, list):
+        return Response({"error": True, "details": "Colors must be provided as a list."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if customization.color_palette is None:
+        customization.color_palette = []
+
+    customization.color_palette.extend([color for color in new_colors if color not in customization.color_palette])
+    customization.save()
+
+    return Response({
+        "error": False,
+        "details": "Colors added successfully.",
+        "color_palette": customization.color_palette
+    }, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='delete',
+    operation_description="Remove one or more colors from the QR customization's color palette.",
+    manual_parameters=[
+        openapi.Parameter(
+            'outlet_id',
+            openapi.IN_PATH,
+            description="ID of the Outlet",
+            type=openapi.TYPE_INTEGER,
+            required=True
+        )
+    ],
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=["colors"],
+        properties={
+            "colors": openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Items(type=openapi.TYPE_STRING, example="#4CAF50"),
+                description="List of HEX color codes to remove"
+            )
+        }
+    ),
+    responses={
+        200: openapi.Response(description="Colors removed successfully."),
+        400: openapi.Response(description="Validation error."),
+        404: openapi.Response(description="QR Customization not found.")
+    }
+)
+@api_view(['DELETE'])
+@permission_classes([AllowAny])
+def remove_colors_from_palette(request, outlet_id):
+    try:
+        customization = QRCustomization.objects.get(outlet_id=outlet_id)
+    except QRCustomization.DoesNotExist:
+        return Response({"error": True, "details": "QR Customization not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    colors_to_remove = request.data.get("colors", [])
+    if not isinstance(colors_to_remove, list):
+        return Response({"error": True, "details": "Colors must be provided as a list."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if customization.color_palette is None:
+        customization.color_palette = []
+
+    customization.color_palette = [color for color in customization.color_palette if color not in colors_to_remove]
+    customization.save()
+
+    return Response({
+        "error": False,
+        "details": "Colors removed successfully.",
+        "color_palette": customization.color_palette
+    }, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+
+
+

@@ -150,7 +150,7 @@ class RazorpayCredentialSerializer(serializers.ModelSerializer):
 class QRCustomizationSerializer(serializers.ModelSerializer):
     class Meta:
         model = QRCustomization
-        fields = ['qr_tagline', 'qr_logo', 'theme_color','color_palette']
+        fields = ['qr_tagline', 'qr_logo', 'theme_color']
         
     def get_qr_logo(self, obj):
         request = self.context.get('request')

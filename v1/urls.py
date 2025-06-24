@@ -20,6 +20,7 @@ urlpatterns = [
     path('update-permissions/<int:user_id>/<int:employee_id>/', views.update_employee_permissions, name='update_employee_permissions'),
     path('get-credentials/<int:employee_id>/<int:user_id>/', views.get_employee_credentials, name='get_employee_credentials'),
     path('manage-credentials/<int:employee_id>/<int:user_id>/', views.manage_employee_credentials, name='manage_employee_credentials'),
+    path('employees/<int:employee_id>/toggle-status/', views.toggle_employee_status, name='toggle-employee-status'),
 
     
     # Product related URLs
@@ -50,5 +51,8 @@ urlpatterns = [
     #Refund Note related Urls
     path('refund-note/<str:order_number>/add/', views.add_refund_note, name='add-refund-note'),
     path('refund-note/<str:order_number>/get/', views.get_refund_notes_by_order, name='get-refund-notes'),
+    
+    #Customer Related Urls
+    path('get-customers/<int:company_id>/',views.list_company_customers,name='list_company_customers'),
 
 ]
