@@ -563,52 +563,32 @@ special_menu_get_response = openapi.Schema(
 )
 
 @swagger_auto_schema(
-    method='get',
+    method="get",
+    operation_description="Retrieve all special menus for a given outlet (with their products).",
     responses={
-        200: special_menu_get_response,
-        404: 'Outlet not found',
-        500: 'Internal Server Error',
+        200: SpecialMenuSerializer(many=True),
+        404: "Outlet not found or no special menus available.",
     },
-    operation_summary="Get the special menu and its products (with variants) for an outlet"
 )
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes([AllowAny])
 def get_special_menu(request, outlet_id):
     try:
-        # Check if the outlet exists
-        outlet = Outlet.objects.filter(id=outlet_id).first()
-        if not outlet:
-            return Response({
-                "error": True,
-                "details": "Outlet not found."
-            }, status=status.HTTP_404_NOT_FOUND)
+        menus = SpecialMenu.objects.filter(outlet_id=outlet_id)
+        if not menus.exists():
+            return Response(
+                {"error": True, "detail": "No special menus found for this outlet."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+    except Exception:
+        return Response({"error": True, "detail": "Outlet not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        # Get special menu for the outlet
-        special_menu = SpecialMenu.objects.filter(outlet=outlet).prefetch_related('products__variants').first()
-        if not special_menu:
-            return Response({
-                "error": False,
-                "details": "No special menu found for this outlet.",
-                "products": []
-            }, status=status.HTTP_200_OK)
+    serializer = SpecialMenuSerializer(menus, many=True)
+    return Response(
+        {"error": False, "special_menus": serializer.data},
+        status=status.HTTP_200_OK,
+    )
 
-        # Serialize the products with variants
-        serializer_context = {'request': request}
-        products = special_menu.products.all()
-        product_data = ProductSerializer(products, many=True, context=serializer_context).data
-
-        return Response({
-            "error": False,
-            "details": "Special menu fetched successfully.",
-            "menu_name": special_menu.name,
-            "products": product_data
-        }, status=status.HTTP_200_OK)
-
-    except Exception as e:
-        return Response({
-            "error": True,
-            "details": f"An error occurred: {str(e)}"
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         
         
@@ -619,151 +599,100 @@ def get_special_menu(request, outlet_id):
 
 
 @swagger_auto_schema(
-    method='get',
-    operation_summary="Get banners",
-    operation_description="Fetch a list of banner images with their respective redirect URLs.",
+    method="post",
+    operation_description="Create a new advertisement banner for an outlet.",
+    request_body=AdvertisementBannerSerializer,
     responses={
-        200: openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "error": openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Indicates success or failure"),
-                "details": openapi.Schema(type=openapi.TYPE_STRING, description="Message describing the result"),
-                "banners": openapi.Schema(
-                    type=openapi.TYPE_ARRAY,
-                    items=openapi.Schema(
-                        type=openapi.TYPE_OBJECT,
-                        properties={
-                            "image_url": openapi.Schema(type=openapi.TYPE_STRING, description="URL of the banner image"),
-                            "redirect_url": openapi.Schema(type=openapi.TYPE_STRING, description="URL to redirect on banner click")
-                        }
-                    ),
-                    description="List of banner objects"
-                )
-            }
-        )
-    }
+        201: "Banner created successfully.",
+        400: "Bad request.",
+        404: "Outlet not found."
+    },
 )
-@api_view(['GET'])
+@api_view(["POST"])
 @permission_classes([AllowAny])
-def get_banners(request, outlet_id):
-    try:
-        banners = AdvertisementBanner.objects.filter(outlet_id=outlet_id)
-        serializer = AdvertisementBannerSerializer(banners, many=True)
-
-        return Response({
-            "error": False,
-            "details": "Active Banners fetched successfully.",
-            "banners": serializer.data
-        }, status=status.HTTP_200_OK)
-
-    except Exception as e:
-        return Response({
-            "error": True,
-            "details": f"An error occurred: {str(e)}"
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-
-
-
-
-
-
-banner_request = openapi.Schema(
-    type=openapi.TYPE_OBJECT,
-    required=['image_url', 'redirect_url'],
-    properties={
-        'image_url': openapi.Schema(type=openapi.TYPE_STRING, description='URL of the banner image'),
-        'redirect_url': openapi.Schema(type=openapi.TYPE_STRING, description='URL to redirect when banner clicked'),
-    },
-)
-
-banner_response = openapi.Schema(
-    type=openapi.TYPE_OBJECT,
-    properties={
-        "error": openapi.Schema(type=openapi.TYPE_BOOLEAN),
-        "details": openapi.Schema(type=openapi.TYPE_STRING),
-        "banner": openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                "id": openapi.Schema(type=openapi.TYPE_INTEGER),
-                "image_url": openapi.Schema(type=openapi.TYPE_STRING),
-                "redirect_url": openapi.Schema(type=openapi.TYPE_STRING),
-                "outlet": openapi.Schema(type=openapi.TYPE_INTEGER),
-            },
-        ),
-    },
-)
-
-@swagger_auto_schema(
-    method='post',
-    request_body=banner_request,
-    responses={
-        201: banner_response,
-        400: 'Bad Request',
-        404: 'Outlet not found'
-    },
-    operation_summary="Add an advertisement banner for an outlet"
-)
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def add_advertisement_banner(request, outlet_id):
+def create_banner(request, outlet_id):
     try:
         outlet = Outlet.objects.get(id=outlet_id)
     except Outlet.DoesNotExist:
-        return Response({"error": True, "details": "Outlet not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"error": True, "detail": "Outlet not found."}, status=status.HTTP_404_NOT_FOUND)
 
     serializer = AdvertisementBannerSerializer(data=request.data)
     if serializer.is_valid():
-        serializer.save(outlet=outlet)
-        return Response({
-            "error": False,
-            "details": "Banner added successfully.",
-            "banner": serializer.data
-        }, status=status.HTTP_201_CREATED)
-    return Response({
-        "error": True,
-        "details": serializer.errors
-    }, status=status.HTTP_400_BAD_REQUEST)
+        banner = serializer.save(outlet=outlet)
+        return Response({"error": False, "detail": "Banner created successfully.", "data": AdvertisementBannerSerializer(banner).data}, status=status.HTTP_201_CREATED)
+    return Response({"error": True, "detail": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
-
-
-
-
+# LIST banners for an outlet
 @swagger_auto_schema(
-    method='delete',
-    manual_parameters=[
-        openapi.Parameter(
-            'outlet_id',
-            openapi.IN_PATH,
-            description="ID of the Outlet",
-            type=openapi.TYPE_INTEGER,
-            required=True
-        ),
-        openapi.Parameter(
-            'banner_id',
-            openapi.IN_PATH,
-            description="ID of the Advertisement Banner",
-            type=openapi.TYPE_INTEGER,
-            required=True
-        ),
-    ],
-    responses={
-        200: openapi.Response(description="Banner deleted successfully."),
-        404: openapi.Response(description="Banner not found for the given outlet."),
-    }
+    method="get",
+    operation_description="Get all advertisement banners for an outlet.",
+    responses={200: AdvertisementBannerSerializer(many=True)},
 )
-@api_view(['DELETE'])
+@api_view(["GET"])
 @permission_classes([AllowAny])
-def delete_advertisement_banner(request, outlet_id, banner_id):
+def list_banners(request, outlet_id):
+    banners = AdvertisementBanner.objects.filter(outlet_id=outlet_id)
+    serializer = AdvertisementBannerSerializer(banners, many=True)
+    return Response({"error": False, "banners": serializer.data}, status=status.HTTP_200_OK)
+
+
+# RETRIEVE a single banner
+@swagger_auto_schema(
+    method="get",
+    operation_description="Retrieve a single advertisement banner by ID.",
+    responses={200: AdvertisementBannerSerializer, 404: "Banner not found."},
+)
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def get_banner(request, banner_id):
     try:
-        banner = AdvertisementBanner.objects.get(id=banner_id, outlet__id=outlet_id)
+        banner = AdvertisementBanner.objects.get(id=banner_id)
     except AdvertisementBanner.DoesNotExist:
-        return Response({"error": True, "details": "Banner not found for the given outlet."}, status=status.HTTP_404_NOT_FOUND)
-    
+        return Response({"error": True, "detail": "Banner not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = AdvertisementBannerSerializer(banner)
+    return Response({"error": False, "banner": serializer.data}, status=status.HTTP_200_OK)
+
+
+# UPDATE
+@swagger_auto_schema(
+    method="put",
+    operation_description="Update an advertisement banner.",
+    request_body=AdvertisementBannerSerializer,
+    responses={200: "Banner updated successfully.", 400: "Bad request.", 404: "Banner not found."},
+)
+@api_view(["PUT"])
+@permission_classes([AllowAny])
+def update_banner(request, banner_id):
+    try:
+        banner = AdvertisementBanner.objects.get(id=banner_id)
+    except AdvertisementBanner.DoesNotExist:
+        return Response({"error": True, "detail": "Banner not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = AdvertisementBannerSerializer(banner, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response({"error": False, "detail": "Banner updated successfully.", "data": serializer.data}, status=status.HTTP_200_OK)
+    return Response({"error": True, "detail": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# DELETE
+@swagger_auto_schema(
+    method="delete",
+    operation_description="Delete an advertisement banner.",
+    responses={204: "Banner deleted successfully.", 404: "Banner not found."},
+)
+@api_view(["DELETE"])
+@permission_classes([AllowAny])
+def delete_banner(request, banner_id):
+    try:
+        banner = AdvertisementBanner.objects.get(id=banner_id)
+    except AdvertisementBanner.DoesNotExist:
+        return Response({"error": True, "detail": "Banner not found."}, status=status.HTTP_404_NOT_FOUND)
+
     banner.delete()
-    return Response({"error": False, "details": "Banner deleted successfully."}, status=status.HTTP_200_OK)
+    return Response({"error": False, "detail": "Banner deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
 
 
 
@@ -1045,39 +974,98 @@ special_menu_response = openapi.Schema(
     },
 )
 
+# ---------------- CREATE SPECIAL MENU ----------------
 @swagger_auto_schema(
-    method='post',
-    request_body=special_menu_request,
+    method="post",
+    operation_description="Create a new special menu. Products are optional (max 5 if provided).",
+    request_body=SpecialMenuSerializer,
     responses={
-        201: special_menu_response,
-        400: 'Bad Request',
-        404: 'Outlet not found'
+        201: "Special menu created successfully.",
+        400: "Bad request.",
+        401: "Unauthorized.",
     },
-    operation_summary="Create a special menu for an outlet"
 )
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([AllowAny])
-def add_special_menu(request, outlet_id):
-    try:
-        outlet = Outlet.objects.get(id=outlet_id)
-    except Outlet.DoesNotExist:
-        return Response({"error": True, "details": "Outlet not found."}, status=status.HTTP_404_NOT_FOUND)
-
+def create_special_menu(request):
     serializer = SpecialMenuSerializer(data=request.data)
     if serializer.is_valid():
-        if len(serializer.validated_data['products']) > 5:
-            return Response({
-                "error": True,
-                "details": "A Special Menu can contain a maximum of 5 products."
-            }, status=status.HTTP_400_BAD_REQUEST)
+        special_menu = serializer.save()
+        return Response(
+            {"error": False, "detail": "Special menu created successfully.", "menu": serializer.data},
+            status=status.HTTP_201_CREATED,
+        )
+    return Response({"error": True, "detail": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-        special_menu = serializer.save(outlet=outlet)
-        return Response({
-            "error": False,
-            "details": "Special Menu created successfully.",
-            "menu": SpecialMenuSerializer(special_menu).data
-        }, status=status.HTTP_201_CREATED)
-    return Response({"error": True, "details": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+# ---------------- ADD PRODUCT TO SPECIAL MENU ----------------
+product_id_param = openapi.Parameter(
+    "product_id", openapi.IN_PATH, description="ID of the product to add", type=openapi.TYPE_INTEGER
+)
+
+@swagger_auto_schema(
+    method="post",
+    manual_parameters=[product_id_param],
+    operation_description="Add a single product to a special menu (max 5 products allowed).",
+    responses={
+        200: "Product added successfully.",
+        400: "Bad request (e.g., product already exists, exceeds limit).",
+        404: "Special menu or product not found.",
+    },
+)
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def add_product_to_special_menu(request, menu_id, product_id):
+    try:
+        menu = SpecialMenu.objects.get(id=menu_id)
+    except SpecialMenu.DoesNotExist:
+        return Response({"error": True, "detail": "Special menu not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        product = Product.objects.get(id=product_id)
+    except Product.DoesNotExist:
+        return Response({"error": True, "detail": "Product not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if menu.products.count() >= 5:
+        return Response({"error": True, "detail": "A Special Menu can contain a maximum of 5 products."},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    if product in menu.products.all():
+        return Response({"error": True, "detail": "Product already exists in the special menu."},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    menu.products.add(product)
+    return Response({"error": False, "detail": "Product added successfully."}, status=status.HTTP_200_OK)
+
+
+# ---------------- REMOVE PRODUCT FROM SPECIAL MENU ----------------
+@swagger_auto_schema(
+    method="delete",
+    manual_parameters=[product_id_param],
+    operation_description="Remove a single product from a special menu.",
+    responses={
+        200: "Product removed successfully.",
+        404: "Special menu or product not found.",
+    },
+)
+@api_view(["DELETE"])
+@permission_classes([AllowAny])
+def remove_product_from_special_menu(request, menu_id, product_id):
+    try:
+        menu = SpecialMenu.objects.get(id=menu_id)
+    except SpecialMenu.DoesNotExist:
+        return Response({"error": True, "detail": "Special menu not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        product = Product.objects.get(id=product_id)
+    except Product.DoesNotExist:
+        return Response({"error": True, "detail": "Product not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if product not in menu.products.all():
+        return Response({"error": True, "detail": "Product not found in this menu."}, status=status.HTTP_400_BAD_REQUEST)
+
+    menu.products.remove(product)
+    return Response({"error": False, "detail": "Product removed successfully."}, status=status.HTTP_200_OK)
 
 
 

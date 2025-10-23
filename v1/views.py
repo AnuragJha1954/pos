@@ -639,6 +639,275 @@ def add_product_variant(request,user_id):
 
 
 
+
+@swagger_auto_schema(
+    method='post',
+    operation_description="Add a new product with its variants in a single request.",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            "product": openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    "name": openapi.Schema(type=openapi.TYPE_STRING, description="Product name"),
+                    "price": openapi.Schema(type=openapi.TYPE_NUMBER, description="Base product price"),
+                    "image": openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI, description="Product image URL"),
+                    "description": openapi.Schema(type=openapi.TYPE_STRING, description="Product description"),
+                    "outlet": openapi.Schema(type=openapi.TYPE_INTEGER, description="Outlet ID"),
+                    "is_gst_inclusive": openapi.Schema(type=openapi.TYPE_BOOLEAN, description="GST inclusive or not"),
+                    "category": openapi.Schema(type=openapi.TYPE_INTEGER, description="Category ID"),
+                    "is_veg": openapi.Schema(type=openapi.TYPE_BOOLEAN, description="Is the product vegetarian")
+                },
+                required=["name", "price", "outlet", "category"]
+            ),
+            "variants": openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "price": openapi.Schema(type=openapi.TYPE_NUMBER, description="Variant price"),
+                        "is_gst_inclusive": openapi.Schema(type=openapi.TYPE_BOOLEAN, description="GST inclusive for variant"),
+                        "extra_description": openapi.Schema(type=openapi.TYPE_STRING, description="Extra details for the variant")
+                    },
+                    required=["price"]
+                )
+            )
+        },
+        required=["product"]
+    ),
+    responses={
+        201: "Product with variants added successfully.",
+        400: "Bad request.",
+        401: "Unauthorized."
+    }
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def add_product_with_variants(request, user_id):
+    # Authenticate the request
+    token_key = request.headers.get("Authorization")
+    if not token_key:
+        return Response({"error": "Authorization token is missing"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    try:
+        token = Token.objects.get(key=token_key)
+        if token.user.id != user_id:
+            return Response({"error": True, "detail": "Token is not valid. Invalid Authentication Header"}, status=status.HTTP_403_FORBIDDEN)
+        requesting_user = token.user
+    except Token.DoesNotExist:
+        return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    # Extract product and variants from request
+    product_data = request.data.get("product")
+    variants_data = request.data.get("variants", [])
+
+    if not product_data:
+        return Response({"error": True, "detail": "Product data is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Validate and create product
+    product_serializer = ProductSerializer(data=product_data)
+    if not product_serializer.is_valid():
+        return Response({"error": True, "detail": product_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    product = product_serializer.save()
+
+    # Validate and create variants
+    created_variants = []
+    for variant in variants_data:
+        variant["product"] = product.id  # attach product FK
+        variant_serializer = ProductVariantSerializer(data=variant)
+        if variant_serializer.is_valid():
+            created_variants.append(variant_serializer.save())
+        else:
+            return Response({"error": True, "detail": variant_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response({
+        "error": False,
+        "detail": "Product with variants added successfully",
+        "product": product_serializer.data,
+        "variants": ProductVariantSerializer(created_variants, many=True).data
+    }, status=status.HTTP_201_CREATED)
+
+
+
+
+
+@swagger_auto_schema(
+    method='put',
+    operation_description="Edit an existing product.",
+    request_body=ProductSerializer,
+    responses={
+        200: "Product updated successfully.",
+        400: "Bad request.",
+        401: "Unauthorized.",
+        404: "Product not found."
+    }
+)
+@api_view(['PUT'])
+@permission_classes([AllowAny])
+def edit_product(request, user_id, product_id):
+    # Token authentication
+    token_key = request.headers.get("Authorization")
+    if not token_key:
+        return Response({"error": "Authorization token is missing"}, status=status.HTTP_401_UNAUTHORIZED)
+    try:
+        token = Token.objects.get(key=token_key)
+        if token.user.id != user_id:
+            return Response({"error": True, "detail": "Token is not valid"}, status=status.HTTP_403_FORBIDDEN)
+    except Token.DoesNotExist:
+        return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    # Get product
+    try:
+        product = Product.objects.get(id=product_id)
+    except Product.DoesNotExist:
+        return Response({"error": True, "detail": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    # Update product
+    serializer = ProductSerializer(product, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response({"error": False, "detail": "Product updated successfully", "data": serializer.data}, status=status.HTTP_200_OK)
+    return Response({"error": True, "detail": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='delete',
+    operation_description="Delete a product by ID.",
+    responses={
+        204: "Product deleted successfully.",
+        401: "Unauthorized.",
+        404: "Product not found."
+    }
+)
+@api_view(['DELETE'])
+@permission_classes([AllowAny])
+def delete_product(request, user_id, product_id):
+    # Token authentication
+    token_key = request.headers.get("Authorization")
+    if not token_key:
+        return Response({"error": "Authorization token is missing"}, status=status.HTTP_401_UNAUTHORIZED)
+    try:
+        token = Token.objects.get(key=token_key)
+        if token.user.id != user_id:
+            return Response({"error": True, "detail": "Token is not valid"}, status=status.HTTP_403_FORBIDDEN)
+    except Token.DoesNotExist:
+        return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    # Delete product
+    try:
+        product = Product.objects.get(id=product_id)
+        product.delete()
+        return Response({"error": False, "detail": "Product deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+    except Product.DoesNotExist:
+        return Response({"error": True, "detail": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
+
+
+
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='put',
+    operation_description="Edit an existing product variant.",
+    request_body=ProductVariantSerializer,
+    responses={
+        200: "Product variant updated successfully.",
+        400: "Bad request.",
+        401: "Unauthorized.",
+        404: "Product variant not found."
+    }
+)
+@api_view(['PUT'])
+@permission_classes([AllowAny])
+def edit_product_variant(request, user_id, variant_id):
+    # Token authentication
+    token_key = request.headers.get("Authorization")
+    if not token_key:
+        return Response({"error": "Authorization token is missing"}, status=status.HTTP_401_UNAUTHORIZED)
+    try:
+        token = Token.objects.get(key=token_key)
+        if token.user.id != user_id:
+            return Response({"error": True, "detail": "Token is not valid"}, status=status.HTTP_403_FORBIDDEN)
+    except Token.DoesNotExist:
+        return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    # Get variant
+    try:
+        variant = ProductVariant.objects.get(id=variant_id)
+    except ProductVariant.DoesNotExist:
+        return Response({"error": True, "detail": "Product variant not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    # Update variant
+    serializer = ProductVariantSerializer(variant, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response({"error": False, "detail": "Product variant updated successfully", "data": serializer.data}, status=status.HTTP_200_OK)
+    return Response({"error": True, "detail": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='delete',
+    operation_description="Delete a product variant by ID.",
+    responses={
+        204: "Product variant deleted successfully.",
+        401: "Unauthorized.",
+        404: "Product variant not found."
+    }
+)
+@api_view(['DELETE'])
+@permission_classes([AllowAny])
+def delete_product_variant(request, user_id, variant_id):
+    # Token authentication
+    token_key = request.headers.get("Authorization")
+    if not token_key:
+        return Response({"error": "Authorization token is missing"}, status=status.HTTP_401_UNAUTHORIZED)
+    try:
+        token = Token.objects.get(key=token_key)
+        if token.user.id != user_id:
+            return Response({"error": True, "detail": "Token is not valid"}, status=status.HTTP_403_FORBIDDEN)
+    except Token.DoesNotExist:
+        return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    # Delete variant
+    try:
+        variant = ProductVariant.objects.get(id=variant_id)
+        variant.delete()
+        return Response({"error": False, "detail": "Product variant deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+    except ProductVariant.DoesNotExist:
+        return Response({"error": True, "detail": "Product variant not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
+
+
+
+
+
+
 class ProductPagination(PageNumberPagination):
     page_size = 10  # Number of products per page
     page_size_query_param = 'page_size'
@@ -761,6 +1030,295 @@ def add_menu(request,user_id):
         }, status=status.HTTP_201_CREATED)
     
     return Response({"error": True, "detail": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='put',
+    operation_description="Edit an existing menu.",
+    request_body=MenuSerializer,
+    responses={
+        200: "Menu updated successfully.",
+        400: "Bad request.",
+        401: "Unauthorized.",
+        404: "Menu not found."
+    }
+)
+@api_view(['PUT'])
+@permission_classes([AllowAny])
+def edit_menu(request, user_id, menu_id):
+    token_key = request.headers.get("Authorization")
+    if not token_key:
+        return Response({"error": "Authorization token is missing"}, status=status.HTTP_401_UNAUTHORIZED)
+    try:
+        token = Token.objects.get(key=token_key)
+        if token.user.id != user_id:
+            return Response({"error": True, "detail": "Token is not valid"}, status=status.HTTP_403_FORBIDDEN)
+    except Token.DoesNotExist:
+        return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    try:
+        menu = Menu.objects.get(id=menu_id)
+    except Menu.DoesNotExist:
+        return Response({"error": True, "detail": "Menu not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = MenuSerializer(menu, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response({"error": False, "detail": "Menu updated successfully", "menu": serializer.data}, status=status.HTTP_200_OK)
+    return Response({"error": True, "detail": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='post',
+    operation_description="Duplicate a menu with all its products.",
+    responses={
+        201: "Menu duplicated successfully.",
+        401: "Unauthorized.",
+        404: "Menu not found."
+    }
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def duplicate_menu(request, user_id, menu_id):
+    token_key = request.headers.get("Authorization")
+    if not token_key:
+        return Response({"error": "Authorization token is missing"}, status=status.HTTP_401_UNAUTHORIZED)
+    try:
+        token = Token.objects.get(key=token_key)
+        if token.user.id != user_id:
+            return Response({"error": True, "detail": "Token is not valid"}, status=status.HTTP_403_FORBIDDEN)
+    except Token.DoesNotExist:
+        return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    try:
+        menu = Menu.objects.get(id=menu_id)
+    except Menu.DoesNotExist:
+        return Response({"error": True, "detail": "Menu not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    new_menu = Menu.objects.create(
+        outlet=menu.outlet,
+        name=f"{menu.name} (Copy)",
+        is_enabled=menu.is_enabled,
+        start_date=menu.start_date,
+        end_date=menu.end_date,
+        open_time=menu.open_time,
+        close_time=menu.close_time
+    )
+    new_menu.products.set(menu.products.all())
+
+    return Response({
+        "error": False,
+        "detail": "Menu duplicated successfully.",
+        "menu_id": new_menu.id,
+        "name": new_menu.name
+    }, status=status.HTTP_201_CREATED)
+
+
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='patch',
+    operation_description="Enable or disable a menu.",
+    manual_parameters=[
+        openapi.Parameter("is_enabled", openapi.IN_QUERY, description="true or false", type=openapi.TYPE_BOOLEAN)
+    ],
+    responses={
+        200: "Menu status updated successfully.",
+        401: "Unauthorized.",
+        404: "Menu not found."
+    }
+)
+@api_view(['PATCH'])
+@permission_classes([AllowAny])
+def toggle_menu(request, user_id, menu_id):
+    token_key = request.headers.get("Authorization")
+    if not token_key:
+        return Response({"error": "Authorization token is missing"}, status=status.HTTP_401_UNAUTHORIZED)
+    try:
+        token = Token.objects.get(key=token_key)
+        if token.user.id != user_id:
+            return Response({"error": True, "detail": "Token is not valid"}, status=status.HTTP_403_FORBIDDEN)
+    except Token.DoesNotExist:
+        return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    try:
+        menu = Menu.objects.get(id=menu_id)
+    except Menu.DoesNotExist:
+        return Response({"error": True, "detail": "Menu not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    is_enabled = request.data.get("is_enabled")
+    if is_enabled is None:
+        return Response({"error": True, "detail": "is_enabled is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    menu.is_enabled = is_enabled
+    menu.save()
+    return Response({"error": False, "detail": f"Menu {'enabled' if is_enabled else 'disabled'} successfully."}, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='post',
+    operation_description="Add products to an existing menu.",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            "products": openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_INTEGER))
+        },
+        required=["products"]
+    ),
+    responses={
+        200: "Products added successfully.",
+        401: "Unauthorized.",
+        404: "Menu not found."
+    }
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def add_products_to_menu(request, user_id, menu_id):
+    token_key = request.headers.get("Authorization")
+    if not token_key:
+        return Response({"error": "Authorization token is missing"}, status=status.HTTP_401_UNAUTHORIZED)
+    try:
+        token = Token.objects.get(key=token_key)
+        if token.user.id != user_id:
+            return Response({"error": True, "detail": "Token is not valid"}, status=status.HTTP_403_FORBIDDEN)
+    except Token.DoesNotExist:
+        return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    try:
+        menu = Menu.objects.get(id=menu_id)
+    except Menu.DoesNotExist:
+        return Response({"error": True, "detail": "Menu not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    product_ids = request.data.get("products", [])
+    if not product_ids:
+        return Response({"error": True, "detail": "Products are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    products = Product.objects.filter(id__in=product_ids)
+    menu.products.add(*products)
+
+    return Response({"error": False, "detail": "Products added successfully."}, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='post',
+    operation_description="Remove products from an existing menu.",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            "products": openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_INTEGER))
+        },
+        required=["products"]
+    ),
+    responses={
+        200: "Products removed successfully.",
+        401: "Unauthorized.",
+        404: "Menu not found."
+    }
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def remove_products_from_menu(request, user_id, menu_id):
+    token_key = request.headers.get("Authorization")
+    if not token_key:
+        return Response({"error": "Authorization token is missing"}, status=status.HTTP_401_UNAUTHORIZED)
+    try:
+        token = Token.objects.get(key=token_key)
+        if token.user.id != user_id:
+            return Response({"error": True, "detail": "Token is not valid"}, status=status.HTTP_403_FORBIDDEN)
+    except Token.DoesNotExist:
+        return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    try:
+        menu = Menu.objects.get(id=menu_id)
+    except Menu.DoesNotExist:
+        return Response({"error": True, "detail": "Menu not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    product_ids = request.data.get("products", [])
+    if not product_ids:
+        return Response({"error": True, "detail": "Products are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    products = Product.objects.filter(id__in=product_ids)
+    menu.products.remove(*products)
+
+    return Response({"error": False, "detail": "Products removed successfully."}, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='get',
+    operation_description="Get all products of a menu.",
+    responses={
+        200: "Products fetched successfully.",
+        401: "Unauthorized.",
+        404: "Menu not found."
+    }
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_menu_products(request, user_id, menu_id):
+    token_key = request.headers.get("Authorization")
+    if not token_key:
+        return Response({"error": "Authorization token is missing"}, status=status.HTTP_401_UNAUTHORIZED)
+    try:
+        token = Token.objects.get(key=token_key)
+        if token.user.id != user_id:
+            return Response({"error": True, "detail": "Token is not valid"}, status=status.HTTP_403_FORBIDDEN)
+    except Token.DoesNotExist:
+        return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    try:
+        menu = Menu.objects.get(id=menu_id)
+    except Menu.DoesNotExist:
+        return Response({"error": True, "detail": "Menu not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    products = menu.products.all()
+    serializer = ProductSerializer(products, many=True)
+
+    return Response({"error": False, "products": serializer.data}, status=status.HTTP_200_OK)
+
+
+
+
+
 
 
 
@@ -967,7 +1525,6 @@ def add_category(request, outlet_id,user_id):
 @permission_classes([AllowAny])
 def get_categories_by_outlet(request, outlet_id, user_id):
     # Authenticate the request
-     # Manually handle token authentication
     token_key = request.headers.get("Authorization")
     if not token_key:
         return Response({"error": "Authorization token is missing"}, status=status.HTTP_401_UNAUTHORIZED)
@@ -975,19 +1532,19 @@ def get_categories_by_outlet(request, outlet_id, user_id):
     # Validate the token and retrieve the user
     try:
         token = Token.objects.get(key=token_key)
-        if token.user.id != user_id:  # Check if the token belongs to the user ID provided in the URL
-            return Response({"error":True,"detail": "Token is not valid. Invalid Authentication Header"}, status=status.HTTP_403_FORBIDDEN)
+        if token.user.id != user_id:  # Ensure the token belongs to the provided user ID
+            return Response({"error": True, "detail": "Token is not valid. Invalid Authentication Header"}, status=status.HTTP_403_FORBIDDEN)
         
         requesting_user = token.user
     except Token.DoesNotExist:
-        return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)    
+        return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
     
     try:
         # Check if the outlet exists
         outlet = Outlet.objects.get(id=outlet_id)
 
-        # Get the categories for the given outlet and extract only the names
-        categories = Category.objects.filter(outlet=outlet).values_list('name', flat=True)
+        # Get categories with both id and name
+        categories = Category.objects.filter(outlet=outlet).values("id", "name")
 
         return Response({
             "error": False,
@@ -1001,6 +1558,7 @@ def get_categories_by_outlet(request, outlet_id, user_id):
             "error": True,
             "detail": "Outlet not found."
         }, status=status.HTTP_404_NOT_FOUND)
+
 
 
 
@@ -2109,3 +2667,124 @@ def list_company_customers(request, company_id):
         "previous_page_url": page_metadata["previous_page_url"],
         "customers": paginated_data
     }, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='put',
+    operation_summary="Edit Category",
+    operation_description="Edits an existing category by ID for a specific outlet.",
+    request_body=CategorySerializer,
+    responses={
+        200: openapi.Response("Category updated successfully"),
+        400: "Validation error",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Category not found",
+    }
+)
+@api_view(['PUT', 'PATCH'])
+@permission_classes([AllowAny])
+def edit_category(request, outlet_id, user_id, category_id):
+    token_key = request.headers.get("Authorization")
+    if not token_key:
+        return Response({"error": "Authorization token is missing"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    try:
+        token = Token.objects.get(key=token_key)
+        if token.user.id != user_id:
+            return Response({"error": True, "detail": "Token is not valid. Invalid Authentication Header"}, status=status.HTTP_403_FORBIDDEN)
+
+        requesting_user = token.user
+    except Token.DoesNotExist:
+        return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    try:
+        category = Category.objects.get(id=category_id, outlet__id=outlet_id)
+    except Category.DoesNotExist:
+        return Response({"error": True, "detail": "Category not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = CategorySerializer(category, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response({
+            "error": False,
+            "detail": "Category updated successfully.",
+            "category_id": category.id,
+            "category_name": category.name
+        }, status=status.HTTP_200_OK)
+    else:
+        return Response({"error": True, "detail": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='delete',
+    operation_summary="Delete Category",
+    operation_description="Deletes an existing category by ID for a specific outlet.",
+    responses={
+        200: "Category deleted successfully",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Category not found",
+    }
+)
+@api_view(['DELETE'])
+@permission_classes([AllowAny])
+def delete_category(request, outlet_id, user_id, category_id):
+    token_key = request.headers.get("Authorization")
+    if not token_key:
+        return Response({"error": "Authorization token is missing"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    try:
+        token = Token.objects.get(key=token_key)
+        if token.user.id != user_id:
+            return Response({"error": True, "detail": "Token is not valid. Invalid Authentication Header"}, status=status.HTTP_403_FORBIDDEN)
+
+        requesting_user = token.user
+    except Token.DoesNotExist:
+        return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    try:
+        category = Category.objects.get(id=category_id, outlet__id=outlet_id)
+        category.delete()
+        return Response({
+            "error": False,
+            "detail": "Category deleted successfully."
+        }, status=status.HTTP_200_OK)
+    except Category.DoesNotExist:
+        return Response({
+            "error": True,
+            "detail": "Category not found."
+        }, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

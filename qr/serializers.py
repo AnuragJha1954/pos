@@ -197,20 +197,29 @@ class AdvertisementBannerSerializer(serializers.ModelSerializer):
 
 
 
+class SpecialMenuProductSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Product
+        fields = ["id", "name", "price", "description", "is_veg", "is_stock_out"]
+
 class SpecialMenuSerializer(serializers.ModelSerializer):
-    products = serializers.PrimaryKeyRelatedField(
+    products = SpecialMenuProductSerializer(many=True, read_only=True)
+    product_ids = serializers.PrimaryKeyRelatedField(
         queryset=Product.objects.all(),
-        many=True
+        many=True,
+        write_only=True,
+        required=False
     )
 
     class Meta:
         model = SpecialMenu
-        fields = ['id', 'name', 'products']
+        fields = ["id", "name", "products", "product_ids"]
 
-    def validate_products(self, value):
-        if len(value) > 5:
-            raise serializers.ValidationError("A Special Menu can contain a maximum of 5 products.")
-        return value
+    def create(self, validated_data):
+        products_data = validated_data.pop("product_ids", [])
+        menu = SpecialMenu.objects.create(**validated_data)
+        menu.products.set(products_data)
+        return menu
 
 
 

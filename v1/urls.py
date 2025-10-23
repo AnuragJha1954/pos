@@ -26,16 +26,29 @@ urlpatterns = [
     # Product related URLs
     path('add_product/<int:user_id>/', views.add_product, name='add_product'),
     path('add_product_variant/<int:user_id>/', views.add_product_variant, name='add_product_variant'),
+    path('add_product_with_variant/<int:user_id>/', views.add_product_with_variants, name='add_product_with_variants'),
     path('get_products/<int:outlet_id>/', views.get_products, name='get_products'),
+    path("edit-product/<int:user_id>/<int:product_id>/", views.edit_product, name="edit_product"),
+    path("delete-product/<int:user_id>/<int:product_id>/", views.delete_product, name="delete_product"),
+    path("edit-variant/<int:user_id>/<int:variant_id>/", views.edit_product_variant, name="edit_product_variant"),
+    path("delete-variant/<int:user_id>/<int:variant_id>/", views.delete_product_variant, name="delete_product_variant"),
     
     # Menu related URLs
     path('add_menu/<int:user_id>/', views.add_menu, name='add_menu'),
     path('get_outlet_menus/<int:outlet_id>/<int:user_id>/', views.get_outlet_menus, name='get_outlet_menus'),
     path('get_menu_details/<int:menu_id>/', views.get_menu_details, name='get_menu_details'),
+    path("edit-menu/<int:user_id>/<int:menu_id>/", views.edit_menu, name="edit_menu"),
+    path("duplicate-menu/<int:user_id>/<int:menu_id>/", views.duplicate_menu, name="duplicate_menu"),
+    path("toggle-menu/<int:user_id>/<int:menu_id>/", views.toggle_menu, name="toggle_menu"),
+    path("add-products-in-menu/<int:user_id>/<int:menu_id>/", views.add_products_to_menu, name="add_products_to_menu"),
+    path("remove-products-from-menu/<int:user_id>/<int:menu_id>/", views.remove_products_from_menu, name="remove_products_from_menu"),
+    path("get-menu-products/<int:user_id>/<int:menu_id>/products/", views.get_menu_products, name="get_menu_products"),
     
     # Category related URLs
     path('add_category/<int:outlet_id>/<int:user_id>/', views.add_category, name='add_category'),
     path('categories/<int:outlet_id>/<int:user_id>/', views.get_categories_by_outlet, name='get_categories_by_outlet'),
+    path('categories/edit/<int:outlet_id>/<int:user_id>/<int:category_id>/', views.edit_category),
+    path('categories/delete/<int:outlet_id>/<int:user_id>/<int:category_id>/', views.delete_category),
     
     # Stock request related URLs
     path('stock-requests/<int:user_id>/<int:outlet_id>/pending/', views.get_pending_stock_requests, name='get_pending_stock_requests'),

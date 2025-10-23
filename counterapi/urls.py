@@ -9,7 +9,10 @@ from .views import (
     create_stock_request,
     print_kot,
     mark_items_stock_out,
-    send_order_notification
+    send_order_notification,
+    upload_billed_transaction,
+    get_transaction_status,
+    cancel_transaction
     )
 
 urlpatterns = [
@@ -39,5 +42,9 @@ urlpatterns = [
     # Endpoint to mark items as stock out
     path('stock-out/<int:outlet_id>/mark-stock-out/', mark_items_stock_out, name='mark-stock-out'),
     path('test/', send_order_notification, name='send_order_notification'),
+    
+    path("initiate-transaction/<int:user_id>/<str:order_number>/", upload_billed_transaction, name="upload_billed_transaction"),
+    path("get-transaction-status/<int:user_id>/", get_transaction_status, name="get_transaction_status"),
+    path("cancel-transaction/<int:user_id>/", cancel_transaction, name="cancel_transaction"),
     
 ]

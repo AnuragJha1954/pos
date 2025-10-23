@@ -164,7 +164,7 @@ class Product(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     image = models.ImageField(upload_to='product_images/', blank=True, null=True)
     description = models.TextField(blank=True, null=True)
-    gst_percentage = models.DecimalField(max_digits=5, decimal_places=2, help_text="Enter GST percentage.")
+    gst_percentage = models.DecimalField(max_digits=5, decimal_places=2, help_text="Enter GST percentage.",blank=True, null=True)
     is_gst_inclusive = models.BooleanField(default=False, help_text="Indicates if the price is GST inclusive.")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

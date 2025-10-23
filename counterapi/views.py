@@ -1,5 +1,6 @@
 import random
 import string
+import requests 
 
 from decimal import Decimal
 
@@ -314,18 +315,17 @@ def category_list(request, outlet_id):
 )
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def product_list(request,outlet_id):
+def product_list(request, outlet_id):
     try:
         # Get the search query parameter
         search_query = request.GET.get('product')
         
-        # Retrieve all products base query set
+        # Retrieve all products base queryset
         base_products = Product.objects.filter(outlet_id=outlet_id).select_related('category').prefetch_related('variants').all()
         
-        # Apply search filter if search query is provided
+        # Apply search filter if provided
         if search_query:
             base_products = base_products.filter(name__icontains=search_query)
-        
         
         # Separate in-stock and stock-out products
         in_stock_products = base_products.filter(is_stock_out=False)
@@ -337,56 +337,138 @@ def product_list(request,outlet_id):
             for product in products_queryset:
                 category_id = product.category.id
                 category_name = product.category.name
+
                 if category_id not in category_dict:
                     category_dict[category_id] = {
                         "category_id": category_id,
                         "category_name": category_name,
                         "items": []
                     }
+
                 product_data = ProductSerializer(product).data
-                category_dict[category_id]["items"].append(product_data)
+
+                # Rename keys and structure to match frontend format
+                formatted_product = {
+                    "id": product_data["id"],
+                    "name": product_data["name"],
+                    "price": product_data.get("price"),
+                    "description": product_data.get("description"),
+                    "gst_percent": product_data.get("gst_percentage"),  # renamed key
+                    "is_gst_inclusive": product_data.get("is_gst_inclusive"),
+                    "created_at": product_data.get("created_at"),
+                    "updated_at": product_data.get("updated_at"),
+                    "category_id": category_id,
+                    "category_name": category_name,
+                    "image_url": product_data.get("image_url"),
+                    "is_veg": product_data.get("is_veg"),
+                    "is_stock_out": product_data.get("is_stock_out"),
+                    "variants": [
+                        {
+                            "id": v["id"],
+                            "name": v["name"],
+                            "price": v["price"],
+                            "is_gst_inclusive": v["is_gst_inclusive"],
+                            "extra_description": v.get("extra_description", []),
+                            "created_at": v.get("created_at"),
+                            "updated_at": v.get("updated_at"),
+                            "is_stock_out": v.get("is_stock_out")
+                        }
+                        for v in product_data.get("variants", [])
+                    ],
+                }
+
+                category_dict[category_id]["items"].append(formatted_product)
             return list(category_dict.values())
 
-        # # Group products by category
-        # category_dict = {}
-        # for product in products:
-        #     category_id = product.category.id
-        #     category_name = product.category.name
-
-        #     # Initialize the category in the dictionary if not already present
-        #     if category_id not in category_dict:
-        #         category_dict[category_id] = {
-        #             "category_id": category_id,
-        #             "category_name": category_name,
-        #             "items": []
-        #         }
-
-        #     # Serialize the product and append it to the category's items
-        #     product_data = ProductSerializer(product).data
-        #     category_dict[category_id]["items"].append(product_data)
-
+        # Build final response matching frontend requirement
         response_data = {
             "error": False,
-            "details": "Products fetched successfully",
-            "categories": group_by_category(in_stock_products),
-            "stock_out_categories": group_by_category(stock_out_products),
+            "message": "Products fetched successfully",  # renamed from 'details'
+            "products": group_by_category(in_stock_products),  # renamed from 'categories'
+            "stock_out_categories": group_by_category(stock_out_products)
         }
-         
-        return Response(response_data, status=status.HTTP_200_OK)
-        
-        # # Convert the dictionary to a list
-        # response_data = list(category_dict.values())
 
-        # return Response({
-        #     "error": False,
-        #     "details": "Products fetched successfully",
-        #     "categories": response_data
-        # })
+        return Response(response_data, status=status.HTTP_200_OK)
+    
     except Exception as e:
         return Response({
             "error": True,
-            "details": f"An error occurred: {str(e)}"
+            "message": f"An error occurred: {str(e)}"
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# def product_list(request,outlet_id):
+#     try:
+#         # Get the search query parameter
+#         search_query = request.GET.get('product')
+        
+#         # Retrieve all products base query set
+#         base_products = Product.objects.filter(outlet_id=outlet_id).select_related('category').prefetch_related('variants').all()
+        
+#         # Apply search filter if search query is provided
+#         if search_query:
+#             base_products = base_products.filter(name__icontains=search_query)
+        
+        
+#         # Separate in-stock and stock-out products
+#         in_stock_products = base_products.filter(is_stock_out=False)
+#         stock_out_products = base_products.filter(is_stock_out=True)
+        
+#         # Function to group products by category
+#         def group_by_category(products_queryset):
+#             category_dict = {}
+#             for product in products_queryset:
+#                 category_id = product.category.id
+#                 category_name = product.category.name
+#                 if category_id not in category_dict:
+#                     category_dict[category_id] = {
+#                         "category_id": category_id,
+#                         "category_name": category_name,
+#                         "items": []
+#                     }
+#                 product_data = ProductSerializer(product).data
+#                 category_dict[category_id]["items"].append(product_data)
+#             return list(category_dict.values())
+
+#         # # Group products by category
+#         # category_dict = {}
+#         # for product in products:
+#         #     category_id = product.category.id
+#         #     category_name = product.category.name
+
+#         #     # Initialize the category in the dictionary if not already present
+#         #     if category_id not in category_dict:
+#         #         category_dict[category_id] = {
+#         #             "category_id": category_id,
+#         #             "category_name": category_name,
+#         #             "items": []
+#         #         }
+
+#         #     # Serialize the product and append it to the category's items
+#         #     product_data = ProductSerializer(product).data
+#         #     category_dict[category_id]["items"].append(product_data)
+
+#         response_data = {
+#             "error": False,
+#             "details": "Products fetched successfully",
+#             "categories": group_by_category(in_stock_products),
+#             "stock_out_categories": group_by_category(stock_out_products),
+#         }
+         
+#         return Response(response_data, status=status.HTTP_200_OK)
+        
+#         # # Convert the dictionary to a list
+#         # response_data = list(category_dict.values())
+
+#         # return Response({
+#         #     "error": False,
+#         #     "details": "Products fetched successfully",
+#         #     "categories": response_data
+#         # })
+#     except Exception as e:
+#         return Response({
+#             "error": True,
+#             "details": f"An error occurred: {str(e)}"
+#         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         
         
@@ -1071,6 +1153,169 @@ def mark_items_stock_out(request, outlet_id):
 #             },
 #             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
 #         )
+
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def upload_billed_transaction(request, user_id, order_number):
+    try:
+        user = CustomUser.objects.get(id=user_id)
+    except CustomUser.DoesNotExist:
+        return Response({"error": True, "detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    amount = request.data.get("amount")
+    if not amount:
+        return Response({"error": True, "detail": "Amount is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Prepare payload
+    payload = {
+        "TransactionNumber": order_number,
+        "SequenceNumber": 1,
+        "AllowedPaymentMode": "1",
+        "Amount": amount,
+        "UserID": user.username,   # ✅ take from CustomUser.username
+        "MerchantID": 29610,
+        "ClientID": 1013457,
+        "StoreID": 1221258,
+        "SecurityToken": "a4c9741b-2889-47b8-be2f-ba42081a246e",  # move to settings for security
+        "AutoCancelDurationInMinutes": 5,
+    }
+
+    try:
+        url = "https://www.plutuscloudserviceuat.in:8201/API/CloudBasedIntegration/V1/UploadBilledTransaction"
+        response = requests.post(url, json=payload, timeout=30)
+        response_data = response.json()
+    except Exception as e:
+        return Response({"error": True, "detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    return Response({"error": False, "detail": "Transaction uploaded.", "response": response_data}, status=response.status_code)
+
+
+
+
+
+
+
+
+
+
+
+@swagger_auto_schema(
+    method="post",
+    operation_description="Check the status of a Plutus transaction using the PlutusTransactionReferenceID.",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=["transaction_id"],
+        properties={
+            "transaction_id": openapi.Schema(type=openapi.TYPE_INTEGER, description="Plutus Transaction Reference ID"),
+        },
+    ),
+    responses={
+        200: openapi.Response("Transaction status retrieved successfully."),
+        400: "Bad request (missing transaction_id).",
+        404: "User not found.",
+        500: "Plutus API error.",
+    },
+)
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def get_transaction_status(request, user_id):
+    # 🔹 Fetch user
+    try:
+        user = CustomUser.objects.get(id=user_id)
+    except CustomUser.DoesNotExist:
+        return Response({"error": True, "detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    # 🔹 Transaction ID required
+    transaction_id = request.data.get("transaction_id")
+    if not transaction_id:
+        return Response({"error": True, "detail": "transaction_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # 🔹 Payload for Plutus API
+    payload = {
+        "UserID": user.username,   # ✅ from CustomUser.username
+        "MerchantID": 29610,
+        "ClientID": 1013457,
+        "StoreID": 1221258,
+        "SecurityToken": "a4c9741b-2889-47b8-be2f-ba42081a246e",  # move to settings
+        "PlutusTransactionReferenceID": transaction_id,
+    }
+
+    try:
+        url = "https://www.plutuscloudserviceuat.in:8201/API/CloudBasedIntegration/V1/GetCloudBasedTxnStatus"
+        response = requests.post(url, json=payload, timeout=30)
+        response_data = response.json()
+    except Exception as e:
+        return Response({"error": True, "detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    return Response({"error": False, "status": response_data}, status=response.status_code)
+
+
+
+
+
+
+
+
+
+
+@swagger_auto_schema(
+    method="post",
+    operation_description="Cancel a billed transaction in Plutus API.",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=["transaction_id", "amount"],
+        properties={
+            "transaction_id": openapi.Schema(type=openapi.TYPE_INTEGER, description="PlutusTransactionReferenceID of the transaction to cancel."),
+            "amount": openapi.Schema(type=openapi.TYPE_NUMBER, format="float", description="Amount of the transaction being cancelled."),
+        },
+    ),
+    responses={
+        200: openapi.Response("Transaction cancelled successfully."),
+        400: "Bad request (missing required fields).",
+        404: "User not found.",
+        500: "Plutus API error.",
+    },
+)
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def cancel_transaction(request, user_id):
+    # 🔹 Fetch user
+    try:
+        user = CustomUser.objects.get(id=user_id)
+    except CustomUser.DoesNotExist:
+        return Response({"error": True, "detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    # 🔹 Validate request body
+    transaction_id = request.data.get("transaction_id")
+    amount = request.data.get("amount")
+
+    if not transaction_id or not amount:
+        return Response(
+            {"error": True, "detail": "transaction_id and amount are required."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # 🔹 Payload for Plutus API
+    payload = {
+        "UserID": user.username,  # ✅ from CustomUser.username (helps in tracking)
+        "MerchantID": 29610,
+        "ClientID": 1013457,
+        "StoreID": 1221258,
+        "SecurityToken": "a4c9741b-2889-47b8-be2f-ba42081a246e",  # ideally from settings
+        "PlutusTransactionReferenceID": transaction_id,
+        "Amount": amount
+    }
+
+    try:
+        url = "https://www.plutuscloudserviceuat.in:8201/API/CloudBasedIntegration/V1/CancelTransaction"
+        response = requests.post(url, json=payload, timeout=30)
+        response_data = response.json()
+    except Exception as e:
+        return Response({"error": True, "detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    return Response({"error": False, "status": response_data}, status=response.status_code)
 
 
 
