@@ -534,56 +534,50 @@ def generate_order_number():
 )
 @api_view(['POST'])
 @permission_classes([AllowAny])
-def place_order(request, outlet_id):
+def place_order(request, outlet_id,order_number):
     try:
         data = request.data
-        customer_data = data.get('customer')
-        items_data = data.get('items')
 
-        # Check if the customer exists
-        customer = Customer.objects.filter(
-            name=customer_data.get('name'),
-            phone_number=customer_data.get('phone_number')
-        ).first()
 
-        if not customer:
-            # Create a new customer if it doesn't exist
-            customer = Customer.objects.create(
-                name=customer_data.get('name'),
-                phone_number=customer_data.get('phone_number')
-            )
+        customer_data = data.get("customer")
+        items_data = data.get("items")
 
-        # Create the Order
-        order = Order.objects.create(
-            outlet_id=outlet_id,
-            order_number=generate_order_number(),
-            total_price=Decimal('0.00'),
-            gst=Decimal('0.00'),
-            status='PENDING',
-            order_date=localtime(timezone.now()),
-            address=data.get('address', ''),
-            mode=data.get('mode', ''),
+        # Customer lookup / create
+        customer, _ = Customer.objects.get_or_create(
+            name=customer_data.get("name"),
+            phone_number=customer_data.get("phone_number")
         )
 
-        # Link the customer to the order
+        # ✅ Use existing order number
+        order = Order.objects.create(
+            outlet_id=outlet_id,
+            order_number=order_number,
+            total_price=Decimal("0.00"),
+            gst=Decimal("0.00"),
+            status="PENDING",
+            order_date=localtime(timezone.now()),
+            address=data.get("address", ""),
+            mode=data.get("mode", ""),
+        )
+
         customer.order = order
         customer.save()
 
-        total_price = Decimal('0.00')
-        total_gst = Decimal('0.00')
+        total_price = Decimal("0.00")
+        total_gst = Decimal("0.00")
         processed_items = []
 
-        # Process each order item
         for item_data in items_data:
-            product_id = item_data.get('product')
-            variant_id = item_data.get('product_variant')
-            quantity = item_data.get('quantity')
+            product_id = item_data.get("product")
+            variant_id = item_data.get("product_variant")
+            quantity = item_data.get("quantity")
 
             if product_id:
                 product = Product.objects.get(id=product_id)
                 price = product.price
                 gst = product.gst_percentage
                 is_gst_inclusive = product.is_gst_inclusive
+                variant = None
             elif variant_id:
                 variant = ProductVariant.objects.get(id=variant_id)
                 product = variant.product
@@ -591,111 +585,72 @@ def place_order(request, outlet_id):
                 gst = product.gst_percentage
                 is_gst_inclusive = product.is_gst_inclusive
             else:
-                return JsonResponse({
-                    "error": True,
-                    "details": "Either product or variant ID must be provided"
-                }, status=400)
+                return JsonResponse(
+                    {"error": True, "details": "Product or variant required"},
+                    status=400
+                )
 
             total_item_price = price * quantity
 
             if is_gst_inclusive:
-                # GST-inclusive price logic
-                rate_excluding_gst = price / (1 + gst / Decimal('100'))
-                gst_amount = total_item_price - (rate_excluding_gst * quantity)
-                amount_excluding_gst = total_item_price - gst_amount
+                rate_excl_gst = price / (1 + gst / Decimal("100"))
+                gst_amount = total_item_price - (rate_excl_gst * quantity)
             else:
-                # GST-exclusive price logic
-                gst_amount = (gst / Decimal('100')) * total_item_price
-                rate_excluding_gst = price
-                amount_excluding_gst = total_item_price
+                gst_amount = (gst / Decimal("100")) * total_item_price
 
-            total_item_gst_inclusive = total_item_price + gst_amount if not is_gst_inclusive else total_item_price
+            total_item_price_final = (
+                total_item_price if is_gst_inclusive else total_item_price + gst_amount
+            )
 
-            # Create OrderItem
             OrderItem.objects.create(
                 order=order,
                 product=product if product_id else None,
-                product_variant=variant if variant_id else None,
+                product_variant=variant,
                 quantity=quantity,
                 price=price,
-                total_price=total_item_gst_inclusive,
-                gst=gst_amount
+                total_price=total_item_price_final,
+                gst=gst_amount,
             )
 
-            # Add calculated data to processed items for context
             processed_items.append({
                 "product_name": product.name,
-                "variant_name": variant.name if variant_id else None,
+                "variant_name": variant.name if variant else None,
                 "quantity": quantity,
-                "price": round(rate_excluding_gst, 2),  # Rate excl. GST
-                "total_price": round(amount_excluding_gst, 2),  # Amount excl. GST
+                "price": round(price, 2),
                 "gst": round(gst_amount, 2),
             })
 
-            total_price += total_item_gst_inclusive
+            total_price += total_item_price_final
             total_gst += gst_amount
 
-        # Update the total price and GST of the order
-        subtotal = total_price - total_gst  # Calculate subtotal before GST
         order.total_price = total_price
         order.gst = total_gst
         order.save()
 
-        # Calculate CGST and SGST
         cgst = total_gst / 2
         sgst = total_gst / 2
+        subtotal = total_price - total_gst
 
-        # Serialize and return the created order with customer details
-        order_serializer = OrderSerializer(order, context={'request': request})
-        response_data = order_serializer.data
+        response_data = OrderSerializer(order).data
+        response_data.update({
+            "subtotal": round(subtotal, 2),
+            "cgst": round(cgst, 2),
+            "sgst": round(sgst, 2),
+            "customer": {
+                "name": customer.name,
+                "phone_number": customer.phone_number,
+            },
+            "items": processed_items,
+            "formatted_date": order.order_date.strftime("%d-%m-%Y %I:%M %p"),
+        })
 
-        response_data['subtotal'] = round(subtotal, 2)
-        
-        # print(localtime(timezone.now()))
-        # Format the order date
-        formatted_date = order.order_date.strftime("%d-%m-%Y %I:%M %p")
-        response_data['formatted_date'] = formatted_date
-
-        # Add customer data and processed items to the response manually
-        response_data['customer'] = {
-            "name": customer.name,
-            "phone_number": customer.phone_number
-        }
-        response_data['items'] = processed_items
-
-        # Add CGST and SGST to the response
-        response_data['cgst'] = round(cgst, 2)
-        response_data['sgst'] = round(sgst, 2)
-        
-        
-        #FCM message integration
-        fcm_token_obj = FCMToken.objects.filter(outlet_id=outlet_id).first()
-        if fcm_token_obj:
-            notification_result = send_order_notification(fcm_token_obj.token)
-            print("Notification response:", notification_result)
-        else:
-            print("No FCM token found for this outlet.")
-
-
-
-        # Pass the response data directly to the bill.html template
         return render(request, "bill.html", response_data)
 
-    except Product.DoesNotExist:
-        return JsonResponse({
-            "error": True,
-            "details": "Product not found"
-        }, status=400)
-    except ProductVariant.DoesNotExist:
-        return JsonResponse({
-            "error": True,
-            "details": "Product variant not found"
-        }, status=400)
     except Exception as e:
-        return JsonResponse({
-            "error": True,
-            "details": f"An error occurred: {str(e)}"
-        }, status=500)
+        return JsonResponse(
+            {"error": True, "details": str(e)},
+            status=500
+        )
 
 
 
@@ -1162,12 +1117,21 @@ def upload_billed_transaction(request, user_id, order_number):
     try:
         user = CustomUser.objects.get(id=user_id)
     except CustomUser.DoesNotExist:
-        return Response({"error": True, "detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {"error": True, "detail": "User not found."},
+            status=status.HTTP_404_NOT_FOUND
+        )
 
     amount = request.data.get("amount")
     if not amount:
-        return Response({"error": True, "detail": "Amount is required."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": True, "detail": "Amount is required."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
+    # ✅ Generate order number HERE
+    order_number = generate_order_number()
+    
     # Prepare payload
     payload = {
         "TransactionNumber": order_number,
@@ -1187,10 +1151,20 @@ def upload_billed_transaction(request, user_id, order_number):
         response = requests.post(url, json=payload, timeout=30)
         response_data = response.json()
     except Exception as e:
-        return Response({"error": True, "detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(
+            {"error": True, "detail": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
-    return Response({"error": False, "detail": "Transaction uploaded.", "response": response_data}, status=response.status_code)
-
+    return Response(
+        {
+            "error": False,
+            "detail": "Transaction initiated",
+            "order_number": order_number,  # ✅ send back
+            "gateway_response": response_data,
+        },
+        status=response.status_code
+    )
 
 
 

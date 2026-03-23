@@ -67,15 +67,7 @@ class EmployeeCreateSerializer(serializers.Serializer):
 
 
 
-class ProductSerializer(serializers.ModelSerializer):
-    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())  # Add category field
-    class Meta:
-        model = Product
-        fields = ['id', 'name', 'price', 'image', 'description', 'outlet', 'is_gst_inclusive','category','is_veg']
-        
-    def create(self, validated_data):
-        # Create and return a new Product instance
-        return Product.objects.create(**validated_data)
+
 
 
 
@@ -85,7 +77,7 @@ class ProductSerializer(serializers.ModelSerializer):
 class ProductVariantSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductVariant
-        fields = ['id', 'product', 'price', 'is_gst_inclusive', 'extra_description']
+        fields = ['id', 'product','name', 'price', 'is_gst_inclusive', 'extra_description']
 
     def create(self, validated_data):
         # Create and return a new ProductVariant instance
@@ -93,6 +85,19 @@ class ProductVariantSerializer(serializers.ModelSerializer):
 
 
 
+
+
+
+class ProductSerializer(serializers.ModelSerializer):
+    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())  # Add category field
+    variants = ProductVariantSerializer(many=True, read_only=True)
+    class Meta:
+        model = Product
+        fields = ['id', 'name', 'price', 'image', 'description', 'outlet', 'is_gst_inclusive','category','is_veg','variants']
+        
+    def create(self, validated_data):
+        # Create and return a new Product instance
+        return Product.objects.create(**validated_data)
 
 
 

@@ -26,7 +26,7 @@ urlpatterns = [
     path('<int:outlet_id>/products/', product_list, name='product_list'),
 
     # Endpoint to place an order, passing outlet_id in the URL
-    path('orders/<int:outlet_id>/place-order/', place_order, name='place_order'),
+    path('orders/<int:outlet_id>/place-order/<str:order_number>/', place_order, name='place_order'),
     
     path('orders/<int:outlet_id>/print-kot/', print_kot, name='print_kot'),
 
@@ -43,7 +43,7 @@ urlpatterns = [
     path('stock-out/<int:outlet_id>/mark-stock-out/', mark_items_stock_out, name='mark-stock-out'),
     path('test/', send_order_notification, name='send_order_notification'),
     
-    path("initiate-transaction/<int:user_id>/<str:order_number>/", upload_billed_transaction, name="upload_billed_transaction"),
+    path("initiate-transaction/<int:user_id>/", upload_billed_transaction, name="upload_billed_transaction"),
     path("get-transaction-status/<int:user_id>/", get_transaction_status, name="get_transaction_status"),
     path("cancel-transaction/<int:user_id>/", cancel_transaction, name="cancel_transaction"),
     

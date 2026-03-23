@@ -455,3 +455,15 @@ class RefundNote(models.Model):
 
 
 
+class PrinterConfig(models.Model):
+    outlet = models.OneToOneField(
+        Outlet,
+        on_delete=models.CASCADE,
+        related_name='printer_config'
+    )
+    printers = models.JSONField(default=list)  # list of printer names
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Printers for {self.outlet.outlet_name}"

@@ -46,7 +46,8 @@ from .models import (
     Order,
     OrderItem,
     Customer,
-    RefundNote
+    RefundNote,
+    PrinterConfig
 )
 
 from .serializers import (
@@ -2784,7 +2785,738 @@ def delete_category(request, outlet_id, user_id, category_id):
 
 
 
+# @api_view(["GET"])
+# def dashboard_data(request):
+#     outlet_id = request.query_params.get("outlet_id")
 
+#     # Base orders queryset (optionally filtered by outlet)
+#     orders_qs = Order.objects.all()
+#     if outlet_id:
+#         orders_qs = orders_qs.filter(outlet_id=outlet_id)
+
+#     # ---------- SUMMARY CARDS ----------
+#     total_orders = orders_qs.count()
+#     total_sales = (
+#         orders_qs.filter(status__in=["CONFIRMED", "COMPLETED"])
+#         .aggregate(total=Sum("total_price"))
+#         .get("total") or 0
+#     )
+
+#     if outlet_id:
+#         total_outlets = 1
+#     else:
+#         total_outlets = Outlet.objects.count()
+
+#     total_customers = (
+#         Customer.objects.filter(order__in=orders_qs)
+#         .values("phone_number")
+#         .distinct()
+#         .count()
+#     )
+
+#     summary_cards = [
+#         {
+#             "key": "total_orders",
+#             "label": "Total Orders",
+#             "value": total_orders,
+#         },
+#         {
+#             "key": "total_sales",
+#             "label": "Total Sales",
+#             "value": float(total_sales),
+#         },
+#         {
+#             "key": "total_outlets",
+#             "label": "Total Outlets",
+#             "value": total_outlets,
+#         },
+#         {
+#             "key": "total_customers",
+#             "label": "Total Customers",
+#             "value": total_customers,
+#         },
+#     ]
+
+#     # ---------- LINE CHART: DAILY SALES (LAST 7 DAYS) ----------
+#     today = timezone.now().date()
+#     start_date = today - timedelta(days=6)
+
+#     sales_raw = (
+#         orders_qs.filter(
+#             status__in=["CONFIRMED", "COMPLETED"],
+#             order_date__date__gte=start_date,
+#         )
+#         .annotate(day=TruncDate("order_date"))
+#         .values("day")
+#         .annotate(total=Sum("total_price"))
+#         .order_by("day")
+#     )
+
+#     sales_dict = {item["day"]: item["total"] or 0 for item in sales_raw}
+
+#     labels = []
+#     data = []
+#     for i in range(7):
+#         day = start_date + timedelta(days=i)
+#         labels.append(day.strftime("%Y-%m-%d"))
+#         data.append(float(sales_dict.get(day, 0)))
+
+#     sales_line_chart = {
+#         "labels": labels,
+#         "data": data,
+#     }
+
+#     # ---------- LAST 3 HOURS TABLE ----------
+#     three_hours_ago = timezone.now() - timedelta(hours=3)
+#     recent_orders = (
+#         orders_qs.filter(order_date__gte=three_hours_ago)
+#         .order_by("-order_date")[:10]
+#     )
+
+#     recent_orders_rows = [
+#         {
+#             "order_number": o.order_number,
+#             "status": o.status,
+#             "total_amount": float(o.total_price),
+#             "mode": o.mode,
+#             "order_time": o.order_date.strftime("%H:%M"),
+#         }
+#         for o in recent_orders
+#     ]
+
+#     recent_orders_table = {
+#         "title": "Last 3 Hours Orders",
+#         "rows": recent_orders_rows,
+#     }
+
+#     # ---------- STATUS CARDS (PENDING / CONFIRMED / REFUNDED) ----------
+#     status_counts_raw = orders_qs.values("status").annotate(count=Count("id"))
+#     base_status = {"PENDING": 0, "CONFIRMED": 0, "REFUNDED": 0}
+#     for item in status_counts_raw:
+#         if item["status"] in base_status:
+#             base_status[item["status"]] = item["count"]
+
+#     order_status_cards = {
+#         "pending_orders": base_status["PENDING"],
+#         "confirmed_orders": base_status["CONFIRMED"],
+#         "refunded_orders": base_status["REFUNDED"],
+#     }
+
+#     # ---------- LOW STOCK ITEMS ----------
+#     low_stock_products = Product.objects.filter(is_stock_out=True)
+#     low_stock_variants = ProductVariant.objects.filter(is_stock_out=True)
+
+#     if outlet_id:
+#         low_stock_products = low_stock_products.filter(outlet_id=outlet_id)
+#         low_stock_variants = low_stock_variants.filter(
+#             product__outlet_id=outlet_id
+#         )
+
+#     low_stock_items = []
+
+#     for p in low_stock_products[:5]:
+#         low_stock_items.append(
+#             {
+#                 "name": p.name,
+#                 "type": "product",
+#                 "outlet": p.outlet.outlet_name,
+#             }
+#         )
+
+#     remaining_slots = max(0, 5 - len(low_stock_items))
+#     if remaining_slots:
+#         for v in low_stock_variants[:remaining_slots]:
+#             low_stock_items.append(
+#                 {
+#                     "name": f"{v.product.name} - {v.name}",
+#                     "type": "variant",
+#                     "outlet": v.product.outlet.outlet_name,
+#                 }
+#             )
+
+#     # ---------- FINAL RESPONSE ----------
+#     payload = {
+#         "summary_cards": summary_cards,
+#         "sales_line_chart": sales_line_chart,
+#         "recent_orders_table": recent_orders_table,
+#         "order_status_cards": order_status_cards,
+#         "low_stock_items": low_stock_items,
+#     }
+
+#     return Response(payload)
+
+
+
+@swagger_auto_schema(
+    method='get',
+    operation_description="Returns dashboard data for the admin panel.",
+    responses={
+        200: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "summary_cards": openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "key": openapi.Schema(type=openapi.TYPE_STRING),
+                        "label": openapi.Schema(type=openapi.TYPE_STRING),
+                        "value": openapi.Schema(type=openapi.TYPE_NUMBER),
+                    }
+                )),
+                "sales_line_chart": openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "labels": openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_STRING)),
+                        "data": openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_NUMBER)),
+                    }
+                ),
+                "recent_orders_table": openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "title": openapi.Schema(type=openapi.TYPE_STRING),
+                        "rows": openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            properties={
+                                "order_number": openapi.Schema(type=openapi.TYPE_STRING),
+                                "status": openapi.Schema(type=openapi.TYPE_STRING),
+                                "total_amount": openapi.Schema(type=openapi.TYPE_NUMBER),
+                                "mode": openapi.Schema(type=openapi.TYPE_STRING),
+                                "order_time": openapi.Schema(type=openapi.TYPE_STRING),
+                            }
+                        )),
+                    }
+                ),
+                "order_status_cards": openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "pending_orders": openapi.Schema(type=openapi.TYPE_INTEGER),
+                        "confirmed_orders": openapi.Schema(type=openapi.TYPE_INTEGER),
+                        "refunded_orders": openapi.Schema(type=openapi.TYPE_INTEGER),
+                    }
+                ),
+                "low_stock_items": openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            "name": openapi.Schema(type=openapi.TYPE_STRING),
+                            "type": openapi.Schema(type=openapi.TYPE_STRING),
+                            "outlet": openapi.Schema(type=openapi.TYPE_STRING),
+                        }
+                    )
+                ),
+            }
+        )
+    }
+)
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def dashboard_sample_data(request):
+    data = {
+
+        # -----------------------------------------
+        # 🔵 SUMMARY CARDS (TOP 4 CARDS)
+        # -----------------------------------------
+        "summary_cards": [
+            {
+                "key": "total_orders",
+                "label": "Total Orders",
+                "value": 1280,
+            },
+            {
+                "key": "total_sales",
+                "label": "Total Sales",
+                "value": 452000.75,
+            },
+            {
+                "key": "total_outlets",
+                "label": "Total Outlets",
+                "value": 4,
+            },
+            {
+                "key": "total_customers",
+                "label": "Total Customers",
+                "value": 980,
+            },
+        ],
+
+        # -----------------------------------------
+        # 🔵 LINE CHART — LAST 7 DAYS SALES
+        # -----------------------------------------
+        "sales_line_chart": {
+            "labels": [
+                "2025-11-20",
+                "2025-11-21",
+                "2025-11-22",
+                "2025-11-23",
+                "2025-11-24",
+                "2025-11-25",
+                "2025-11-26"
+            ],
+            "data": [12000, 15000, 18000, 17000, 22000, 25000, 28000]
+        },
+
+        # -----------------------------------------
+        # 🔵 LAST 3 HOURS ORDERS TABLE
+        # -----------------------------------------
+        "recent_orders_table": {
+            "title": "Last 3 Hours Orders",
+            "rows": [
+                {
+                    "order_number": "ORD123456",
+                    "status": "CONFIRMED",
+                    "total_amount": 1450.00,
+                    "mode": "upi",
+                    "order_time": "12:40",
+                },
+                {
+                    "order_number": "ORD123457",
+                    "status": "PENDING",
+                    "total_amount": 220.00,
+                    "mode": "cash",
+                    "order_time": "11:55",
+                },
+                {
+                    "order_number": "ORD123458",
+                    "status": "COMPLETED",
+                    "total_amount": 980.00,
+                    "mode": "upi",
+                    "order_time": "10:45",
+                },
+            ]
+        },
+
+        # -----------------------------------------
+        # 🔵 STATUS OVERVIEW: PENDING, CONFIRMED, REFUNDED
+        # -----------------------------------------
+        "order_status_cards": {
+            "pending_orders": 12,
+            "confirmed_orders": 89,
+            "refunded_orders": 3
+        },
+
+        # -----------------------------------------
+        # 🔵 LOW STOCK ITEMS
+        # -----------------------------------------
+        "low_stock_items": [
+            {
+                "name": "Cold Coffee",
+                "type": "product",
+                "outlet": "Outlet A"
+            },
+            {
+                "name": "Veg Burger - Large",
+                "type": "variant",
+                "outlet": "Outlet A"
+            },
+            {
+                "name": "French Fries",
+                "type": "product",
+                "outlet": "Outlet B"
+            },
+            {
+                "name": "Cheese Sandwich",
+                "type": "product",
+                "outlet": "Outlet C"
+            },
+            {
+                "name": "Chicken Roll - Spicy",
+                "type": "variant",
+                "outlet": "Outlet D"
+            },
+        ],
+    }
+
+    return Response(data)
+
+
+
+
+
+# ========== 1. SALES REPORT ==========
+@swagger_auto_schema(
+    method='get',
+    operation_description="Sales report with KPIs and daily sales.",
+    responses={
+        200: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "total_sales": openapi.Schema(type=openapi.TYPE_NUMBER),
+                "total_orders": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "avg_order_value": openapi.Schema(type=openapi.TYPE_NUMBER),
+                "kpis": openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            "label": openapi.Schema(type=openapi.TYPE_STRING),
+                            "value": openapi.Schema(type=openapi.TYPE_NUMBER),
+                            "unit": openapi.Schema(type=openapi.TYPE_STRING),
+                        }
+                    )
+                ),
+                "daily_sales": openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            "date": openapi.Schema(type=openapi.TYPE_STRING),
+                            "total": openapi.Schema(type=openapi.TYPE_NUMBER),
+                        }
+                    )
+                ),
+            }
+        )
+    }
+)
+@api_view(["GET"])
+def sales_report_sample(request, outlet_id):
+    data = {
+        "total_sales": 452000.75,
+        "total_orders": 1280,
+        "avg_order_value": 353.13,
+        "kpis": [
+            {"label": "Today Sales", "value": 28000, "unit": "INR"},
+            {"label": "Yesterday Sales", "value": 25000, "unit": "INR"},
+            {"label": "Week Sales", "value": 172000, "unit": "INR"},
+        ],
+        "daily_sales": [
+            {"date": "2025-11-20", "total": 12000},
+            {"date": "2025-11-21", "total": 15000},
+            {"date": "2025-11-22", "total": 18000},
+            {"date": "2025-11-23", "total": 17000},
+            {"date": "2025-11-24", "total": 22000},
+            {"date": "2025-11-25", "total": 25000},
+            {"date": "2025-11-26", "total": 28000},
+        ],
+    }
+    return Response(data)
+
+
+# ========== 2. ORDERS REPORT ==========
+@swagger_auto_schema(
+    method='get',
+    operation_description="Orders report with status breakdown.",
+    responses={
+        200: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "total_orders": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "status_breakdown": openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    additional_properties=openapi.Schema(type=openapi.TYPE_INTEGER),
+                ),
+                "kpis": openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            "label": openapi.Schema(type=openapi.TYPE_STRING),
+                            "value": openapi.Schema(type=openapi.TYPE_NUMBER),
+                        }
+                    )
+                ),
+                "recent_orders": openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            "order_number": openapi.Schema(type=openapi.TYPE_STRING),
+                            "status": openapi.Schema(type=openapi.TYPE_STRING),
+                            "amount": openapi.Schema(type=openapi.TYPE_NUMBER),
+                            "mode": openapi.Schema(type=openapi.TYPE_STRING),
+                            "order_time": openapi.Schema(type=openapi.TYPE_STRING),
+                        }
+                    )
+                ),
+            }
+        )
+    }
+)
+@api_view(["GET"])
+def orders_report_sample(request, outlet_id):
+    data = {
+        "total_orders": 1280,
+        "status_breakdown": {
+            "PENDING": 32,
+            "PROCESSING": 45,
+            "CONFIRMED": 780,
+            "COMPLETED": 380,
+            "CANCELLED": 25,
+            "REFUNDED": 18,
+        },
+        "kpis": [
+            {"label": "Today Orders", "value": 160},
+            {"label": "Avg Orders / Day", "value": 140},
+            {"label": "Cancellation Rate %", "value": 1.9},
+        ],
+        "recent_orders": [
+            {
+                "order_number": "ORD123460",
+                "status": "COMPLETED",
+                "amount": 1450.0,
+                "mode": "upi",
+                "order_time": "12:40",
+            },
+            {
+                "order_number": "ORD123461",
+                "status": "PENDING",
+                "amount": 220.0,
+                "mode": "cash",
+                "order_time": "12:15",
+            },
+            {
+                "order_number": "ORD123462",
+                "status": "REFUNDED",
+                "amount": 520.0,
+                "mode": "upi",
+                "order_time": "11:50",
+            },
+        ],
+    }
+    return Response(data)
+
+
+# ========== 3. CUSTOMERS REPORT ==========
+@swagger_auto_schema(
+    method='get',
+    operation_description="Customers report with KPIs and top customers.",
+    responses={
+        200: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "total_customers": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "new_customers_7d": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "repeat_customers_rate": openapi.Schema(type=openapi.TYPE_NUMBER),
+                "kpis": openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            "label": openapi.Schema(type=openapi.TYPE_STRING),
+                            "value": openapi.Schema(type=openapi.TYPE_NUMBER),
+                            "unit": openapi.Schema(type=openapi.TYPE_STRING),
+                        }
+                    )
+                ),
+                "top_customers": openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            "name": openapi.Schema(type=openapi.TYPE_STRING),
+                            "phone": openapi.Schema(type=openapi.TYPE_STRING),
+                            "orders_count": openapi.Schema(type=openapi.TYPE_INTEGER),
+                            "total_spent": openapi.Schema(type=openapi.TYPE_NUMBER),
+                        }
+                    )
+                ),
+            }
+        )
+    }
+)
+@api_view(["GET"])
+def customers_report_sample(request, outlet_id):
+    data = {
+        "total_customers": 980,
+        "new_customers_7d": 120,
+        "repeat_customers_rate": 62.5,  # %
+        "kpis": [
+            {"label": "Avg Orders / Customer", "value": 3.1, "unit": ""},
+            {"label": "CLTV (Approx.)", "value": 1800, "unit": "INR"},
+            {"label": "Active Customers (30d)", "value": 640, "unit": ""},
+        ],
+        "top_customers": [
+            {
+                "name": "Rahul Sharma",
+                "phone": "9876543210",
+                "orders_count": 22,
+                "total_spent": 15400.0,
+            },
+            {
+                "name": "Priya Verma",
+                "phone": "9876500012",
+                "orders_count": 18,
+                "total_spent": 13120.5,
+            },
+            {
+                "name": "Aman Gupta",
+                "phone": "9898989898",
+                "orders_count": 15,
+                "total_spent": 11050.0,
+            },
+        ],
+    }
+    return Response(data)
+
+
+# ========== 4. OUTLET REPORT ==========
+@swagger_auto_schema(
+    method='get',
+    operation_description="Outlet-wise report with KPIs.",
+    responses={
+        200: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "total_outlets": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "kpis": openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            "label": openapi.Schema(type=openapi.TYPE_STRING),
+                            "value": openapi.Schema(type=openapi.TYPE_NUMBER),
+                            "unit": openapi.Schema(type=openapi.TYPE_STRING),
+                        }
+                    )
+                ),
+                "outlets": openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            "outlet_id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                            "name": openapi.Schema(type=openapi.TYPE_STRING),
+                            "city": openapi.Schema(type=openapi.TYPE_STRING),
+                            "total_sales": openapi.Schema(type=openapi.TYPE_NUMBER),
+                            "total_orders": openapi.Schema(type=openapi.TYPE_INTEGER),
+                            "avg_order_value": openapi.Schema(type=openapi.TYPE_NUMBER),
+                            "is_active": openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                        }
+                    )
+                ),
+            }
+        )
+    }
+)
+@api_view(["GET"])
+def outlet_report_sample(request, company_id):
+    data = {
+        "total_outlets": 4,
+        "kpis": [
+            {"label": "Active Outlets", "value": 4, "unit": ""},
+            {"label": "Avg Sales / Outlet (Day)", "value": 42000, "unit": "INR"},
+            {"label": "Best Performing Outlet ID", "value": 2, "unit": ""},
+        ],
+        "outlets": [
+            {
+                "outlet_id": 1,
+                "name": "Outlet A",
+                "city": "Mumbai",
+                "total_sales": 152000.0,
+                "total_orders": 420,
+                "avg_order_value": 362.0,
+                "is_active": True,
+            },
+            {
+                "outlet_id": 2,
+                "name": "Outlet B",
+                "city": "Delhi",
+                "total_sales": 181500.0,
+                "total_orders": 510,
+                "avg_order_value": 356.0,
+                "is_active": True,
+            },
+            {
+                "outlet_id": 3,
+                "name": "Outlet C",
+                "city": "Pune",
+                "total_sales": 68000.0,
+                "total_orders": 210,
+                "avg_order_value": 323.0,
+                "is_active": True,
+            },
+            {
+                "outlet_id": 4,
+                "name": "Outlet D",
+                "city": "Bangalore",
+                "total_sales": 50500.0,
+                "total_orders": 140,
+                "avg_order_value": 360.0,
+                "is_active": False,
+            },
+        ],
+    }
+    return Response(data)
+
+
+
+
+
+
+
+
+# ----------- SET PRINTER CONFIG ------------
+@swagger_auto_schema(
+    method='post',
+    operation_description="Save printer names for an outlet.",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            "printers": openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Schema(type=openapi.TYPE_STRING)
+            ),
+        },
+        required=["printers"],
+    ),
+    responses={200: "Printer configuration saved."}
+)
+@api_view(["POST"])
+def set_printer_config(request, outlet_id):
+    try:
+        outlet = Outlet.objects.get(id=outlet_id)
+    except Outlet.DoesNotExist:
+        return Response({"error": "Outlet not found"}, status=404)
+
+    printer_names = request.data.get("printers", [])
+
+    config, created = PrinterConfig.objects.get_or_create(outlet=outlet)
+    config.printers = printer_names
+    config.save()
+
+    return Response({
+        "message": "Printer configuration saved",
+        "outlet": outlet.outlet_name,
+        "printers": config.printers
+    })
+    
+
+# ----------- GET PRINTER CONFIG ------------
+@swagger_auto_schema(
+    method='get',
+    operation_description="Get printer names configured for an outlet.",
+    responses={
+        200: openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "outlet": openapi.Schema(type=openapi.TYPE_STRING),
+                "printers": openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(type=openapi.TYPE_STRING)
+                ),
+            }
+        )
+    }
+)
+@api_view(["GET"])
+def get_printer_config(request, outlet_id):
+    try:
+        outlet = Outlet.objects.get(id=outlet_id)
+    except Outlet.DoesNotExist:
+        return Response({"error": "Outlet not found"}, status=404)
+
+    config = PrinterConfig.objects.filter(outlet=outlet).first()
+
+    if not config:
+        return Response({
+            "outlet": outlet.outlet_name,
+            "printers": []
+        })
+
+    return Response({
+        "outlet": outlet.outlet_name,
+        "printers": config.printers
+    })
 
 
 

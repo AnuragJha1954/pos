@@ -67,5 +67,19 @@ urlpatterns = [
     
     #Customer Related Urls
     path('get-customers/<int:company_id>/',views.list_company_customers,name='list_company_customers'),
+    
+        # -------- DASHBOARD (OUTLET LEVEL) --------
+    path("dashboard/", views.dashboard_sample_data, name="dashboard"),
+
+    # -------- REPORTS (OUTLET LEVEL) --------
+    path("reports/<int:outlet_id>/sales/", views.sales_report_sample, name="sales-report"),
+    path("reports/<int:outlet_id>/orders/", views.orders_report_sample, name="orders-report"),
+    path("reports/<int:outlet_id>/customers/", views.customers_report_sample, name="customers-report"),
+
+    # -------- COMPANY REPORT (OUTLET SUMMARY) --------
+    
+    #Printer Config
+    path("printer-config/<int:outlet_id>/", views.set_printer_config, name="set-printer-config"),
+    path("printer-config/<int:outlet_id>/get/", views.get_printer_config, name="get-printer-config"),
 
 ]
