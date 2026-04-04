@@ -1,289 +1,224 @@
 from django.contrib import admin
 from .models import (
-    Company,
-    Outlet,
-    OutletAccess,
-    Plan,
-    PlanAssignment,
+    Company, Outlet, OutletAccess,
+    Plan, PlanAssignment,
     Employee,
-    Product,
-    ProductVariant,
-    Menu,
-    Category,
-    Order,
-    OrderItem,
-    Customer,
-    StockRequest,
-    Coupon,
-    RazorpayCredential,
-    FCMToken,
-    EmployeeCredentials,
-    RefundNote
-    )
-# Register your models here.
+    Product, ProductVariant,
+    Menu, Category,
+    Order, OrderItem, Customer,
+    StockRequest, Coupon,
+    RazorpayCredential, FCMToken,
+    EmployeeCredentials, RefundNote,
+    PrinterConfig,
+    Table,
+    Expense
+)
+
+# ================== COMPANY ==================
 @admin.register(Company)
 class CompanyAdmin(admin.ModelAdmin):
-    list_display = ('name', 'number_of_outlets', 'gst_in','number_of_employees')
+    list_display = ('name', 'number_of_outlets', 'gst_in', 'number_of_employees')
     search_fields = ('name', 'gst_in')
-    list_filter = ('number_of_outlets','number_of_employees',)
-
-    def address_display(self, obj):
-        return obj.address
-    address_display.short_description = 'Address'
-    
-    
+    list_filter = ('number_of_outlets', 'number_of_employees')
 
 
-
+# ================== OUTLET ==================
 @admin.register(Outlet)
 class OutletAdmin(admin.ModelAdmin):
     list_display = ('outlet_name', 'company', 'gst_number', 'phone_number', 'is_active', 'created_at')
-    search_fields = ('outlet_name', 'company__name', 'gst_number', 'phone_number')
+    search_fields = ('outlet_name', 'company__name', 'gst_number')
     list_filter = ('company', 'is_active')
-    readonly_fields = ('gst_number', 'created_at', 'updated_at')  # Make non-editable fields readonly
-    
+    readonly_fields = ('created_at', 'updated_at')
+
     fieldsets = (
         (None, {
-            'fields': ('company', 'logo', 'gst_number', 'outlet_name', 'phone_number', 'opening_hours', 'is_active', 'bank_account_number', 'ifsc_code', 'address')
+            'fields': (
+                'company', 'logo', 'gst_number', 'outlet_name',
+                'phone_number', 'opening_hours', 'is_active',
+                'bank_account_number', 'ifsc_code', 'address'
+            )
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',),  # Optional: makes the section collapsible
+            'classes': ('collapse',),
         }),
     )
 
 
-
-
+# ================== OUTLET ACCESS ==================
 @admin.register(OutletAccess)
 class OutletAccessAdmin(admin.ModelAdmin):
-    list_display = ('employee', 'outlet', 'permissions')
+    list_display = ('employee', 'outlet')
     search_fields = ('employee__first_name', 'outlet__outlet_name')
-    list_filter = ('outlet', 'employee')
-    fieldsets = (
-        (None, {
-            'fields': ('employee', 'outlet', 'permissions')
-        }),
-    )
-    
+    list_filter = ('outlet',)
 
 
-
+# ================== PLAN ==================
 @admin.register(Plan)
-class PlanAccessAdmin(admin.ModelAdmin):
+class PlanAdmin(admin.ModelAdmin):
     list_display = ('plan_name', 'plan_price', 'price_tenure')
     search_fields = ('plan_name',)
-    list_filter = ('plan_name',)
-    fieldsets = (
-        (None, {
-            'fields': ('plan_name', 'plan_price', 'price_tenure')
-        }),
-    )
-
-
-
 
 
 @admin.register(PlanAssignment)
-class PlanAssignmentAccessAdmin(admin.ModelAdmin):
-    list_display = ('plan', 'status', 'valid_till','user')
-    search_fields = ('plan__plan_name','user__username')
-    list_filter = ('status','plan')
-    fieldsets = (
-        (None, {
-            'fields': ('plan', 'status', 'valid_till','user')
-        }),
-    )
+class PlanAssignmentAdmin(admin.ModelAdmin):
+    list_display = ('plan', 'user', 'status', 'valid_till')
+    list_filter = ('status', 'plan')
+    search_fields = ('plan__plan_name', 'user__username')
 
 
-
-
-
+# ================== EMPLOYEE ==================
 @admin.register(Employee)
-class PlanAssignmentAccessAdmin(admin.ModelAdmin):
-    list_display = ('company','user','first_name','last_name','email','role','employee_code','is_active')
-    search_fields = ('company__name','user__username')
-    list_filter = ('role','company')
-    fieldsets = (
-        (None, {
-            'fields': ('company','user','first_name','last_name','email','phone_number','address','profile_image','date_of_birth','role','employee_code','is_active')
-        }),
-    )
-    
-    
+class EmployeeAdmin(admin.ModelAdmin):
+    list_display = ('company', 'user', 'first_name', 'email', 'role', 'employee_code', 'is_active')
+    list_filter = ('role', 'company')
+    search_fields = ('user__username', 'email')
 
 
+# ================== CATEGORY ==================
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    list_display = ('name', 'outlet')
+    list_filter = ('outlet',)
+    search_fields = ('name',)
 
 
-
+# ================== PRODUCT ==================
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('name', 'price', 'outlet', 'category', 'is_gst_inclusive', 'gst_percentage','is_veg','is_stock_out')
-    search_fields = ('name', 'outlet__outlet_name', 'category__name')  # Search includes category name
-    list_filter = ('outlet', 'is_gst_inclusive', 'category','is_veg','is_stock_out')  # Add category filter
+    list_display = ('name', 'price', 'outlet', 'category', 'is_veg', 'is_stock_out')
+    list_filter = ('outlet', 'category', 'is_veg', 'is_stock_out')
+    search_fields = ('name',)
     readonly_fields = ('created_at', 'updated_at')
-    fieldsets = (
-        (None, {
-            'fields': ('name', 'price', 'image', 'description', 'outlet','is_veg','is_stock_out', 'category', 'gst_percentage', 'is_gst_inclusive')
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-        }),
-    )
 
 
 @admin.register(ProductVariant)
 class ProductVariantAdmin(admin.ModelAdmin):
-    list_display = ('name', 'product', 'price', 'is_gst_inclusive','is_stock_out')
-    search_fields = ('name', 'product__name')
-    list_filter = ('is_gst_inclusive', 'product','is_stock_out')
-    readonly_fields = ('created_at', 'updated_at')
-    fieldsets = (
-        (None, {
-            'fields': ('product', 'name', 'price', 'is_gst_inclusive','is_stock_out', 'extra_description')
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-        }),
-    )
-    
-    
-    
+    list_display = ('name', 'product', 'price', 'is_stock_out')
+    list_filter = ('product', 'is_stock_out')
+    search_fields = ('name',)
 
 
-
-
+# ================== MENU ==================
 @admin.register(Menu)
 class MenuAdmin(admin.ModelAdmin):
-    list_display = ('name', 'outlet', 'is_enabled', 'start_date', 'end_date', 'open_time', 'close_time')
-    list_filter = ('outlet', 'is_enabled', 'start_date', 'end_date')
-    search_fields = ('name', 'outlet__name')
-    filter_horizontal = ('products',)  # Adds a filter widget for the ManyToManyField
-    fieldsets = (
-        (None, {
-            'fields': ('name', 'outlet', 'is_enabled', 'start_date', 'end_date', 'open_time', 'close_time', 'products')
-        }),
-    )
-    
-    
+    list_display = ('name', 'outlet', 'is_enabled')
+    list_filter = ('outlet', 'is_enabled')
+    filter_horizontal = ('products',)
 
 
-
-@admin.register(Category)
-class CategoryAdmin(admin.ModelAdmin):
-    list_display = ('name', 'outlet')
-    search_fields = ('name', 'outlet__name')
-    list_filter = ('outlet',)
+# ================== ORDER INLINE ==================
+class OrderItemInline(admin.TabularInline):
+    model = OrderItem
+    extra = 0
 
 
-
-
+# ================== ORDER ==================
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
     list_display = (
         'order_number',
         'outlet',
-        'order_date',
+        'table_number',
         'status',
         'total_price',
-        'mode',
-        'table_number',
-        'updated_at',
-        'note',
+        'order_date'
     )
-    list_filter = (
-        'status',
-        'mode',
-        'order_date',
-        'outlet',
-    )
-    search_fields = (
-        'order_number',
-        'razorpay_order_id',
-        'razorpay_payment_id',
-        'razorpay_signature',
-    )
-    readonly_fields = (
-        'order_date',
-        'updated_at',
-    )
+    list_filter = ('status', 'outlet', 'order_date')
+    search_fields = ('order_number',)
+    readonly_fields = ('order_date', 'updated_at')
     ordering = ('-order_date',)
+    inlines = [OrderItemInline]
 
 
+# ================== ORDER ITEM ==================
 @admin.register(OrderItem)
 class OrderItemAdmin(admin.ModelAdmin):
-    list_display = ('order', 'product', 'product_variant', 'quantity', 'price')
-    search_fields = ('order__order_number', 'product__name', 'product_variant__name')
-    list_filter = ('order', 'product', 'product_variant')
-    ordering = ('order', 'product')
+    list_display = (
+        'order',
+        'product',
+        'product_variant',
+        'quantity',
+        'price',
+        'status'
+    )
+    list_filter = ('status', 'order')
+    search_fields = ('order__order_number', 'product__name')
 
 
+# ================== CUSTOMER ==================
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
     list_display = ('name', 'phone_number', 'order')
-    search_fields = ('name', 'phone_number', 'order__order_number')
-    list_filter = ('order',)
-    ordering = ('name',)
+    search_fields = ('name', 'phone_number')
 
 
+# ================== TABLE ==================
+@admin.register(Table)
+class TableAdmin(admin.ModelAdmin):
+    list_display = (
+        'table_number',
+        'table_id',
+        'outlet',
+        'location',
+        'status',
+        'current_order'
+    )
+    list_filter = ('status', 'outlet', 'location')
+    search_fields = ('table_id', 'table_number')
+    ordering = ('table_number',)
 
 
+# ================== EXPENSE ==================
+@admin.register(Expense)
+class ExpenseAdmin(admin.ModelAdmin):
+    list_display = (
+        'title',
+        'amount',
+        'outlet',
+        'expense_date'
+    )
+    list_filter = ('outlet', 'expense_date')
+    search_fields = ('title',)
+    ordering = ('-expense_date',)
 
 
+# ================== STOCK ==================
+@admin.register(StockRequest)
 class StockRequestAdmin(admin.ModelAdmin):
-    list_display = ('product', 'product_variant', 'status', 'timestamp', 'updated_at', 'outlet')
-    list_filter = ('status', 'outlet', 'timestamp')
-    search_fields = ('product__name', 'product_variant__name', 'outlet__name')
-    ordering = ('-timestamp',)
-    date_hierarchy = 'timestamp'
-    raw_id_fields = ('product', 'product_variant', 'outlet')  # Using raw_id_fields for better performance with foreign keys
-
-    # Fields to display in the form when creating/updating a StockRequest
-    fields = ('product', 'product_variant', 'status', 'outlet')
-
-# Register the updated admin class
-admin.site.register(StockRequest, StockRequestAdmin)
+    list_display = ('product', 'product_variant', 'status', 'outlet', 'timestamp')
+    list_filter = ('status', 'outlet')
+    search_fields = ('product__name',)
 
 
-
-
-
+# ================== COUPON ==================
 @admin.register(Coupon)
 class CouponAdmin(admin.ModelAdmin):
-    list_display = (
-        'coupon_code', 'outlet', 'discount_type', 'discount_value',
-        'max_discount_amount', 'min_cart_value', 'expiry_date',
-        'is_active', 'created_at'
-    )
-    list_filter = (
-        'outlet', 'discount_type', 'is_active', 'expiry_date',
-    )
-    search_fields = (
-        'coupon_code',
-    )
-    filter_horizontal = ('products', 'categories')  # Improves selection UI for M2M fields
+    list_display = ('coupon_code', 'outlet', 'discount_type', 'discount_value', 'is_active')
+    list_filter = ('outlet', 'discount_type', 'is_active')
+    filter_horizontal = ('products', 'categories')
 
 
-
-
+# ================== RAZORPAY ==================
 @admin.register(RazorpayCredential)
 class RazorpayCredentialAdmin(admin.ModelAdmin):
-    list_display = ('outlet', 'razorpay_client_id', 'created_at', 'updated_at')
-    search_fields = ('outlet__outlet_name', 'razorpay_client_id')
-    readonly_fields = ('created_at', 'updated_at')
+    list_display = ('outlet', 'razorpay_client_id')
 
 
+# ================== PRINTER ==================
+@admin.register(PrinterConfig)
+class PrinterConfigAdmin(admin.ModelAdmin):
+    list_display = ('outlet', 'updated_at')
 
 
+# ================== SIMPLE REGISTRATIONS ==================
 admin.site.register(FCMToken)
 admin.site.register(EmployeeCredentials)
 
 
-
-
+# ================== REFUND ==================
 @admin.register(RefundNote)
 class RefundNoteAdmin(admin.ModelAdmin):
     list_display = ('order', 'refund_title', 'refund_amount', 'created_at')
-    list_filter = ('created_at',)
-    search_fields = ('refund_title', 'refund_description', 'order__order_number')
+    search_fields = ('order__order_number',)
     ordering = ('-created_at',)

@@ -1,5 +1,8 @@
 from django.urls import path
 from .views import (
+    add_expense,
+    get_expenses,
+    get_expenses,
     user_login,
     category_list,
     product_list,
@@ -12,7 +15,10 @@ from .views import (
     send_order_notification,
     upload_billed_transaction,
     get_transaction_status,
-    cancel_transaction
+    cancel_transaction,
+    get_tables_by_outlet,
+    update_table_status,
+    
     )
 
 urlpatterns = [
@@ -46,5 +52,12 @@ urlpatterns = [
     path("initiate-transaction/<int:user_id>/", upload_billed_transaction, name="upload_billed_transaction"),
     path("get-transaction-status/<int:user_id>/", get_transaction_status, name="get_transaction_status"),
     path("cancel-transaction/<int:user_id>/", cancel_transaction, name="cancel_transaction"),
+    
+    path('outlet/<int:outlet_id>/tables/', get_tables_by_outlet),
+    
+    path('tables/<int:table_id>/status/', update_table_status),
+    
+    path('outlet/<int:outlet_id>/expenses/', get_expenses),
+    path('outlet/<int:outlet_id>/expenses/add/', add_expense),
     
 ]

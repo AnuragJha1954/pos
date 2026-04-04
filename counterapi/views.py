@@ -38,7 +38,10 @@ from .serializers import (
     OrderListSerializer,
     OrderItemListSerializer,
     CustomerListSerializer,
-    StockRequestSerializer
+    StockRequestSerializer,
+    TableSerializer,
+    TableOrderSerializer,
+    ExpenseSerializer,
     
 )
 
@@ -57,7 +60,9 @@ from v1.models import (
     Employee,
     PlanAssignment,
     Plan,
-    FCMToken
+    FCMToken,
+    Table,
+    Expense,
     )
 
 
@@ -519,54 +524,137 @@ def send_order_notification(registration_token):
 def generate_order_number():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=12))
 
+place_order_request_schema = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    required=['customer', 'items'],
+    properties={
+        'table_id': openapi.Schema(
+            type=openapi.TYPE_INTEGER,
+            description="Table ID (required for dine-in orders)"
+        ),
+        'is_draft': openapi.Schema(
+            type=openapi.TYPE_BOOLEAN,
+            description="Set true for draft table order"
+        ),
+        'customer': openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['name', 'phone_number'],
+            properties={
+                'name': openapi.Schema(type=openapi.TYPE_STRING),
+                'phone_number': openapi.Schema(type=openapi.TYPE_STRING),
+            }
+        ),
+        'items': openapi.Schema(
+            type=openapi.TYPE_ARRAY,
+            items=openapi.Items(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'product': openapi.Schema(type=openapi.TYPE_INTEGER),
+                    'product_variant': openapi.Schema(type=openapi.TYPE_INTEGER),
+                    'quantity': openapi.Schema(type=openapi.TYPE_INTEGER),
+                }
+            )
+        ),
+    }
+)
+
+
 @swagger_auto_schema(
     method='post',
-    request_body=OrderSerializer,
+    operation_description="Place order (supports takeaway, dine-in, and draft table orders)",
+    request_body=place_order_request_schema,
     responses={
-        201: openapi.Response(
+        200: openapi.Response(
             description="Order placed successfully",
-            schema=OrderSerializer
+            examples={
+                "application/json": {
+                    "error": False,
+                    "data": {
+                        "order_id": 1,
+                        "order_number": "AB12CD34",
+                        "status": "confirmed",
+                        "total_price": 500,
+                        "gst": 50,
+                        "cgst": 25,
+                        "sgst": 25,
+                        "subtotal": 450,
+                        "table": 3,
+                        "items": [],
+                        "customer": {
+                            "name": "Anurag",
+                            "phone_number": "9999999999"
+                        }
+                    },
+                    "bill_template": "<html>...</html>"
+                }
+            }
         ),
-        400: openapi.Response(
-            description="Invalid request data"
-        ),
+        400: openapi.Response(description="Invalid request data"),
+        500: openapi.Response(description="Internal server error"),
     }
 )
 @api_view(['POST'])
 @permission_classes([AllowAny])
-def place_order(request, outlet_id,order_number):
+def place_order(request, outlet_id, order_number):
     try:
         data = request.data
 
-
         customer_data = data.get("customer")
         items_data = data.get("items")
+        table_id = data.get("table_id")   # 👈 NEW
+        is_draft = data.get("is_draft", False)  # 👈 NEW
 
-        # Customer lookup / create
+        # Customer
         customer, _ = Customer.objects.get_or_create(
             name=customer_data.get("name"),
             phone_number=customer_data.get("phone_number")
         )
 
-        # ✅ Use existing order number
+        # 🔥 Determine order status
+        if table_id:
+            if is_draft:
+                order_status = "draft"
+            else:
+                order_status = "confirmed"
+        else:
+            order_status = "confirmed"  # takeaway
+
+        # Create Order
         order = Order.objects.create(
             outlet_id=outlet_id,
             order_number=order_number,
             total_price=Decimal("0.00"),
             gst=Decimal("0.00"),
-            status="PENDING",
+            status=order_status,
             order_date=localtime(timezone.now()),
-            address=data.get("address", ""),
-            mode=data.get("mode", ""),
         )
 
         customer.order = order
         customer.save()
 
+        # 🔥 Table Handling
+        table = None
+        if table_id:
+            table = Table.objects.get(id=table_id)
+
+            table.current_order = order
+
+            # Draft → keep table empty
+            if is_draft:
+                table.status = "running"
+            else:
+                table.status = "running"
+
+            table.save()
+
+            order.table = table
+            order.save()
+
         total_price = Decimal("0.00")
         total_gst = Decimal("0.00")
         processed_items = []
 
+        # 🔥 Items Processing
         for item_data in items_data:
             product_id = item_data.get("product")
             variant_id = item_data.get("product_variant")
@@ -575,14 +663,14 @@ def place_order(request, outlet_id,order_number):
             if product_id:
                 product = Product.objects.get(id=product_id)
                 price = product.price
-                gst = product.gst_percentage
+                gst = product.gst_percentage or Decimal("0.00")
                 is_gst_inclusive = product.is_gst_inclusive
                 variant = None
             elif variant_id:
                 variant = ProductVariant.objects.get(id=variant_id)
                 product = variant.product
                 price = variant.price
-                gst = product.gst_percentage
+                gst = product.gst_percentage or Decimal("0.00")
                 is_gst_inclusive = product.is_gst_inclusive
             else:
                 return JsonResponse(
@@ -610,6 +698,7 @@ def place_order(request, outlet_id,order_number):
                 price=price,
                 total_price=total_item_price_final,
                 gst=gst_amount,
+                status="processing"  # 👈 default
             )
 
             processed_items.append({
@@ -623,6 +712,7 @@ def place_order(request, outlet_id,order_number):
             total_price += total_item_price_final
             total_gst += gst_amount
 
+        # Update order totals
         order.total_price = total_price
         order.gst = total_gst
         order.save()
@@ -631,26 +721,165 @@ def place_order(request, outlet_id,order_number):
         sgst = total_gst / 2
         subtotal = total_price - total_gst
 
-        response_data = OrderSerializer(order).data
-        response_data.update({
-            "subtotal": round(subtotal, 2),
+        response_data = {
+            "order_id": order.id,
+            "order_number": order.order_number,
+            "status": order.status,
+            "total_price": round(total_price, 2),
+            "gst": round(total_gst, 2),
             "cgst": round(cgst, 2),
             "sgst": round(sgst, 2),
+            "subtotal": round(subtotal, 2),
             "customer": {
                 "name": customer.name,
                 "phone_number": customer.phone_number,
             },
             "items": processed_items,
+            "table": table.table_number if table else None,
             "formatted_date": order.order_date.strftime("%d-%m-%Y %I:%M %p"),
-        })
+        }
 
-        return render(request, "bill.html", response_data)
+        # 🔥 Render bill HTML as string
+        bill_html = render_to_string("bill.html", response_data)
+
+        return JsonResponse({
+            "error": False,
+            "data": response_data,
+            "bill_template": bill_html  # 👈 FULL HTML
+        })
 
     except Exception as e:
         return JsonResponse(
             {"error": True, "details": str(e)},
             status=500
         )
+
+
+
+
+
+
+
+
+
+
+# def place_order(request, outlet_id,order_number):
+#     try:
+#         data = request.data
+
+
+#         customer_data = data.get("customer")
+#         items_data = data.get("items")
+
+#         # Customer lookup / create
+#         customer, _ = Customer.objects.get_or_create(
+#             name=customer_data.get("name"),
+#             phone_number=customer_data.get("phone_number")
+#         )
+
+#         # ✅ Use existing order number
+#         order = Order.objects.create(
+#             outlet_id=outlet_id,
+#             order_number=order_number,
+#             total_price=Decimal("0.00"),
+#             gst=Decimal("0.00"),
+#             status="PENDING",
+#             order_date=localtime(timezone.now()),
+#             address=data.get("address", ""),
+#             mode=data.get("mode", ""),
+#         )
+
+#         customer.order = order
+#         customer.save()
+
+#         total_price = Decimal("0.00")
+#         total_gst = Decimal("0.00")
+#         processed_items = []
+
+#         for item_data in items_data:
+#             product_id = item_data.get("product")
+#             variant_id = item_data.get("product_variant")
+#             quantity = item_data.get("quantity")
+
+#             if product_id:
+#                 product = Product.objects.get(id=product_id)
+#                 price = product.price
+#                 gst = product.gst_percentage
+#                 is_gst_inclusive = product.is_gst_inclusive
+#                 variant = None
+#             elif variant_id:
+#                 variant = ProductVariant.objects.get(id=variant_id)
+#                 product = variant.product
+#                 price = variant.price
+#                 gst = product.gst_percentage
+#                 is_gst_inclusive = product.is_gst_inclusive
+#             else:
+#                 return JsonResponse(
+#                     {"error": True, "details": "Product or variant required"},
+#                     status=400
+#                 )
+
+#             total_item_price = price * quantity
+
+#             if is_gst_inclusive:
+#                 rate_excl_gst = price / (1 + gst / Decimal("100"))
+#                 gst_amount = total_item_price - (rate_excl_gst * quantity)
+#             else:
+#                 gst_amount = (gst / Decimal("100")) * total_item_price
+
+#             total_item_price_final = (
+#                 total_item_price if is_gst_inclusive else total_item_price + gst_amount
+#             )
+
+#             OrderItem.objects.create(
+#                 order=order,
+#                 product=product if product_id else None,
+#                 product_variant=variant,
+#                 quantity=quantity,
+#                 price=price,
+#                 total_price=total_item_price_final,
+#                 gst=gst_amount,
+#             )
+
+#             processed_items.append({
+#                 "product_name": product.name,
+#                 "variant_name": variant.name if variant else None,
+#                 "quantity": quantity,
+#                 "price": round(price, 2),
+#                 "gst": round(gst_amount, 2),
+#             })
+
+#             total_price += total_item_price_final
+#             total_gst += gst_amount
+
+#         order.total_price = total_price
+#         order.gst = total_gst
+#         order.save()
+
+#         cgst = total_gst / 2
+#         sgst = total_gst / 2
+#         subtotal = total_price - total_gst
+
+#         response_data = OrderSerializer(order).data
+#         response_data.update({
+#             "subtotal": round(subtotal, 2),
+#             "cgst": round(cgst, 2),
+#             "sgst": round(sgst, 2),
+#             "customer": {
+#                 "name": customer.name,
+#                 "phone_number": customer.phone_number,
+#             },
+#             "items": processed_items,
+#             "formatted_date": order.order_date.strftime("%d-%m-%Y %I:%M %p"),
+#         })
+
+#         return render(request, "bill.html", response_data)
+
+#     except Exception as e:
+#         return JsonResponse(
+#             {"error": True, "details": str(e)},
+#             status=500
+#         )
 
 
 
@@ -1290,6 +1519,206 @@ def cancel_transaction(request, user_id):
         return Response({"error": True, "detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     return Response({"error": False, "status": response_data}, status=response.status_code)
+
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='get',
+    operation_description="Get all tables of an outlet",
+    manual_parameters=[
+        openapi.Parameter(
+            'outlet_id',
+            openapi.IN_PATH,
+            description="Outlet ID",
+            type=openapi.TYPE_INTEGER
+        )
+    ],
+    responses={200: TableSerializer(many=True)}
+)
+@api_view(['GET'])
+def get_tables_by_outlet(request, outlet_id):
+    outlet = get_object_or_404(Outlet, id=outlet_id)
+
+    tables = Table.objects.filter(outlet=outlet).select_related('current_order')
+
+    serializer = TableSerializer(tables, many=True)
+
+    return Response({
+        "error": False,
+        "data": serializer.data
+    }, status=status.HTTP_200_OK)
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='patch',
+    operation_description="Update table status",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['status'],
+        properties={
+            'status': openapi.Schema(
+                type=openapi.TYPE_STRING,
+                enum=['empty', 'running', 'printing', 'paid', 'running_kot'],
+                description="New table status"
+            )
+        }
+    ),
+    responses={
+        200: openapi.Response(
+            description="Table status updated successfully",
+            examples={
+                "application/json": {
+                    "error": False,
+                    "message": "Table status updated",
+                    "data": {
+                        "table_id": 1,
+                        "table_number": 5,
+                        "status": "running"
+                    }
+                }
+            }
+        ),
+        400: openapi.Response(description="Invalid status"),
+        404: openapi.Response(description="Table not found"),
+    }
+)
+@api_view(['PATCH'])
+def update_table_status(request, table_id):
+    try:
+        table = get_object_or_404(Table, id=table_id)
+
+        new_status = request.data.get("status")
+
+        valid_status = ['empty', 'running', 'printing', 'paid', 'running_kot']
+
+        if new_status not in valid_status:
+            return Response({
+                "error": True,
+                "message": "Invalid status"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        table.status = new_status
+
+        # 🔥 Optional smart handling
+        if new_status == "empty":
+            table.current_order = None
+
+        table.save()
+
+        return Response({
+            "error": False,
+            "message": "Table status updated",
+            "data": {
+                "table_id": table.id,
+                "table_number": table.table_number,
+                "status": table.status
+            }
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({
+            "error": True,
+            "details": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='post',
+    operation_description="Add a new expense",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['title', 'amount'],
+        properties={
+            'title': openapi.Schema(type=openapi.TYPE_STRING),
+            'description': openapi.Schema(type=openapi.TYPE_STRING),
+            'amount': openapi.Schema(type=openapi.TYPE_NUMBER),
+        }
+    ),
+    responses={
+        201: openapi.Response(
+            description="Expense created successfully",
+            schema=ExpenseSerializer
+        ),
+        400: openapi.Response(description="Invalid data")
+    }
+)
+@api_view(['POST'])
+def add_expense(request, outlet_id):
+    try:
+        outlet = get_object_or_404(Outlet, id=outlet_id)
+
+        serializer = ExpenseSerializer(data=request.data)
+
+        if serializer.is_valid():
+            serializer.save(outlet=outlet)
+
+            return Response({
+                "error": False,
+                "message": "Expense added successfully",
+                "data": serializer.data
+            }, status=status.HTTP_201_CREATED)
+
+        return Response({
+            "error": True,
+            "details": serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    except Exception as e:
+        return Response({
+            "error": True,
+            "details": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='get',
+    operation_description="Get all expenses of an outlet",
+    responses={
+        200: openapi.Response(
+            description="List of expenses",
+            schema=ExpenseSerializer(many=True)
+        )
+    }
+)
+@api_view(['GET'])
+def get_expenses(request, outlet_id):
+    try:
+        outlet = get_object_or_404(Outlet, id=outlet_id)
+
+        expenses = Expense.objects.filter(outlet=outlet).order_by('-expense_date')
+
+        serializer = ExpenseSerializer(expenses, many=True)
+
+        return Response({
+            "error": False,
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({
+            "error": True,
+            "details": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 

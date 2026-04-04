@@ -215,7 +215,7 @@ class Menu(models.Model):
     products = models.ManyToManyField(Product, blank=True, related_name='menus')
 
     def __str__(self):
-        return f"{self.name} - {self.outlet.name}"
+        return f"{self.name} - {self.outlet.outlet_name}"
     
 
 
@@ -234,12 +234,13 @@ class Menu(models.Model):
 
 class Order(models.Model):
     STATUS_CHOICES = [
-        ('PENDING', 'Pending'),
-        ('PROCESSING', 'Processing'),
-        ('CONFIRMED', 'Confirmed'),
-        ('COMPLETED', 'Completed'),
-        ('CANCELLED', 'Cancelled'),
-        ('REFUNDED', 'Refunded'),
+        ('draft', 'Draft'),
+        ('confirmed', 'Confirmed'),
+        ('processing', 'Processing'),
+        ('cancelled', 'Cancelled'),
+        ('refunded', 'Refunded'),
+        ('payment_pending', 'Payment Pending'),
+        ('settled', 'Settled'),
     ]
     
     MODE_CHOICES = [
@@ -260,8 +261,14 @@ class Order(models.Model):
     mode = models.CharField(max_length=10, choices=MODE_CHOICES, blank=True, null=True)  # New mode field
     updated_at = models.DateTimeField(auto_now=True)
     
-    # 🔽 New field for table management
-    table_number = models.PositiveIntegerField(null=True, blank=True, help_text="Table number if dine-in, else leave empty.")
+    # 🔥 Table relation (NEW)
+    table_number = models.ForeignKey(
+        'Table',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='orders'
+    )
     
     # Razorpay-related fields
     razorpay_order_id = models.CharField(max_length=100, blank=True, null=True)
@@ -282,18 +289,44 @@ class Order(models.Model):
     
     
 class OrderItem(models.Model):
+    ITEM_STATUS_CHOICES = [
+        ('processing', 'Processing'),
+        ('rejected', 'Rejected'),
+        ('ready_to_serve', 'Ready to Serve'),
+    ]
+
     order = models.ForeignKey('Order', on_delete=models.CASCADE, related_name='items')
-    product = models.ForeignKey('Product', on_delete=models.SET_NULL, null=True, blank=True)  # Optional ForeignKey to Product
-    product_variant = models.ForeignKey('ProductVariant', on_delete=models.SET_NULL, null=True, blank=True)  # Optional ForeignKey to ProductVariant
+
+    product = models.ForeignKey(
+        'Product',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    product_variant = models.ForeignKey(
+        'ProductVariant',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
     quantity = models.PositiveIntegerField(default=1)
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    total_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # New field
-    gst = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)  # New field
+
+    total_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    gst = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+
+    # 🔥 Item-level status (NEW)
+    status = models.CharField(
+        max_length=20,
+        choices=ITEM_STATUS_CHOICES,
+        default='processing'
+    )
 
     def __str__(self):
-        return f"{self.quantity} of {self.product_variant.name if self.product_variant else self.product.name} in order {self.order.id}"
-
-    
+        name = self.product_variant.name if self.product_variant else self.product.name
+        return f"{self.quantity} x {name} ({self.status})"
     
     
 
@@ -467,3 +500,64 @@ class PrinterConfig(models.Model):
 
     def __str__(self):
         return f"Printers for {self.outlet.outlet_name}"
+
+
+
+class Table(models.Model):
+    TABLE_STATUS_CHOICES = [
+        ('empty', 'Empty'),
+        ('running', 'Running'),
+        ('printing', 'Printing'),
+        ('paid', 'Paid'),
+        ('running_kot', 'Running KOT'),
+    ]
+
+    outlet = models.ForeignKey('Outlet', on_delete=models.CASCADE, related_name='tables')
+    table_number = models.PositiveIntegerField()
+    table_id = models.CharField(max_length=20, unique=True)
+    location = models.CharField(max_length=50, help_text="Eg: Ground Floor, First Floor")
+
+    status = models.CharField(max_length=20, choices=TABLE_STATUS_CHOICES, default='empty')
+
+    # Active order on the table
+    current_order = models.ForeignKey(
+        'Order',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='table_current_orders'
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Table {self.table_number} ({self.location})"
+    
+    
+    
+
+
+
+
+
+class Expense(models.Model):
+    outlet = models.ForeignKey('Outlet', on_delete=models.CASCADE, related_name='expenses')
+
+    title = models.CharField(max_length=255, help_text="Expense title (e.g., Milk Purchase)")
+    description = models.TextField(blank=True, null=True)
+
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+
+    expense_date = models.DateTimeField(default=timezone.now)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.title} - ₹{self.amount}"
+
+
+
+
+
+
+

@@ -10,7 +10,10 @@ from v1.models import (
     OrderItem,
     Customer,
     StockRequest,
-    Employee
+    Employee,
+    Table, 
+    Expense,
+    
     )
 from users.models import CustomUser
 
@@ -197,3 +200,44 @@ class StockRequestSerializer(serializers.ModelSerializer):
         if not data.get('product') and not data.get('product_variant'):
             raise serializers.ValidationError("Either product or product_variant must be provided.")
         return data
+
+
+
+
+class TableOrderSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Order
+        fields = ['id', 'order_number', 'status', 'total_price']
+
+
+class TableSerializer(serializers.ModelSerializer):
+    current_order = TableOrderSerializer(read_only=True)
+
+    class Meta:
+        model = Table
+        fields = [
+            'id',
+            'table_number',
+            'table_id',
+            'location',
+            'status',
+            'current_order'
+        ]
+
+
+
+
+
+
+class ExpenseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Expense
+        fields = [
+            'id',
+            'title',
+            'description',
+            'amount',
+            'expense_date'
+        ]
+
+
