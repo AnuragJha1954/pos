@@ -14,6 +14,7 @@ from django.utils import timezone
 from django.utils.timezone import localtime
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
+from django.conf import settings
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -63,6 +64,9 @@ from v1.models import (
     FCMToken,
     Table,
     Expense,
+    KOT,
+    OrderPayment,
+    KOTDevice,
     )
 
 
@@ -521,6 +525,17 @@ def send_order_notification(registration_token):
 #   "address": "123, Main Street, City, State, ZIP",
 #   "mode": "cash"
 # }
+
+# 🔥 KOT ACCESS CHECK
+def has_kot_access(user):
+    plan = PlanAssignment.objects.filter(
+        user=user,
+        status='active'
+    ).select_related('plan').first()
+
+    return plan.plan.has_kot if plan else False
+
+
 def generate_order_number():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=12))
 
@@ -530,12 +545,32 @@ place_order_request_schema = openapi.Schema(
     properties={
         'table_id': openapi.Schema(
             type=openapi.TYPE_INTEGER,
-            description="Table ID (required for dine-in orders)"
+            description="Required for dine-in orders"
         ),
+
         'is_draft': openapi.Schema(
             type=openapi.TYPE_BOOLEAN,
-            description="Set true for draft table order"
+            description="Set true to save as draft"
         ),
+
+        'payment_mode': openapi.Schema(
+            type=openapi.TYPE_STRING,
+            enum=['upi', 'cash', 'coupon'],
+            description="Required for takeaway orders"
+        ),
+
+        'upi_type': openapi.Schema(
+            type=openapi.TYPE_STRING,
+            enum=['gpay', 'phonepe', 'paytm'],
+            description="Required only if payment_mode = upi"
+        ),
+
+        'amount': openapi.Schema(
+            type=openapi.TYPE_NUMBER,
+            format='decimal',
+            description="Paid amount (optional, defaults to total)"
+        ),
+
         'customer': openapi.Schema(
             type=openapi.TYPE_OBJECT,
             required=['name', 'phone_number'],
@@ -544,65 +579,110 @@ place_order_request_schema = openapi.Schema(
                 'phone_number': openapi.Schema(type=openapi.TYPE_STRING),
             }
         ),
+
         'items': openapi.Schema(
             type=openapi.TYPE_ARRAY,
             items=openapi.Items(
                 type=openapi.TYPE_OBJECT,
+                required=['quantity'],
                 properties={
-                    'product': openapi.Schema(type=openapi.TYPE_INTEGER),
-                    'product_variant': openapi.Schema(type=openapi.TYPE_INTEGER),
-                    'quantity': openapi.Schema(type=openapi.TYPE_INTEGER),
+                    'product': openapi.Schema(
+                        type=openapi.TYPE_INTEGER,
+                        description="Product ID (either product OR variant required)"
+                    ),
+                    'product_variant': openapi.Schema(
+                        type=openapi.TYPE_INTEGER,
+                        description="Variant ID"
+                    ),
+                    'quantity': openapi.Schema(
+                        type=openapi.TYPE_INTEGER,
+                        minimum=1
+                    ),
                 }
             )
         ),
     }
 )
 
-
 @swagger_auto_schema(
     method='post',
-    operation_description="Place order (supports takeaway, dine-in, and draft table orders)",
+    operation_description="""
+Place Order API
+
+### Order Types:
+- 🧾 Draft → No processing
+- 🍽️ Dine-in → Sent to KOT, pay later
+- 🛍️ Takeaway → Payment required immediately
+
+### Payment Modes (Takeaway Only):
+- UPI (requires upi_type)
+- Cash
+- Coupon
+""",
     request_body=place_order_request_schema,
     responses={
         200: openapi.Response(
-            description="Order placed successfully",
+            description="Order created successfully",
             examples={
                 "application/json": {
                     "error": False,
                     "data": {
                         "order_id": 1,
                         "order_number": "AB12CD34",
-                        "status": "confirmed",
+                        "status": "settled",
+                        "payment_status": "success",
                         "total_price": 500,
                         "gst": 50,
-                        "cgst": 25,
-                        "sgst": 25,
-                        "subtotal": 450,
-                        "table": 3,
-                        "items": [],
                         "customer": {
                             "name": "Anurag",
                             "phone_number": "9999999999"
-                        }
+                        },
+                        "table": None,
+                        "items": [
+                            {
+                                "product_name": "Burger",
+                                "variant_name": None,
+                                "quantity": 2,
+                                "price": 200,
+                                "gst": 20
+                            }
+                        ]
                     },
-                    "bill_template": "<html>...</html>"
+                    "payment": {
+                        "required": True,
+                        "mode": "upi",
+                        "upi_type": "gpay",
+                        "status": "success"
+                    }
                 }
             }
         ),
-        400: openapi.Response(description="Invalid request data"),
-        500: openapi.Response(description="Internal server error"),
+
+        400: openapi.Response(
+            description="Invalid request (e.g., missing payment_mode for takeaway)"
+        ),
+
+        500: openapi.Response(
+            description="Internal server error"
+        )
     }
 )
 @api_view(['POST'])
 @permission_classes([AllowAny])
-def place_order(request, outlet_id, order_number):
+def place_order(request, outlet_id):
     try:
         data = request.data
 
         customer_data = data.get("customer")
         items_data = data.get("items")
-        table_id = data.get("table_id")   # 👈 NEW
-        is_draft = data.get("is_draft", False)  # 👈 NEW
+        table_id = data.get("table_id")
+        is_draft = data.get("is_draft", False)
+
+        payment_mode = data.get("payment_mode")
+        upi_type = data.get("upi_type")
+        paid_amount = Decimal(str(data.get("amount", "0")))
+
+        order_number = generate_order_number()
 
         # Customer
         customer, _ = Customer.objects.get_or_create(
@@ -610,14 +690,21 @@ def place_order(request, outlet_id, order_number):
             phone_number=customer_data.get("phone_number")
         )
 
-        # 🔥 Determine order status
-        if table_id:
-            if is_draft:
-                order_status = "draft"
-            else:
-                order_status = "confirmed"
+        is_takeaway = not bool(table_id)
+        # kot_enabled = has_kot_access(request.user)
+
+        # 🔥 STATUS DECISION
+        if is_draft:
+            order_status = "draft"
+            payment_required = False
+
+        elif is_takeaway:
+            order_status = "payment_pending"
+            payment_required = True
+
         else:
-            order_status = "confirmed"  # takeaway
+            order_status = "pending"
+            payment_required = False
 
         # Create Order
         order = Order.objects.create(
@@ -626,35 +713,28 @@ def place_order(request, outlet_id, order_number):
             total_price=Decimal("0.00"),
             gst=Decimal("0.00"),
             status=order_status,
-            order_date=localtime(timezone.now()),
+            payment_status="pending"
         )
 
         customer.order = order
         customer.save()
 
-        # 🔥 Table Handling
+        # Table handling
         table = None
         if table_id:
             table = Table.objects.get(id=table_id)
-
             table.current_order = order
-
-            # Draft → keep table empty
-            if is_draft:
-                table.status = "running"
-            else:
-                table.status = "running"
-
+            table.status = "running"
             table.save()
 
-            order.table = table
+            order.table_number = table
             order.save()
 
         total_price = Decimal("0.00")
         total_gst = Decimal("0.00")
         processed_items = []
 
-        # 🔥 Items Processing
+        # 🔥 ITEM PROCESSING
         for item_data in items_data:
             product_id = item_data.get("product")
             variant_id = item_data.get("product_variant")
@@ -666,29 +746,27 @@ def place_order(request, outlet_id, order_number):
                 gst = product.gst_percentage or Decimal("0.00")
                 is_gst_inclusive = product.is_gst_inclusive
                 variant = None
-            elif variant_id:
+            else:
                 variant = ProductVariant.objects.get(id=variant_id)
                 product = variant.product
                 price = variant.price
                 gst = product.gst_percentage or Decimal("0.00")
                 is_gst_inclusive = product.is_gst_inclusive
-            else:
-                return JsonResponse(
-                    {"error": True, "details": "Product or variant required"},
-                    status=400
-                )
 
             total_item_price = price * quantity
 
             if is_gst_inclusive:
-                rate_excl_gst = price / (1 + gst / Decimal("100"))
-                gst_amount = total_item_price - (rate_excl_gst * quantity)
+                rate_excl = price / (1 + gst / Decimal("100"))
+                gst_amount = total_item_price - (rate_excl * quantity)
             else:
                 gst_amount = (gst / Decimal("100")) * total_item_price
 
-            total_item_price_final = (
+            final_price = (
                 total_item_price if is_gst_inclusive else total_item_price + gst_amount
             )
+
+            # Item status
+            item_status = "pending"
 
             OrderItem.objects.create(
                 order=order,
@@ -696,9 +774,9 @@ def place_order(request, outlet_id, order_number):
                 product_variant=variant,
                 quantity=quantity,
                 price=price,
-                total_price=total_item_price_final,
+                total_price=final_price,
                 gst=gst_amount,
-                status="processing"  # 👈 default
+                status=item_status
             )
 
             processed_items.append({
@@ -709,43 +787,43 @@ def place_order(request, outlet_id, order_number):
                 "gst": round(gst_amount, 2),
             })
 
-            total_price += total_item_price_final
+            total_price += final_price
             total_gst += gst_amount
 
-        # Update order totals
+        # Update totals
         order.total_price = total_price
         order.gst = total_gst
+
+        # 🔥 PAYMENT HANDLING (NEW CLEAN FLOW)
+        if payment_required:
+            order.mode = payment_mode
+            order.upi_type = upi_type
+
+            if payment_mode in ["upi", "cash", "coupon"]:
+                order.payment_status = "success"
+                order.status = "settled"
+            else:
+                order.payment_status = "pending"
+
+        else:
+            order.payment_status = "not_required"
+
         order.save()
 
-        cgst = total_gst / 2
-        sgst = total_gst / 2
-        subtotal = total_price - total_gst
-
-        response_data = {
-            "order_id": order.id,
-            "order_number": order.order_number,
-            "status": order.status,
-            "total_price": round(total_price, 2),
-            "gst": round(total_gst, 2),
-            "cgst": round(cgst, 2),
-            "sgst": round(sgst, 2),
-            "subtotal": round(subtotal, 2),
-            "customer": {
-                "name": customer.name,
-                "phone_number": customer.phone_number,
-            },
-            "items": processed_items,
-            "table": table.table_number if table else None,
-            "formatted_date": order.order_date.strftime("%d-%m-%Y %I:%M %p"),
-        }
-
-        # 🔥 Render bill HTML as string
-        bill_html = render_to_string("bill.html", response_data)
-
+        # Response
         return JsonResponse({
             "error": False,
-            "data": response_data,
-            "bill_template": bill_html  # 👈 FULL HTML
+            "data": {
+                "order_id": order.id,
+                "order_number": order.order_number,
+                "status": order.status,
+                "payment_status": order.payment_status,
+                "total_price": float(total_price),
+                "gst": float(total_gst),
+                "customer": customer.name,
+                "table": table.table_number if table else None,
+                "items": processed_items,
+            }
         })
 
     except Exception as e:
@@ -753,6 +831,402 @@ def place_order(request, outlet_id, order_number):
             {"error": True, "details": str(e)},
             status=500
         )
+
+
+
+
+
+
+
+
+# def place_order(request, outlet_id):
+#     try:
+#         data = request.data
+
+#         customer_data = data.get("customer")
+#         items_data = data.get("items")
+#         table_id = data.get("table_id")
+#         is_draft = data.get("is_draft", False)
+
+#         # 🔥 AUTO ORDER NUMBER
+#         order_number = generate_order_number()
+
+#         # Customer
+#         customer, _ = Customer.objects.get_or_create(
+#             name=customer_data.get("name"),
+#             phone_number=customer_data.get("phone_number")
+#         )
+
+#         is_takeaway = not bool(table_id)
+#         kot_enabled = has_kot_access(request.user)
+
+#         # 🔥 STATUS DECISION
+#         if is_draft:
+#             order_status = "draft"
+#             payment_required = False
+
+#         elif is_takeaway:
+#             # 🔥 Takeaway → payment first
+#             order_status = "payment_pending"
+#             payment_required = True
+
+#         else:
+#             # 🔥 Dine-in + send to KOT
+#             order_status = "pending"   # goes to KOT
+#             payment_required = False
+
+#         # Create Order
+#         order = Order.objects.create(
+#             outlet_id=outlet_id,
+#             order_number=order_number,
+#             total_price=Decimal("0.00"),
+#             gst=Decimal("0.00"),
+#             status=order_status,
+#             order_date=localtime(timezone.now()),
+#             payment_status="pending"
+#         )
+
+#         customer.order = order
+#         customer.save()
+
+#         # Table Handling
+#         table = None
+#         if table_id:
+#             table = Table.objects.get(id=table_id)
+#             table.current_order = order
+#             table.status = "running"
+#             table.save()
+
+#             order.table = table
+#             order.save()
+
+#         total_price = Decimal("0.00")
+#         total_gst = Decimal("0.00")
+#         processed_items = []
+
+#         # Items Processing
+#         for item_data in items_data:
+#             product_id = item_data.get("product")
+#             variant_id = item_data.get("product_variant")
+#             quantity = item_data.get("quantity")
+
+#             if product_id:
+#                 product = Product.objects.get(id=product_id)
+#                 price = product.price
+#                 gst = product.gst_percentage or Decimal("0.00")
+#                 is_gst_inclusive = product.is_gst_inclusive
+#                 variant = None
+#             else:
+#                 variant = ProductVariant.objects.get(id=variant_id)
+#                 product = variant.product
+#                 price = variant.price
+#                 gst = product.gst_percentage or Decimal("0.00")
+#                 is_gst_inclusive = product.is_gst_inclusive
+
+#             total_item_price = price * quantity
+
+#             if is_gst_inclusive:
+#                 rate_excl = price / (1 + gst / Decimal("100"))
+#                 gst_amount = total_item_price - (rate_excl * quantity)
+#             else:
+#                 gst_amount = (gst / Decimal("100")) * total_item_price
+
+#             total_item_price_final = (
+#                 total_item_price if is_gst_inclusive else total_item_price + gst_amount
+#             )
+            
+#             # 🔥 Item status logic
+#             if is_draft:
+#                 item_status = "pending"
+#             elif is_takeaway:
+#                 item_status = "pending"   # will process after payment
+#             else:
+#                 item_status = "pending"   # goes to KOT
+
+#             OrderItem.objects.create(
+#                 order=order,
+#                 product=product if product_id else None,
+#                 product_variant=variant,
+#                 quantity=quantity,
+#                 price=price,
+#                 total_price=total_item_price_final,
+#                 gst=gst_amount,
+#                 status = item_status
+                
+#             )
+
+#             processed_items.append({
+#                 "product_name": product.name,
+#                 "variant_name": variant.name if variant else None,
+#                 "quantity": quantity,
+#                 "price": round(price, 2),
+#                 "gst": round(gst_amount, 2),
+#             })
+
+#             total_price += total_item_price_final
+#             total_gst += gst_amount
+
+#         # Update order totals
+#         order.total_price = total_price
+#         order.gst = total_gst
+#         order.save()
+
+#         cgst = total_gst / 2
+#         sgst = total_gst / 2
+#         subtotal = total_price - total_gst
+
+#         # 🔥 PINELABS INTEGRATION (ADDED)
+#         if payment_required:
+#             payload = {
+#                 "TransactionNumber": order.order_number,
+#                 "SequenceNumber": 1,
+#                 "AllowedPaymentMode": "1|10",
+#                 "Amount": int(total_price * 100),
+#                 "UserID": "SYSTEM",
+#                 "MerchantID": settings.PINELABS_MERCHANT_ID,
+#                 "SecurityToken": settings.PINELABS_SECURITY_TOKEN,
+#                 "ClientId": settings.PINELABS_CLIENT_ID,
+#                 "StoreId": settings.PINELABS_STORE_ID,
+#                 "AutoCancelDurationInMinutes": settings.PINELABS_AUTO_CANCEL_MINUTES,
+#                 "PaperPOSID": settings.PINELABS_TERMINAL_ID,
+#                 "PaperPOSTxnOptionToDisplay": 2,
+#                 "PaperPOSTxnIdentifier": 2,
+#             }
+
+#             res = requests.post(
+#                 f"{settings.PINELABS_BASE_URL}/UploadBilledTransaction",
+#                 json=payload
+#             )
+
+#             pine_response = res.json()
+
+#             if pine_response.get("ResponseCode") == "0":
+#                 order.plutus_transaction_reference_id = pine_response.get("PlutusTransactionReferenceID")
+#                 order.payment_status = "initiated"
+#                 order.pine_response = pine_response
+#                 order.save()
+#             else:
+#                 order.payment_status = "failed"
+#                 order.pine_response = pine_response
+#                 order.save()
+
+#                 return JsonResponse({
+#                     "error": True,
+#                     "details": "Payment initiation failed",
+#                     "pine_response": pine_response
+#                 }, status=400)
+#         else:
+#             order.payment_status = "not_required"
+#             order.save()
+
+#         # 🔥 ORIGINAL RESPONSE (UNCHANGED)
+#         response_data = {
+#             "order_id": order.id,
+#             "order_number": order.order_number,
+#             "status": order.status,
+#             "total_price": round(total_price, 2),
+#             "gst": round(total_gst, 2),
+#             "cgst": round(cgst, 2),
+#             "sgst": round(sgst, 2),
+#             "subtotal": round(subtotal, 2),
+#             "customer": {
+#                 "name": customer.name,
+#                 "phone_number": customer.phone_number,
+#             },
+#             "items": processed_items,
+#             "table": table.table_number if table else None,
+#             "formatted_date": order.order_date.strftime("%d-%m-%Y %I:%M %p"),
+#             "kot_enabled": kot_enabled,
+#         }
+
+#         bill_html = render_to_string("bill.html", response_data)
+
+#         return JsonResponse({
+#             "error": False,
+#             "data": response_data,
+#             "bill_template": bill_html,
+
+#             # 🔥 ONLY ADDITION (SAFE)
+#             "payment": {
+#                 "required": payment_required,
+#                 "status": order.payment_status,
+#                 "plutus_transaction_reference_id": order.plutus_transaction_reference_id,
+#                 "transaction_number": order.order_number,
+#             }
+#         })
+
+#     except Exception as e:
+#         return JsonResponse(
+#             {"error": True, "details": str(e)},
+#             status=500
+#         )
+
+
+
+
+
+
+
+
+
+# def place_order(request, outlet_id, order_number):
+#     try:
+#         data = request.data
+
+#         customer_data = data.get("customer")
+#         items_data = data.get("items")
+#         table_id = data.get("table_id")   # 👈 NEW
+#         is_draft = data.get("is_draft", False)  # 👈 NEW
+
+#         # Customer
+#         customer, _ = Customer.objects.get_or_create(
+#             name=customer_data.get("name"),
+#             phone_number=customer_data.get("phone_number")
+#         )
+
+#         # 🔥 Determine order status
+#         if table_id:
+#             if is_draft:
+#                 order_status = "draft"
+#             else:
+#                 order_status = "confirmed"
+#         else:
+#             order_status = "confirmed"  # takeaway
+
+#         # Create Order
+#         order = Order.objects.create(
+#             outlet_id=outlet_id,
+#             order_number=order_number,
+#             total_price=Decimal("0.00"),
+#             gst=Decimal("0.00"),
+#             status=order_status,
+#             order_date=localtime(timezone.now()),
+#         )
+
+#         customer.order = order
+#         customer.save()
+
+#         # 🔥 Table Handling
+#         table = None
+#         if table_id:
+#             table = Table.objects.get(id=table_id)
+
+#             table.current_order = order
+
+#             # Draft → keep table empty
+#             if is_draft:
+#                 table.status = "running"
+#             else:
+#                 table.status = "running"
+
+#             table.save()
+
+#             order.table = table
+#             order.save()
+
+#         total_price = Decimal("0.00")
+#         total_gst = Decimal("0.00")
+#         processed_items = []
+
+#         # 🔥 Items Processing
+#         for item_data in items_data:
+#             product_id = item_data.get("product")
+#             variant_id = item_data.get("product_variant")
+#             quantity = item_data.get("quantity")
+
+#             if product_id:
+#                 product = Product.objects.get(id=product_id)
+#                 price = product.price
+#                 gst = product.gst_percentage or Decimal("0.00")
+#                 is_gst_inclusive = product.is_gst_inclusive
+#                 variant = None
+#             elif variant_id:
+#                 variant = ProductVariant.objects.get(id=variant_id)
+#                 product = variant.product
+#                 price = variant.price
+#                 gst = product.gst_percentage or Decimal("0.00")
+#                 is_gst_inclusive = product.is_gst_inclusive
+#             else:
+#                 return JsonResponse(
+#                     {"error": True, "details": "Product or variant required"},
+#                     status=400
+#                 )
+
+#             total_item_price = price * quantity
+
+#             if is_gst_inclusive:
+#                 rate_excl_gst = price / (1 + gst / Decimal("100"))
+#                 gst_amount = total_item_price - (rate_excl_gst * quantity)
+#             else:
+#                 gst_amount = (gst / Decimal("100")) * total_item_price
+
+#             total_item_price_final = (
+#                 total_item_price if is_gst_inclusive else total_item_price + gst_amount
+#             )
+
+#             OrderItem.objects.create(
+#                 order=order,
+#                 product=product if product_id else None,
+#                 product_variant=variant,
+#                 quantity=quantity,
+#                 price=price,
+#                 total_price=total_item_price_final,
+#                 gst=gst_amount,
+#                 status="processing"  # 👈 default
+#             )
+
+#             processed_items.append({
+#                 "product_name": product.name,
+#                 "variant_name": variant.name if variant else None,
+#                 "quantity": quantity,
+#                 "price": round(price, 2),
+#                 "gst": round(gst_amount, 2),
+#             })
+
+#             total_price += total_item_price_final
+#             total_gst += gst_amount
+
+#         # Update order totals
+#         order.total_price = total_price
+#         order.gst = total_gst
+#         order.save()
+
+#         cgst = total_gst / 2
+#         sgst = total_gst / 2
+#         subtotal = total_price - total_gst
+
+#         response_data = {
+#             "order_id": order.id,
+#             "order_number": order.order_number,
+#             "status": order.status,
+#             "total_price": round(total_price, 2),
+#             "gst": round(total_gst, 2),
+#             "cgst": round(cgst, 2),
+#             "sgst": round(sgst, 2),
+#             "subtotal": round(subtotal, 2),
+#             "customer": {
+#                 "name": customer.name,
+#                 "phone_number": customer.phone_number,
+#             },
+#             "items": processed_items,
+#             "table": table.table_number if table else None,
+#             "formatted_date": order.order_date.strftime("%d-%m-%Y %I:%M %p"),
+#         }
+
+#         # 🔥 Render bill HTML as string
+#         bill_html = render_to_string("bill.html", response_data)
+
+#         return JsonResponse({
+#             "error": False,
+#             "data": response_data,
+#             "bill_template": bill_html  # 👈 FULL HTML
+#         })
+
+#     except Exception as e:
+#         return JsonResponse(
+#             {"error": True, "details": str(e)},
+#             status=500
+#         )
 
 
 
@@ -893,35 +1367,50 @@ def place_order(request, outlet_id, order_number):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
-def print_kot(request, outlet_id):
-    # Fetch the outlet using the outlet ID
-    outlet = get_object_or_404(Outlet, id=outlet_id)
+def print_kot(request, order_number):
     
-    # Get the latest order for the outlet
-    latest_order = outlet.orders.order_by('-order_date').first()
-    
-    if not latest_order:
-        return render(request, "kot.html", {"error": "No orders found for this outlet."})
+    # Fetch order using order number
+    order = get_object_or_404(
+        Order.objects.prefetch_related('items__product', 'items__product_variant'),
+        order_number=order_number
+    )
 
-    # Get the order items
-    items = latest_order.items.all()
+    items = order.items.all()
 
-    # Prepare the context for the template
     context = {
-        "order_number": latest_order.order_number,
-        "order_date": date_format(latest_order.order_date, "Y-m-d H:i"),
+        "order_number": order.order_number,
+        "order_date": date_format(
+            order.order_date,
+            "Y-m-d H:i"
+        ),
+        "table_number": (
+            order.table_number.table_number
+            if order.table_number else None
+        ),
+        "note": order.note,
+
         "items": [
             {
-                "product_name": item.product.name if item.product else None,
-                "variant_name": item.product_variant.name if item.product_variant else None,
+                "product_name": (
+                    item.product.name
+                    if item.product else None
+                ),
+                "variant_name": (
+                    item.product_variant.name
+                    if item.product_variant else None
+                ),
                 "quantity": item.quantity,
+                "status": item.status
             }
             for item in items
         ],
     }
 
-    # Render the template with the context
-    return render(request, "kot.html", context)
+    return render(
+        request,
+        "kot.html",
+        context
+    )
 
 
 
@@ -940,27 +1429,21 @@ def print_kot(request, outlet_id):
 @permission_classes([AllowAny])
 def orders_past_three_hours(request, outlet_id):
     try:
-        # Calculate the time 24 hours ago from now
-        three_hours_ago = timezone.now() - timedelta(hours=24)
-
-        # Filter orders for the specific outlet and within the past three hours
+        # Fetch all orders for outlet
         orders = Order.objects.filter(
-            outlet_id=outlet_id,
-            order_date__gte=three_hours_ago
+            outlet_id=outlet_id
         ).order_by('-order_date')
 
         # Pagination
         paginator = PageNumberPagination()
-        paginator.page_size = 10  # You can adjust the page size as needed
+        paginator.page_size = 10
         result_page = paginator.paginate_queryset(orders, request)
 
-        # Prepare the response data
         total_orders = orders.count()
         total_pages = paginator.page.paginator.num_pages
         current_page = paginator.page.number
         orders_on_current_page = len(result_page)
 
-        # Custom metadata to include in the response
         response_data = {
             "error": False,
             "details": "Orders fetched successfully",
@@ -972,23 +1455,30 @@ def orders_past_three_hours(request, outlet_id):
             "previous_page_url": paginator.get_previous_link(),
             "orders": [
                 {
+                    "order_id": order.id,
                     "order_number": order.order_number,
                     "order_date": order.order_date,
                     "total_price": str(order.total_price),
+                    "gst": str(order.gst),
                     "status": order.status,
+                    "payment_status": order.payment_status,
                     "mode": order.mode,
+                    "table_number": (
+                        order.table_number.table_number
+                        if order.table_number else None
+                    )
                 }
                 for order in result_page
             ]
         }
 
         return Response(response_data, status=status.HTTP_200_OK)
+
     except Exception as e:
         return Response({
             "error": True,
             "details": f"An error occurred: {str(e)}"
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 
 
@@ -1540,6 +2030,7 @@ def cancel_transaction(request, user_id):
     responses={200: TableSerializer(many=True)}
 )
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def get_tables_by_outlet(request, outlet_id):
     outlet = get_object_or_404(Outlet, id=outlet_id)
 
@@ -1591,6 +2082,7 @@ def get_tables_by_outlet(request, outlet_id):
     }
 )
 @api_view(['PATCH'])
+@permission_classes([AllowAny])
 def update_table_status(request, table_id):
     try:
         table = get_object_or_404(Table, id=table_id)
@@ -1657,6 +2149,7 @@ def update_table_status(request, table_id):
     }
 )
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def add_expense(request, outlet_id):
     try:
         outlet = get_object_or_404(Outlet, id=outlet_id)
@@ -1701,6 +2194,7 @@ def add_expense(request, outlet_id):
     }
 )
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def get_expenses(request, outlet_id):
     try:
         outlet = get_object_or_404(Outlet, id=outlet_id)
@@ -1721,4 +2215,574 @@ def get_expenses(request, outlet_id):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+
+@swagger_auto_schema(
+    method='post',
+    operation_description="Add items to existing order and generate KOT",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['items'],
+        properties={
+            'items': openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Items(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'product': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'product_variant': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'quantity': openapi.Schema(type=openapi.TYPE_INTEGER),
+                    }
+                )
+            )
+        }
+    ),
+    responses={200: openapi.Response(description="Items added + KOT created")}
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def add_items_to_order(request, order_id):
+    try:
+        order = Order.objects.get(id=order_id)
+
+        # 🔥 If already completed → reopen
+        if order.status == "settled":
+            order.status = "processing"
+            order.save()
+
+        items_data = request.data.get("items")
+        table = order.table_number
+
+        kot_items = []
+        total_price = order.total_price
+        total_gst = order.gst
+
+        for item in items_data:
+            product = None
+            variant = None
+
+            if item.get("product"):
+                product = Product.objects.get(id=item["product"])
+                price = product.price
+                gst = product.gst_percentage or 0
+            else:
+                variant = ProductVariant.objects.get(id=item["product_variant"])
+                product = variant.product
+                price = variant.price
+                gst = product.gst_percentage or 0
+
+            quantity = item["quantity"]
+
+            total_item_price = price * quantity
+            gst_amount = (gst / 100) * total_item_price
+
+            OrderItem.objects.create(
+                order=order,
+                product=product if item.get("product") else None,
+                product_variant=variant,
+                quantity=quantity,
+                price=price,
+                total_price=total_item_price + gst_amount,
+                gst=gst_amount,
+                status="processing"
+            )
+
+            kot_items.append({
+                "product_id": product.id,
+                "product_name": product.name,
+                "quantity": quantity
+            })
+
+            total_price += total_item_price + gst_amount
+            total_gst += gst_amount
+
+        order.total_price = total_price
+        order.gst = total_gst
+        order.save()
+
+        # 🔥 Create KOT
+        kot_count = KOT.objects.filter(order=order).count() + 1
+
+        kot = KOT.objects.create(
+            table=table,
+            order=order,
+            kot_number=kot_count,
+            items=kot_items
+        )
+
+        # Update table status
+        table.status = "running_kot"
+        table.save()
+
+        return Response({
+            "error": False,
+            "message": "Items added and KOT created",
+            "kot_number": kot.kot_number
+        })
+
+    except Exception as e:
+        return Response({"error": True, "details": str(e)})
+    
+    
+    
+    
+
+
+
+
+@swagger_auto_schema(
+    method='get',
+    operation_description="Get table details with all KOTs",
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_table_with_kot(request, table_id):
+    try:
+        table = Table.objects.get(id=table_id)
+
+        # 🚫 Hide KOTs for specific statuses
+        if table.status in ['empty', 'pending_counter_confirmation']:
+            return Response({
+                "table_number": table.table_number,
+                "status": table.status,
+                "kots": []  # no KOTs shown
+            })
+
+        kots = table.kots.all().order_by('kot_number')
+
+        kot_data = [
+            {
+                "kot_number": kot.kot_number,
+                "items": kot.items,
+                "created_at": kot.created_at
+            }
+            for kot in kots
+        ]
+
+        return Response({
+            "table_number": table.table_number,
+            "status": table.status,
+            "kots": kot_data
+        })
+
+    except Table.DoesNotExist:
+        return Response({"error": True, "details": "Table not found"}, status=404)
+    except Exception as e:
+        return Response({"error": True, "details": str(e)}, status=500)
+    
+    
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='patch',
+    operation_description="Update single order item status",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['status'],
+        properties={
+            'status': openapi.Schema(
+                type=openapi.TYPE_STRING,
+                enum=['processing', 'rejected', 'ready_to_serve']
+            )
+        }
+    ),
+    responses={200: openapi.Response(description="Item status updated")}
+)
+@api_view(['PATCH'])
+@permission_classes([AllowAny])
+def update_order_item_status(request, item_id):
+    try:
+        item = get_object_or_404(OrderItem, id=item_id)
+        new_status = request.data.get("status")
+
+        valid_status = ['processing', 'rejected', 'ready_to_serve']
+
+        if new_status not in valid_status:
+            return Response({"error": True, "message": "Invalid status"}, status=400)
+
+        item.status = new_status
+        item.save()
+
+        # 🔥 Sync order status
+        order = item.order
+        items = order.items.all()
+
+        if all(i.status == 'ready_to_serve' for i in items):
+            order.status = "confirmed"
+        elif any(i.status == 'processing' for i in items):
+            order.status = "processing"
+
+        order.save()
+
+        return Response({
+            "error": False,
+            "message": "Item status updated",
+            "data": {
+                "item_id": item.id,
+                "status": item.status
+            }
+        })
+
+    except Exception as e:
+        return Response({"error": True, "details": str(e)}, status=500)
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='patch',
+    operation_description="Bulk update order items status",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['items'],
+        properties={
+            'items': openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Items(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'item_id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'status': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            enum=['processing', 'rejected', 'ready_to_serve']
+                        )
+                    }
+                )
+            )
+        }
+    ),
+    responses={200: openapi.Response(description="Bulk update success")}
+)
+@api_view(['PATCH'])
+@permission_classes([AllowAny])
+def bulk_update_order_items(request):
+    try:
+        items_data = request.data.get("items", [])
+
+        updated_items = []
+        order_ids = set()
+
+        for item in items_data:
+            order_item = OrderItem.objects.get(id=item['item_id'])
+            order_item.status = item['status']
+            order_item.save()
+
+            updated_items.append(order_item.id)
+            order_ids.add(order_item.order.id)
+
+        # 🔥 Sync each order
+        for order_id in order_ids:
+            order = Order.objects.get(id=order_id)
+            items = order.items.all()
+
+            if all(i.status == 'ready_to_serve' for i in items):
+                order.status = "confirmed"
+            elif any(i.status == 'processing' for i in items):
+                order.status = "processing"
+
+            order.save()
+
+        return Response({
+            "error": False,
+            "message": "Bulk update successful",
+            "updated_items": updated_items
+        })
+
+    except Exception as e:
+        return Response({"error": True, "details": str(e)}, status=500)
+
+
+
+
+
+@swagger_auto_schema(
+    method='post',
+    operation_description="Settle order with single or multiple payments",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['payments'],
+        properties={
+            'payments': openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Items(
+                    type=openapi.TYPE_OBJECT,
+                    required=['amount', 'payment_mode'],
+                    properties={
+                        'amount': openapi.Schema(type=openapi.TYPE_NUMBER),
+                        'payment_mode': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            enum=['upi', 'cash', 'card', 'coupon']
+                        ),
+                        'transaction_id': openapi.Schema(type=openapi.TYPE_STRING)
+                    }
+                )
+            )
+        }
+    ),
+    responses={200: openapi.Response(description="Order settled")}
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def settle_order(request, order_id):
+    try:
+        order = get_object_or_404(Order, id=order_id)
+        
+        if order.status not in ["completed", "payment_pending"]:
+            return Response({
+                "error": True,
+                "message": "Order not ready for settlement"
+            }, status=400)
+
+        payments_data = request.data.get("payments", [])
+
+        if not payments_data:
+            return Response({
+                "error": True,
+                "message": "At least one payment is required"
+            }, status=400)
+
+        total_paid = 0
+
+        # 🔥 Create payment entries
+        for payment in payments_data:
+            amount = float(payment.get("amount", 0))
+            mode = payment.get("payment_mode")
+
+            if not amount or not mode:
+                return Response({
+                    "error": True,
+                    "message": "Invalid payment data"
+                }, status=400)
+
+            OrderPayment.objects.create(
+                order=order,
+                amount=amount,
+                payment_mode=mode,
+                transaction_id=payment.get("transaction_id")
+            )
+
+            total_paid += amount
+
+        # 🔥 Validate total payment
+        if total_paid < float(order.total_price):
+            return Response({
+                "error": True,
+                "message": f"Insufficient payment. Paid {total_paid}, required {order.total_price}"
+            }, status=400)
+
+        # ✅ Update order
+        order.status = "settled"
+        order.payment_status = "success"
+        order.mode = payments_data[0]["payment_mode"]
+        order.save()
+
+        # 🔥 Table handling
+        table = order.table_number
+        if table:
+            table.status = "paid"
+            table.current_order = None
+            table.save()
+
+        return Response({
+            "error": False,
+            "message": "Order settled successfully",
+            "data": {
+                "order_id": order.id,
+                "order_number": order.order_number,
+                "total_bill": float(order.total_price),
+                "total_paid": total_paid,
+                "status": order.status,
+                "payments": payments_data
+            }
+        })
+
+    except Exception as e:
+        return Response({"error": True, "details": str(e)}, status=500)
+
+
+
+
+
+check_status_schema = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    required=['ptrn'],
+    properties={
+        'ptrn': openapi.Schema(type=openapi.TYPE_STRING)
+    }
+)
+
+@swagger_auto_schema(
+    method='post',
+    operation_description="Check PineLabs transaction status",
+    request_body=check_status_schema
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def check_payment_status(request):
+    try:
+        ptrn = request.data.get("ptrn")
+
+        payload = {
+            "MerchantID": settings.PINELABS_MERCHANT_ID,
+            "SecurityToken": settings.PINELABS_SECURITY_TOKEN,
+            "ClientId": settings.PINELABS_CLIENT_ID,
+            "StoreId": settings.PINELABS_STORE_ID,
+            "PlutusTransactionReferenceID": ptrn,
+        }
+
+        res = requests.post(
+            f"{settings.PINELABS_BASE_URL}/GetTransactionStatus",
+            json=payload
+        )
+
+        return JsonResponse(res.json())
+
+    except Exception as e:
+        return JsonResponse({"error": True, "details": str(e)}, status=500)
+
+
+
+
+
+confirm_payment_schema = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    required=['order_number', 'status'],
+    properties={
+        'order_number': openapi.Schema(type=openapi.TYPE_STRING),
+        'status': openapi.Schema(type=openapi.TYPE_STRING, description="SUCCESS / FAILED"),
+    }
+)
+
+@swagger_auto_schema(
+    method='post',
+    operation_description="Confirm payment after frontend polling",
+    request_body=confirm_payment_schema
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def confirm_payment(request):
+    try:
+        order_number = request.data.get("order_number")
+        status = request.data.get("status")
+
+        order = Order.objects.get(order_number=order_number)
+
+        if status == "SUCCESS":
+            order.status = "confirmed"
+            order.payment_status = "success"
+        else:
+            order.status = "cancelled"
+            order.payment_status = "failed"
+
+        order.save()
+
+        return JsonResponse({
+            "error": False,
+            "message": "Order updated",
+            "order_status": order.status
+        })
+
+    except Order.DoesNotExist:
+        return JsonResponse({"error": True, "message": "Order not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": True, "details": str(e)}, status=500)
+    
+    
+    
+
+STATUS_TRANSITIONS = {
+    'draft': ['pending', 'cancelled'],
+    'pending': ['processing', 'rejected'],
+    'processing': ['ready', 'rejected'],
+    'ready': ['completed'],
+    'completed': ['payment_pending'],
+    'payment_pending': ['settled'],
+    'settled': [],
+    'cancelled': [],
+    'rejected': [],
+}
+
+
+@swagger_auto_schema(
+    method='patch',
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['status'],
+        properties={
+            'status': openapi.Schema(type=openapi.TYPE_STRING)
+        }
+    )
+)
+@api_view(['PATCH'])
+@permission_classes([AllowAny])
+def change_order_status(request, order_id):
+    try:
+        order = Order.objects.select_related('table_number').get(id=order_id)
+    except Order.DoesNotExist:
+        return Response({"error": "Order not found"}, status=404)
+
+    new_status = request.data.get('status')
+
+    if not new_status:
+        return Response({"error": "Status is required"}, status=400)
+
+    # 🚫 Removed transition validation
+    # 🚫 Removed STATUS_TRANSITIONS check
+
+    # Optional: still prevent update after settlement (remove if not needed)
+    if order.status == 'settled':
+        return Response({
+            "error": "Cannot change status after settlement"
+        }, status=400)
+
+    order.status = new_status
+    order.save()
+
+    # 🔥 OPTIONAL: Update table status
+    if order.table_number:
+        if new_status in ['pending', 'processing']:
+            order.table_number.status = 'running_kot'
+        elif new_status == 'completed':
+            order.table_number.status = 'running'
+        elif new_status == 'settled':
+            order.table_number.status = 'paid'
+
+        order.table_number.save()
+
+    return Response({
+        "message": "Order status updated successfully",
+        "order_id": order.id,
+        "new_status": order.status
+    })
+
+
+
+
+
+
+
+@swagger_auto_schema(method='delete')
+@api_view(['DELETE'])
+@permission_classes([AllowAny])
+def delete_draft_order(request, order_id):
+    try:
+        order = Order.objects.get(id=order_id)
+    except Order.DoesNotExist:
+        return Response({"error": "Order not found"}, status=404)
+
+    if order.status != 'draft':
+        return Response({
+            "error": "Only draft orders can be deleted"
+        }, status=400)
+
+    order.delete()
+
+    return Response({
+        "message": "Draft order deleted successfully"
+    })
 

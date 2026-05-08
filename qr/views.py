@@ -4,6 +4,9 @@ import random
 import string
 import base64
 import json
+import qrcode
+from io import BytesIO
+import os
 
 from decimal import Decimal
 
@@ -12,6 +15,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.pagination import PageNumberPagination
 from rest_framework import status
+
+from PIL import Image, ImageDraw, ImageFont
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -25,6 +30,7 @@ from django.utils import timezone
 from django.utils.timezone import localtime
 from django.db.models import Q
 from django.conf import settings
+from django.template.loader import render_to_string
 
 from v1.models import (
     Outlet,
@@ -36,7 +42,8 @@ from v1.models import (
     Customer,
     Coupon,
     RazorpayCredential,
-    FCMToken
+    FCMToken, 
+    Table
 )
 
 from .models import (
@@ -1149,48 +1156,575 @@ def update_special_menu_name(request, outlet_id):
 
 @swagger_auto_schema(
     method='post',
-    operation_summary="Generate QR codes for tables or outlet",
+    operation_summary="Generate QR codes for all tables in an outlet",
     operation_description="""
-This endpoint generates QR codes for a given outlet.  
-If `number_of_tables` > 0, it creates a QR for each table in the format:  
-**qr.mantrapos.com/outlet_id/table_number**  
-Otherwise, it generates a single outlet QR in the format:  
-**qr.mantrapos.com/outlet_id**
+This endpoint generates QR codes for all tables of a given outlet.
+
+### ✅ Behavior:
+- If tables exist → QR codes are generated for each table
+- If no tables exist → returns message: "No tables are present"
+
+### 🔗 QR Format:
+Each QR contains:
+**table_id=<table_id>**
+
+(Recommended: Replace with frontend URL like  
+`https://yourdomain.com/menu?table_id=<table_id>`)
+
+### 📌 Notes:
+- QR codes are generated dynamically based on existing `Table` records
+- No dependency on table configuration or TableQR model
 """,
-    request_body=OutletTableConfigurationSerializer,
     responses={
-        200: TableQRSerializer(many=True),
-        400: 'Bad Request',
-        404: 'Outlet not found'
+        200: openapi.Response(
+            description="QRs generated successfully",
+            examples={
+                "application/json": {
+                    "error": False,
+                    "outlet_id": 1,
+                    "total_tables": 3,
+                    "tables": [
+                        {
+                            "table_number": 1,
+                            "table_id": "TBL001",
+                            "location": "Ground Floor",
+                            "qr_data": "table_id=TBL001",
+                            "qr_image": "(generated) table_1.png"
+                        },
+                        {
+                            "table_number": 2,
+                            "table_id": "TBL002",
+                            "location": "First Floor",
+                            "qr_data": "table_id=TBL002",
+                            "qr_image": "(generated) table_2.png"
+                        }
+                    ]
+                }
+            }
+        ),
+
+        200: openapi.Response(
+            description="No tables present",
+            examples={
+                "application/json": {
+                    "error": False,
+                    "message": "No tables are present for this outlet"
+                }
+            }
+        ),
+
+        404: openapi.Response(
+            description="Outlet not found",
+            examples={
+                "application/json": {
+                    "error": True,
+                    "message": "Outlet not found"
+                }
+            }
+        )
     }
 )
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def generate_table_qrs(request, outlet_id):
+
     try:
         outlet = Outlet.objects.get(id=outlet_id)
+
     except Outlet.DoesNotExist:
-        return Response({'error': 'Outlet not found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {
+                "error": True,
+                "message": "Outlet not found"
+            },
+            status=status.HTTP_404_NOT_FOUND
+        )
 
-    serializer = OutletTableConfigurationSerializer(data=request.data)
-    if serializer.is_valid():
-        number_of_tables = serializer.validated_data['number_of_tables']
+    tables = Table.objects.filter(
+        outlet=outlet
+    ).order_by('table_number')
 
-        config, created = OutletTableConfiguration.objects.get_or_create(outlet=outlet)
-        if config.number_of_tables != number_of_tables:
-            config.number_of_tables = number_of_tables
-            config.save()
+    response_data = []
 
-        if number_of_tables > 0:
-            qrs = TableQR.objects.filter(outlet=outlet).order_by('table_number')
-        else:
-            qrs = TableQR.objects.filter(outlet=outlet, table_number__isnull=True)
+    # ---------------------------------------------------
+    # CREATE QR DIRECTORY
+    # ---------------------------------------------------
+    qr_folder = os.path.join(
+        settings.MEDIA_ROOT,
+        "table_qrs"
+    )
 
-        qr_serializer = TableQRSerializer(qrs, many=True, context={'request': request})
-        return Response(qr_serializer.data, status=status.HTTP_200_OK)
-    
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    os.makedirs(qr_folder, exist_ok=True)
 
+    # ---------------------------------------------------
+    # FONTS
+    # ---------------------------------------------------
+    try:
+        title_font = ImageFont.truetype("arial.ttf", 44)
+        subtitle_font = ImageFont.truetype("arial.ttf", 30)
+        text_font = ImageFont.truetype("arial.ttf", 26)
+        footer_font = ImageFont.truetype("arial.ttf", 22)
+
+    except:
+        title_font = ImageFont.load_default()
+        subtitle_font = ImageFont.load_default()
+        text_font = ImageFont.load_default()
+        footer_font = ImageFont.load_default()
+
+    # ---------------------------------------------------
+    # QR CARD GENERATOR
+    # ---------------------------------------------------
+    def create_qr_card(
+        qr_data,
+        file_name,
+        table_number=None
+    ):
+
+        # ---------------------------------------------------
+        # GENERATE QR
+        # ---------------------------------------------------
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_H,
+            box_size=14,
+            border=2
+        )
+
+        qr.add_data(qr_data)
+        qr.make(fit=True)
+
+        qr_image = qr.make_image(
+            fill_color="#111827",
+            back_color="white"
+        ).convert("RGB")
+
+        qr_image = qr_image.resize((430, 430))
+
+        # ---------------------------------------------------
+        # MAIN CANVAS
+        # ---------------------------------------------------
+        canvas_width = 700
+        canvas_height = 1050
+
+        canvas = Image.new(
+            "RGB",
+            (canvas_width, canvas_height),
+            "#eef2ff"
+        )
+
+        draw = ImageDraw.Draw(canvas)
+
+        # ---------------------------------------------------
+        # MAIN CARD
+        # ---------------------------------------------------
+        card_margin = 30
+
+        card_x1 = card_margin
+        card_y1 = card_margin
+
+        card_x2 = canvas_width - card_margin
+        card_y2 = canvas_height - card_margin
+
+        draw.rounded_rectangle(
+            (
+                card_x1,
+                card_y1,
+                card_x2,
+                card_y2
+            ),
+            radius=40,
+            fill="white",
+            outline="#dbeafe",
+            width=3
+        )
+
+        current_y = 60
+
+        # ---------------------------------------------------
+        # TOP HEADER STRIP
+        # ---------------------------------------------------
+        draw.rounded_rectangle(
+            (
+                card_x1,
+                card_y1,
+                card_x2,
+                170
+            ),
+            radius=40,
+            fill="#2563eb"
+        )
+
+        # ---------------------------------------------------
+        # OUTLET LOGO
+        # ---------------------------------------------------
+        logo_rendered = False
+
+        if outlet.logo:
+
+            try:
+
+                logo_path = os.path.join(
+                    settings.MEDIA_ROOT,
+                    outlet.logo.name
+                )
+
+                if os.path.exists(logo_path):
+
+                    logo = Image.open(
+                        logo_path
+                    ).convert("RGBA")
+
+                    # -----------------------------------------
+                    # REMOVE EXTRA TRANSPARENT/WHITE PADDING
+                    # -----------------------------------------
+                    bbox = logo.getbbox()
+
+                    if bbox:
+                        logo = logo.crop(bbox)
+
+                    # -----------------------------------------
+                    # RESIZE LOGO
+                    # -----------------------------------------
+                    logo_size = 130
+
+                    logo.thumbnail(
+                        (logo_size, logo_size),
+                        Image.LANCZOS
+                    )
+
+                    # -----------------------------------------
+                    # CREATE CLEAN CIRCLE CONTAINER
+                    # -----------------------------------------
+                    container_size = 170
+
+                    logo_container = Image.new(
+                        "RGBA",
+                        (container_size, container_size),
+                        (255, 255, 255, 0)
+                    )
+
+                    container_draw = ImageDraw.Draw(
+                        logo_container
+                    )
+
+                    # soft shadow
+                    container_draw.ellipse(
+                        (6, 8, container_size-2, container_size),
+                        fill=(0, 0, 0, 25)
+                    )
+
+                    # white circle
+                    container_draw.ellipse(
+                        (0, 0, container_size-8, container_size-8),
+                        fill=(255, 255, 255, 255)
+                    )
+
+                    # -----------------------------------------
+                    # CENTER LOGO
+                    # -----------------------------------------
+                    paste_x = (
+                        (container_size - logo.width) // 2
+                    ) - 4
+
+                    paste_y = (
+                        (container_size - logo.height) // 2
+                    ) - 4
+
+                    logo_container.paste(
+                        logo,
+                        (paste_x, paste_y),
+                        logo
+                    )
+
+                    # -----------------------------------------
+                    # PASTE TO MAIN CANVAS
+                    # -----------------------------------------
+                    final_x = (
+                        canvas_width - container_size
+                    ) // 2
+
+                    canvas.paste(
+                        logo_container,
+                        (final_x, current_y),
+                        logo_container
+                    )
+
+                    current_y += 185
+
+                    logo_rendered = True
+
+            except Exception as e:
+                print("Logo Error:", str(e))
+        # ---------------------------------------------------
+        # OUTLET NAME
+        # ---------------------------------------------------
+        outlet_name = outlet.outlet_name
+
+        bbox = draw.textbbox(
+            (0, 0),
+            outlet_name,
+            font=subtitle_font
+        )
+
+        text_width = bbox[2] - bbox[0]
+
+        draw.text(
+            (
+                (canvas_width - text_width) // 2,
+                current_y
+            ),
+            outlet_name,
+            fill="#111827",
+            font=subtitle_font
+        )
+
+        current_y += 60
+
+        # ---------------------------------------------------
+        # TABLE NUMBER
+        # ---------------------------------------------------
+        if table_number:
+
+            table_text = f"Table {table_number}"
+
+            bbox = draw.textbbox(
+                (0, 0),
+                table_text,
+                font=title_font
+            )
+
+            text_width = bbox[2] - bbox[0]
+
+            # Pill background
+            pill_width = text_width + 60
+            pill_height = 65
+
+            pill_x1 = (canvas_width - pill_width) // 2
+            pill_y1 = current_y
+
+            pill_x2 = pill_x1 + pill_width
+            pill_y2 = pill_y1 + pill_height
+
+            draw.rounded_rectangle(
+                (
+                    pill_x1,
+                    pill_y1,
+                    pill_x2,
+                    pill_y2
+                ),
+                radius=40,
+                fill="#dbeafe"
+            )
+
+            draw.text(
+                (
+                    (canvas_width - text_width) // 2,
+                    current_y + 10
+                ),
+                table_text,
+                fill="#2563eb",
+                font=title_font
+            )
+
+            current_y += 110
+
+        # ---------------------------------------------------
+        # QR CONTAINER
+        # ---------------------------------------------------
+        qr_box_size = 500
+
+        qr_box_x1 = (canvas_width - qr_box_size) // 2
+        qr_box_y1 = current_y
+
+        qr_box_x2 = qr_box_x1 + qr_box_size
+        qr_box_y2 = qr_box_y1 + qr_box_size
+
+        # Shadow
+        draw.rounded_rectangle(
+            (
+                qr_box_x1 + 8,
+                qr_box_y1 + 10,
+                qr_box_x2 + 8,
+                qr_box_y2 + 10
+            ),
+            radius=35,
+            fill="#dbeafe"
+        )
+
+        # Main box
+        draw.rounded_rectangle(
+            (
+                qr_box_x1,
+                qr_box_y1,
+                qr_box_x2,
+                qr_box_y2
+            ),
+            radius=35,
+            fill="white",
+            outline="#bfdbfe",
+            width=3
+        )
+
+        qr_x = (canvas_width - qr_image.width) // 2
+        qr_y = current_y + 35
+
+        canvas.paste(
+            qr_image,
+            (qr_x, qr_y)
+        )
+
+        current_y += qr_box_size + 45
+
+        # ---------------------------------------------------
+        # SCAN TEXT
+        # ---------------------------------------------------
+        scan_text = "Scan QR to Order"
+
+        bbox = draw.textbbox(
+            (0, 0),
+            scan_text,
+            font=text_font
+        )
+
+        text_width = bbox[2] - bbox[0]
+
+        draw.text(
+            (
+                (canvas_width - text_width) // 2,
+                current_y
+            ),
+            scan_text,
+            fill="#374151",
+            font=text_font
+        )
+
+        current_y += 45
+
+        # ---------------------------------------------------
+        # SUBTEXT
+        # ---------------------------------------------------
+        sub_text = "Fast • Secure • Contactless"
+
+        bbox = draw.textbbox(
+            (0, 0),
+            sub_text,
+            font=footer_font
+        )
+
+        text_width = bbox[2] - bbox[0]
+
+        draw.text(
+            (
+                (canvas_width - text_width) // 2,
+                current_y
+            ),
+            sub_text,
+            fill="#6b7280",
+            font=footer_font
+        )
+
+        current_y += 70
+
+        # ---------------------------------------------------
+        # FOOTER
+        # ---------------------------------------------------
+        footer_text = "Powered by Mantra POS"
+
+        bbox = draw.textbbox(
+            (0, 0),
+            footer_text,
+            font=footer_font
+        )
+
+        text_width = bbox[2] - bbox[0]
+
+        draw.text(
+            (
+                (canvas_width - text_width) // 2,
+                current_y
+            ),
+            footer_text,
+            fill="#9ca3af",
+            font=footer_font
+        )
+
+        # ---------------------------------------------------
+        # SAVE IMAGE
+        # ---------------------------------------------------
+        file_path = os.path.join(
+            qr_folder,
+            file_name
+        )
+
+        canvas.save(
+            file_path,
+            quality=95
+        )
+
+        relative_url = (
+            f"{settings.MEDIA_URL}table_qrs/{file_name}"
+        )
+
+        absolute_url = request.build_absolute_uri(
+            relative_url
+        )
+
+        return absolute_url
+
+    # ---------------------------------------------------
+    # TABLE QR FLOW
+    # ---------------------------------------------------
+    if tables.exists():
+
+        for table in tables:
+
+            qr_data = f"table_id={table.table_id}"
+
+            file_name = (
+                f"table_{table.table_id}.png"
+            )
+
+            qr_url = create_qr_card(
+                qr_data=qr_data,
+                file_name=file_name,
+                table_number=table.table_id
+            )
+
+            response_data.append({
+                "table_number": table.table_number,
+                "table_id": table.table_id,
+                "location": table.location,
+                "qr_data": qr_data,
+                "qr_image": qr_url
+            })
+
+        return Response({
+            "error": False,
+            "type": "table_qrs",
+            "outlet_id": outlet.id,
+            "total_tables": tables.count(),
+            "tables": response_data
+        })
+
+    # ---------------------------------------------------
+    # SINGLE OUTLET QR
+    # ---------------------------------------------------
+    qr_data = f"outlet_id={outlet.id}"
+
+    file_name = f"outlet_{outlet.id}.png"
+
+    qr_url = create_qr_card(
+        qr_data=qr_data,
+        file_name=file_name
+    )
+
+    return Response({
+        "error": False,
+        "type": "outlet_qr",
+        "outlet_id": outlet.id,
+        "qr_data": qr_data,
+        "qr_image": qr_url
+    })
 
 
 

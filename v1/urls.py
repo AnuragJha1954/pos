@@ -69,7 +69,7 @@ urlpatterns = [
     path('get-customers/<int:company_id>/',views.list_company_customers,name='list_company_customers'),
     
         # -------- DASHBOARD (OUTLET LEVEL) --------
-    path("dashboard/", views.dashboard_sample_data, name="dashboard"),
+    path("dashboard/", views.dashboard_data, name="dashboard"),
 
     # -------- REPORTS (OUTLET LEVEL) --------
     path("reports/<int:outlet_id>/sales/", views.sales_report_sample, name="sales-report"),
@@ -81,5 +81,48 @@ urlpatterns = [
     #Printer Config
     path("printer-config/<int:outlet_id>/", views.set_printer_config, name="set-printer-config"),
     path("printer-config/<int:outlet_id>/get/", views.get_printer_config, name="get-printer-config"),
+    
+    path('plan/update/', views.update_user_plan, name='update_user_plan'),
+    
+    
+    # TABLE
+    path('tables/create/', views.create_table),
+    path('tables/<int:outlet_id>/', views.get_tables),
+    path('tables/update/<int:table_id>/', views.update_table),
+    path('tables/<int:table_id>/update-status/',views.update_table_status,name='update-table-status'),
+
+    # EXPENSE
+    path('expenses/create/', views.create_expense),
+    path('expenses/<int:outlet_id>/', views.get_expenses),
+    path('expenses/update/<int:expense_id>/', views.update_expense),
+
+    
+    
+    # Reports
+    path('reports/daily/', views.daily_sales_report),
+    path('reports/outlet/', views.outlet_sales_report),
+    path('reports/hourly/', views.hourly_sales_report),
+    path('reports/order-status/', views.order_status_report),
+    path('reports/payment-status/', views.payment_status_report),
+    path('reports/payment-mode/', views.payment_mode_analysis),
+    path('reports/pending/', views.pending_payments_report),
+    path('reports/top-products/', views.top_products),
+    path('reports/product-revenue/', views.product_revenue),
+    path('reports/variant/', views.variant_performance),
+    path('reports/category/', views.category_sales),
+    path('reports/veg-nonveg/', views.veg_nonveg),
+    path('reports/kot-volume/', views.kot_volume),
+    path('reports/table-kot/', views.table_kot),
+    path('reports/kitchen/', views.kitchen_efficiency),
+    path('reports/kot-turnaround/', views.kot_turnaround),
+    path('reports/table-turnover/', views.table_turnover),
+    path('reports/table-utilization/', views.table_utilization),
+    path('reports/expense/', views.expense_vs_revenue),
+    path('reports/refund/', views.refund_analysis),
+    path('reports/customer-repeat/', views.customer_repeat_report, name='customer_repeat_report'),
+    path('reports/avg-order-value/', views.avg_order_value_trend, name='avg_order_value_trend'),
+    path('reports/peak-days/', views.peak_days_report, name='peak_days_report'),
+    path('reports/coupon-impact/', views.coupon_impact_report, name='coupon_impact_report'),
+    path('reports/stockout-impact/', views.stockout_impact_report, name='stockout_impact_report'),
 
 ]

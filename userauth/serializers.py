@@ -10,6 +10,18 @@ from v1.models import (
 from users.models import CustomUser
 from datetime import date, timedelta
 
+import random
+import string
+
+def generate_random_password(length=10):
+    characters = (
+        string.ascii_letters +   # a-zA-Z
+        string.digits +          # 0-9
+        "!@#$%^&*()_+"           # special chars
+    )
+    return ''.join(random.choice(characters) for _ in range(length))
+
+
 class CompanyUserSerializer(serializers.Serializer):
     company_name = serializers.CharField(max_length=255)
     email = serializers.EmailField()
@@ -30,7 +42,7 @@ class CompanyUserSerializer(serializers.Serializer):
         )
         
         # Generate a strong password
-        password = CustomUser.objects.make_random_password()
+        password = generate_random_password()
 
         # Create the CustomUser with the hashed password
         user = CustomUser.objects.create_user(

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body{
+            font-family: Arial, sans-serif;
+            background: white;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .container{
+            width: 600px;
+            margin: auto;
+            border: 2px solid #eeeeee;
+            border-radius: 20px;
+            padding: 40px;
+        }
+
+        .logo{
+            width: 150px;
+            height: 150px;
+            object-fit: contain;
+            margin-bottom: 20px;
+        }
+
+        .table-title{
+            font-size: 42px;
+            font-weight: bold;
+            margin-bottom: 25px;
+        }
+
+        .qr-image{
+            width: 420px;
+            height: 420px;
+            object-fit: contain;
+        }
+
+        .scan-text{
+            margin-top: 30px;
+            font-size: 26px;
+            font-weight: 600;
+        }
+
+        .footer{
+            margin-top: 40px;
+            color: #777;
+            font-size: 22px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    {% if logo_url %}
+        <img
+            src="{{ logo_url }}"
+            class="logo"
+        >
+    {% endif %}
+
+    {% if table_number %}
+        <div class="table-title">
+            Table {{ table_number }}
+        </div>
+    {% endif %}
+
+    <img
+        src="{{ qr_image_url }}"
+        class="qr-image"
+    >
+
+    <div class="scan-text">
+        Scan the above QR to order
+    </div>
+
+    <div class="footer">
+        Powered by Mantra POS
+    </div>
+
+</div>
+
+</body>
+</html>

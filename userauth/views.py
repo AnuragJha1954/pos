@@ -368,6 +368,117 @@ def user_login(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 
+
+
+@swagger_auto_schema(
+    method='patch',
+    operation_summary="Reset user password",
+    operation_description="Reset password using user_id from URL and new_password from request body",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['new_password'],
+        properties={
+            'new_password': openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description='New password (min 6 characters)'
+            )
+        }
+    ),
+    responses={
+        200: openapi.Response(
+            description="Password reset successful",
+            examples={
+                "application/json": {
+                    "error": False,
+                    "message": "Password reset successfully"
+                }
+            }
+        ),
+        400: openapi.Response(
+            description="Validation error",
+            examples={
+                "application/json": {
+                    "error": True,
+                    "message": "New password is required"
+                }
+            }
+        ),
+        404: openapi.Response(
+            description="User not found",
+            examples={
+                "application/json": {
+                    "error": True,
+                    "message": "User not found"
+                }
+            }
+        )
+    }
+)
+@api_view(['PATCH'])
+@permission_classes([AllowAny])
+
+@api_view(['POST'])
+def reset_password(request, user_id):
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({
+            "error": True,
+            "message": "User not found"
+        }, status=status.HTTP_404_NOT_FOUND)
+
+    old_password = request.data.get('old_password')
+    new_password = request.data.get('new_password')
+
+    # 🔥 Validate fields
+    if not old_password:
+        return Response({
+            "error": True,
+            "message": "Old password is required"
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    if not new_password:
+        return Response({
+            "error": True,
+            "message": "New password is required"
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # 🔥 Verify old password
+    if not user.check_password(old_password):
+        return Response({
+            "error": True,
+            "message": "Old password is incorrect"
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # 🔥 Password validation
+    if len(new_password) < 6:
+        return Response({
+            "error": True,
+            "message": "Password must be at least 6 characters"
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # 🔥 Prevent same password reuse
+    if old_password == new_password:
+        return Response({
+            "error": True,
+            "message": "New password cannot be same as old password"
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # 🔥 Set new password
+    user.set_password(new_password)
+
+    # Optional: storing plain password (NOT recommended in production)
+    user.plain_password = new_password
+
+    user.save()
+
+    return Response({
+        "error": False,
+        "message": "Password reset successfully"
+    }, status=status.HTTP_200_OK)
 

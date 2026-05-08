@@ -15,9 +15,25 @@ from .models import (
     Order,
     OrderItem, 
     Customer,
-    RefundNote
+    RefundNote,
+    Expense,
+    Table
 )
 from users.models import CustomUser
+
+
+
+import random
+import string
+
+def generate_random_password(length=10):
+    characters = (
+        string.ascii_letters +   # a-zA-Z
+        string.digits +          # 0-9
+        "!@#$%^&*()_+"           # special chars
+    )
+    return ''.join(random.choice(characters) for _ in range(length))
+
 
 class OutletSerializer(serializers.ModelSerializer):
     class Meta:
@@ -44,7 +60,7 @@ class EmployeeCreateSerializer(serializers.Serializer):
         username = f"{validated_data['first_name']}_{validated_data['last_name']}".lower()
 
         # Generate a random password
-        password = CustomUser.objects.make_random_password()
+        password = generate_random_password()
 
         # Create the CustomUser instance
         user = CustomUser.objects.create_user(
@@ -385,4 +401,16 @@ class RefundNoteSerializer(serializers.ModelSerializer):
         fields = ['refund_title', 'refund_description', 'refund_amount']
 
 
+
+
+class TableSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Table
+        fields = '__all__'
+
+
+class ExpenseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Expense
+        fields = '__all__'
 

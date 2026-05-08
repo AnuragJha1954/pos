@@ -191,5 +191,15 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'  # Replace with your SMTP host
 EMAIL_PORT = 587  # Replace with your SMTP port
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'noreply.ticketing24@gmail.com'  # Replace with your email
-EMAIL_HOST_PASSWORD = 'lhccrowcfnuazwxg'  # Replace with your email password
+EMAIL_HOST_USER = 'noreply.vibrantdigitech@gmail.com'  # Replace with your email
+EMAIL_HOST_PASSWORD = 'hfidpcsmmegxjlbt'  # Replace with your email password
+
+
+PINELABS_BASE_URL="https://www.plutuscloudserviceuat.in:8201/API/CloudBasedIntegration/V1"
+PINELABS_MERCHANT_ID=29610
+PINELABS_STORE_ID=1221258
+PINELABS_SECURITY_TOKEN="a4c9741b-2889-47b8-be2f-ba42081a246e"
+PINELABS_CLIENT_ID=1013457
+PINELABS_AUTO_CANCEL_MINUTES=3
+PINELABS_TERMINAL_ID=1221258
+

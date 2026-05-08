@@ -13,13 +13,21 @@ from v1.models import (
     OrderItem,
     FCMToken,
     Customer,
-    Outlet
+    Outlet,
+    Employee,
+    OutletAccess,
+    KOTDevice,
+    
 )
+
+from rest_framework.authtoken.models import Token
 
 from .serializers import (
     OrderSerializer,
     FCMTokenSerializer
 )
+
+from counterapi.serializers import CustomUserCounterLoginSerializer
 # Create your views here.
 
 @swagger_auto_schema(
@@ -172,3 +180,186 @@ def register_fcm_token(request, outlet_id):
             return Response({'error':False, 'detail': 'Token registered successfully'}, status=status.HTTP_201_CREATED)
     
     return Response({'error':True, 'detail': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='post',
+    operation_description="KOT device login with device binding",
+    manual_parameters=[
+        openapi.Parameter('device_id', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True),
+        openapi.Parameter('outlet_id', openapi.IN_QUERY, type=openapi.TYPE_INTEGER, required=True),
+    ],
+    request_body=CustomUserCounterLoginSerializer,
+    responses={
+        200: openapi.Response(description="KOT login success"),
+        400: "Bad Request",
+        403: "Forbidden"
+    }
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def kot_login(request):
+    try:
+        device_id = request.GET.get("device_id")
+
+        if not device_id:
+            return Response({
+                "error": True,
+                "message": "device_id is required"
+            }, status=400)
+
+        serializer = CustomUserCounterLoginSerializer(data=request.data)
+
+        if not serializer.is_valid():
+            return Response({
+                "error": True,
+                "message": "Invalid credentials"
+            }, status=400)
+
+        user = serializer.validated_data["user"]
+        employee = Employee.objects.get(user=user)
+
+        # ✅ Device logic
+        device = KOTDevice.objects.filter(device_id=device_id).first()
+
+        if device:
+            # mark login
+            device.is_logged_in = True
+            device.registered_by = employee
+            device.save()
+        else:
+            # register new device
+            device = KOTDevice.objects.create(
+                device_id=device_id,
+                registered_by=employee,
+                is_logged_in=True
+            )
+
+        # ✅ Token
+        token, _ = Token.objects.get_or_create(user=user)
+
+        return Response({
+            "error": False,
+            "message": "KOT login successful",
+            "token": token.key,
+            "device_id": device.device_id,
+            "is_logged_in": device.is_logged_in
+        })
+
+    except Exception as e:
+        return Response({
+            "error": True,
+            "details": str(e)
+        }, status=500)
+
+
+
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='post',
+    operation_description="Deregister KOT device",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['outlet_id'],
+        properties={
+            'outlet_id': openapi.Schema(type=openapi.TYPE_INTEGER)
+        }
+    ),
+    responses={200: openapi.Response(description="Device removed")}
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def deregister_kot_device(request):
+    try:
+        device_id = request.data.get("device_id")
+
+        if not device_id:
+            return Response({
+                "error": True,
+                "message": "device_id is required"
+            }, status=400)
+
+        device = KOTDevice.objects.filter(device_id=device_id).first()
+
+        if not device:
+            return Response({
+                "error": True,
+                "message": "Device not found"
+            }, status=404)
+
+        device.delete()
+
+        return Response({
+            "error": False,
+            "message": "Device deregistered successfully"
+        })
+
+    except Exception as e:
+        return Response({
+            "error": True,
+            "details": str(e)
+        }, status=500)
+
+
+
+
+@swagger_auto_schema(
+    method='get',
+    operation_description="Check KOT device login status",
+    manual_parameters=[
+        openapi.Parameter('device_id', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True),
+        openapi.Parameter('outlet_id', openapi.IN_QUERY, type=openapi.TYPE_INTEGER, required=True),
+    ],
+    responses={
+        200: openapi.Response(description="KOT status fetched"),
+        404: "Device not found"
+    }
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def check_kot_status(request):
+    try:
+        device_id = request.GET.get("device_id")
+
+        if not device_id:
+            return Response({
+                "error": True,
+                "message": "device_id is required"
+            }, status=400)
+
+        try:
+            device = KOTDevice.objects.get(device_id=device_id)
+        except KOTDevice.DoesNotExist:
+            return Response({
+                "error": True,
+                "message": "Device not registered"
+            }, status=404)
+
+        return Response({
+            "error": False,
+            "device_id": device.device_id,
+            "is_logged_in": device.is_logged_in,
+            "is_active": device.is_active
+        })
+
+    except Exception as e:
+        return Response({
+            "error": True,
+            "details": str(e)
+        }, status=500)
+
+
+
+
+
+
+

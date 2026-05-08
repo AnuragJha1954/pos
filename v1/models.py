@@ -69,6 +69,9 @@ class Plan(models.Model):
     plan_price = models.DecimalField(max_digits=10, decimal_places=2)
     price_tenure = models.CharField(max_length=20, choices=PLAN_TENURE_CHOICES)
 
+    # 🔥 ADD-ON (KOT)
+    has_kot = models.BooleanField(default=False)
+
     def __str__(self):
         return f"{self.plan_name} - {self.price_tenure}"
 
@@ -235,18 +238,36 @@ class Menu(models.Model):
 class Order(models.Model):
     STATUS_CHOICES = [
         ('draft', 'Draft'),
-        ('confirmed', 'Confirmed'),
-        ('processing', 'Processing'),
-        ('cancelled', 'Cancelled'),
-        ('refunded', 'Refunded'),
+
+        # Order placed
+        ('pending', 'Pending'),              # Sent to KOT but not started
+        ('processing', 'Processing'),        # Kitchen started
+
+        # KOT lifecycle
+        ('ready', 'Ready'),                  # All items prepared
+        ('completed', 'Completed'),          # KOT closed
+
+        # Billing lifecycle
         ('payment_pending', 'Payment Pending'),
         ('settled', 'Settled'),
+
+        # End states
+        ('cancelled', 'Cancelled'),
+        ('rejected', 'Rejected'),
     ]
     
     MODE_CHOICES = [
         ('upi', 'UPI'),
         ('cash', 'Cash Payment'),
         ('coupon', 'Coupon'),
+    ]
+    
+    PAYMENT_STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('initiated', 'Initiated'),
+        ('success', 'Success'),
+        ('failed', 'Failed'),
+        ('cancelled', 'Cancelled'),
     ]
     
     # Add ForeignKey to Outlet
@@ -256,7 +277,7 @@ class Order(models.Model):
     order_date = models.DateTimeField(default=timezone.now)
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
     gst = models.DecimalField(max_digits=5, decimal_places=2)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     address = models.TextField(blank=True, null=True)  # New optional address field
     mode = models.CharField(max_length=10, choices=MODE_CHOICES, blank=True, null=True)  # New mode field
     updated_at = models.DateTimeField(auto_now=True)
@@ -277,6 +298,55 @@ class Order(models.Model):
     
     # ✅ Optional note field
     note = models.TextField(blank=True, null=True, help_text="Any specific note or instruction for the order.")
+    
+    payment_status = models.CharField(
+        max_length=20,
+        choices=PAYMENT_STATUS_CHOICES,
+        default='pending'
+    )
+    # 🔥 PineLabs Fields
+    pine_transaction_number = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        help_text="Same as TransactionNumber sent to PineLabs"
+    )
+
+    plutus_transaction_reference_id = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="PTRN returned by PineLabs"
+    )
+
+    pine_payment_mode = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+        help_text="Final payment mode (UPI/Card/etc)"
+    )
+
+    pine_response = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="Full PineLabs response for audit/debug"
+    )
+
+    # 🔁 Refund / Void Support
+    parent_transaction_id = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        help_text="Original transaction ID for refund/void"
+    )
+    
+    upi_type = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+        help_text="UPI provider like gpay, phonepe, paytm"
+    )
 
     def __str__(self):
         return f"Order {self.order_number}"
@@ -290,9 +360,10 @@ class Order(models.Model):
     
 class OrderItem(models.Model):
     ITEM_STATUS_CHOICES = [
+        ('pending', 'Pending'),
         ('processing', 'Processing'),
+        ('ready', 'Ready'),
         ('rejected', 'Rejected'),
-        ('ready_to_serve', 'Ready to Serve'),
     ]
 
     order = models.ForeignKey('Order', on_delete=models.CASCADE, related_name='items')
@@ -510,16 +581,17 @@ class Table(models.Model):
         ('printing', 'Printing'),
         ('paid', 'Paid'),
         ('running_kot', 'Running KOT'),
+        ('pending_counter_confirmation', 'Pending Counter Confirmation'), 
     ]
 
     outlet = models.ForeignKey('Outlet', on_delete=models.CASCADE, related_name='tables')
     table_number = models.PositiveIntegerField()
     table_id = models.CharField(max_length=20, unique=True)
-    location = models.CharField(max_length=50, help_text="Eg: Ground Floor, First Floor")
+    location = models.CharField(max_length=50)
 
-    status = models.CharField(max_length=20, choices=TABLE_STATUS_CHOICES, default='empty')
+    status = models.CharField(max_length=50, choices=TABLE_STATUS_CHOICES, default='empty')
 
-    # Active order on the table
+    created_at = models.DateTimeField(auto_now_add=True)
     current_order = models.ForeignKey(
         'Order',
         on_delete=models.SET_NULL,
@@ -528,11 +600,8 @@ class Table(models.Model):
         related_name='table_current_orders'
     )
 
-    created_at = models.DateTimeField(auto_now_add=True)
-
     def __str__(self):
-        return f"Table {self.table_number} ({self.location})"
-    
+        return f"Table {self.table_number}"
     
     
 
@@ -559,5 +628,67 @@ class Expense(models.Model):
 
 
 
+
+class KOT(models.Model):
+    table = models.ForeignKey('Table', on_delete=models.CASCADE, related_name='kots')
+    order = models.ForeignKey('Order', on_delete=models.CASCADE, related_name='kots')
+
+    kot_number = models.PositiveIntegerField()  # 1, 2, 3...
+    
+    items = models.JSONField(
+        help_text="[{product_id, product_name, quantity}]"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"KOT {self.kot_number} - Table {self.table.table_number}"
+
+
+
+
+
+
+class OrderPayment(models.Model):
+    PAYMENT_MODE_CHOICES = [
+        ('upi', 'UPI'),
+        ('cash', 'Cash'),
+        ('card', 'Card'),
+        ('coupon', 'Coupon'),
+    ]
+
+    order = models.ForeignKey('Order', on_delete=models.CASCADE, related_name='payments')
+
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_mode = models.CharField(max_length=20, choices=PAYMENT_MODE_CHOICES)
+
+    transaction_id = models.CharField(max_length=100, blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.order.order_number} - {self.payment_mode} - {self.amount}"
+
+
+
+
+
+class KOTDevice(models.Model):
+    device_id = models.CharField(max_length=100, unique=True)
+
+    registered_by = models.ForeignKey(
+        'Employee',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    registered_at = models.DateTimeField(auto_now_add=True)
+
+    is_logged_in = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.device_id}"
 
 

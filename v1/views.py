@@ -1,4 +1,5 @@
 import random
+import re
 import string
 import math
 
@@ -9,9 +10,14 @@ from django.contrib.auth import get_user_model
 from django.http import JsonResponse
 from django.utils.timezone import localtime
 from django.utils.timezone import now
+from django.utils import timezone
+from datetime import timedelta
 from django.template.loader import render_to_string
 from django.http import HttpResponse
-from django.db.models import Q, Min
+from django.db.models import F, Q, Min
+from django.db.models import Sum, Count, Avg
+from django.core.paginator import Paginator
+from datetime import datetime
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -21,7 +27,7 @@ from firebase_admin import messaging
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.authtoken.models import Token
 from rest_framework.pagination import PageNumberPagination
@@ -47,7 +53,23 @@ from .models import (
     OrderItem,
     Customer,
     RefundNote,
-    PrinterConfig
+    PrinterConfig,
+    Table, 
+    Expense,
+    OrderPayment,
+    KOT,
+    KOTDevice,
+)
+
+from qr.models import (
+    TableQR,
+    SpecialMenu,
+    AdvertisementBanner,
+    QRCustomization,
+)
+
+from helpdesk.models import (
+    Ticket,    
 )
 
 from .serializers import (
@@ -69,7 +91,7 @@ from .serializers import (
     OrderSerializer,
     OrderDetailSerializer,
     OrderBillSerializer,
-    RefundNoteSerializer
+    RefundNoteSerializer,
 )
 
 
@@ -639,6 +661,32 @@ def add_product_variant(request,user_id):
 
 
 
+def parse_form_data(data):
+    product = {}
+    variants = {}
+
+    for key, value in data.items():
+
+        # product fields
+        if key.startswith("product["):
+            field = key.replace("product[", "").replace("]", "")
+            product[field] = value
+
+        # variants fields
+        elif key.startswith("variants["):
+            match = re.match(r"variants\[(\d+)\]\[(\w+)\]", key)
+            if match:
+                index = int(match.group(1))
+                field = match.group(2)
+
+                if index not in variants:
+                    variants[index] = {}
+
+                variants[index][field] = value
+
+    return product, list(variants.values())
+
+
 
 
 @swagger_auto_schema(
@@ -685,7 +733,7 @@ def add_product_variant(request,user_id):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def add_product_with_variants(request, user_id):
-    # Authenticate the request
+    # Authenticate
     token_key = request.headers.get("Authorization")
     if not token_key:
         return Response({"error": "Authorization token is missing"}, status=status.HTTP_401_UNAUTHORIZED)
@@ -693,29 +741,55 @@ def add_product_with_variants(request, user_id):
     try:
         token = Token.objects.get(key=token_key)
         if token.user.id != user_id:
-            return Response({"error": True, "detail": "Token is not valid. Invalid Authentication Header"}, status=status.HTTP_403_FORBIDDEN)
-        requesting_user = token.user
+            return Response({"error": True, "detail": "Invalid Authentication"}, status=status.HTTP_403_FORBIDDEN)
     except Token.DoesNotExist:
         return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
 
-    # Extract product and variants from request
-    product_data = request.data.get("product")
-    variants_data = request.data.get("variants", [])
+    # 🔥 Extract product fields directly
+    product_data = {
+        "name": request.data.get("name"),
+        "price": request.data.get("price"),
+        "description": request.data.get("description"),
+        "outlet": request.data.get("outlet"),
+        "is_gst_inclusive": request.data.get("is_gst_inclusive"),
+        "category": request.data.get("category"),
+        "is_veg": request.data.get("is_veg"),
+    }
 
-    if not product_data:
-        return Response({"error": True, "detail": "Product data is required"}, status=status.HTTP_400_BAD_REQUEST)
+    # Attach image if present
+    if 'image' in request.FILES:
+        product_data['image'] = request.FILES['image']
 
-    # Validate and create product
+    # Validate product
     product_serializer = ProductSerializer(data=product_data)
     if not product_serializer.is_valid():
         return Response({"error": True, "detail": product_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     product = product_serializer.save()
 
-    # Validate and create variants
+    # 🔥 Extract variants dynamically
+    variants = {}
+    pattern = re.compile(r'^variants\[(\d+)\]\[(\w+)\]$')
+
+    for key, value in request.data.items():
+        match = pattern.match(key)
+        if match:
+            index, field = match.groups()
+            index = int(index)
+
+            if index not in variants:
+                variants[index] = {}
+
+            variants[index][field] = value
+
+    # Convert dict → list
+    variants_list = list(variants.values())
+
+    # Save variants
     created_variants = []
-    for variant in variants_data:
-        variant["product"] = product.id  # attach product FK
+    for variant in variants_list:
+        variant["product"] = product.id
+
         variant_serializer = ProductVariantSerializer(data=variant)
         if variant_serializer.is_valid():
             created_variants.append(variant_serializer.save())
@@ -725,9 +799,57 @@ def add_product_with_variants(request, user_id):
     return Response({
         "error": False,
         "detail": "Product with variants added successfully",
-        "product": product_serializer.data,
+        "product": ProductSerializer(product).data,
         "variants": ProductVariantSerializer(created_variants, many=True).data
     }, status=status.HTTP_201_CREATED)
+    
+    
+    
+    
+# def add_product_with_variants(request, user_id):
+#     # Authenticate the request
+#     token_key = request.headers.get("Authorization")
+#     if not token_key:
+#         return Response({"error": "Authorization token is missing"}, status=status.HTTP_401_UNAUTHORIZED)
+
+#     try:
+#         token = Token.objects.get(key=token_key)
+#         if token.user.id != user_id:
+#             return Response({"error": True, "detail": "Token is not valid. Invalid Authentication Header"}, status=status.HTTP_403_FORBIDDEN)
+#         requesting_user = token.user
+#     except Token.DoesNotExist:
+#         return Response({"error": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+#     # Extract product and variants from request
+#     product_data = request.data.get("product")
+#     variants_data = request.data.get("variants", [])
+
+#     if not product_data:
+#         return Response({"error": True, "detail": "Product data is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+#     # Validate and create product
+#     product_serializer = ProductSerializer(data=product_data)
+#     if not product_serializer.is_valid():
+#         return Response({"error": True, "detail": product_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+#     product = product_serializer.save()
+
+#     # Validate and create variants
+#     created_variants = []
+#     for variant in variants_data:
+#         variant["product"] = product.id  # attach product FK
+#         variant_serializer = ProductVariantSerializer(data=variant)
+#         if variant_serializer.is_valid():
+#             created_variants.append(variant_serializer.save())
+#         else:
+#             return Response({"error": True, "detail": variant_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+#     return Response({
+#         "error": False,
+#         "detail": "Product with variants added successfully",
+#         "product": product_serializer.data,
+#         "variants": ProductVariantSerializer(created_variants, many=True).data
+#     }, status=status.HTTP_201_CREATED)
 
 
 
@@ -2947,183 +3069,365 @@ def delete_category(request, outlet_id, user_id, category_id):
 
 
 
-@swagger_auto_schema(
-    method='get',
-    operation_description="Returns dashboard data for the admin panel.",
-    responses={
-        200: openapi.Schema(
+dashboard_response_schema = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    properties={
+
+        # -----------------------------------------
+        # SUMMARY CARDS
+        # -----------------------------------------
+        "summary_cards": openapi.Schema(
+            type=openapi.TYPE_ARRAY,
+            items=openapi.Items(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    "key": openapi.Schema(type=openapi.TYPE_STRING),
+                    "label": openapi.Schema(type=openapi.TYPE_STRING),
+                    "value": openapi.Schema(type=openapi.TYPE_NUMBER),
+                }
+            )
+        ),
+
+        # -----------------------------------------
+        # SALES LINE CHART
+        # -----------------------------------------
+        "sales_line_chart": openapi.Schema(
             type=openapi.TYPE_OBJECT,
             properties={
-                "summary_cards": openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "key": openapi.Schema(type=openapi.TYPE_STRING),
-                        "label": openapi.Schema(type=openapi.TYPE_STRING),
-                        "value": openapi.Schema(type=openapi.TYPE_NUMBER),
-                    }
-                )),
-                "sales_line_chart": openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "labels": openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_STRING)),
-                        "data": openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_NUMBER)),
-                    }
-                ),
-                "recent_orders_table": openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "title": openapi.Schema(type=openapi.TYPE_STRING),
-                        "rows": openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(
-                            type=openapi.TYPE_OBJECT,
-                            properties={
-                                "order_number": openapi.Schema(type=openapi.TYPE_STRING),
-                                "status": openapi.Schema(type=openapi.TYPE_STRING),
-                                "total_amount": openapi.Schema(type=openapi.TYPE_NUMBER),
-                                "mode": openapi.Schema(type=openapi.TYPE_STRING),
-                                "order_time": openapi.Schema(type=openapi.TYPE_STRING),
-                            }
-                        )),
-                    }
-                ),
-                "order_status_cards": openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "pending_orders": openapi.Schema(type=openapi.TYPE_INTEGER),
-                        "confirmed_orders": openapi.Schema(type=openapi.TYPE_INTEGER),
-                        "refunded_orders": openapi.Schema(type=openapi.TYPE_INTEGER),
-                    }
-                ),
-                "low_stock_items": openapi.Schema(
+                "labels": openapi.Schema(
                     type=openapi.TYPE_ARRAY,
-                    items=openapi.Schema(
+                    items=openapi.Items(type=openapi.TYPE_STRING)
+                ),
+                "data": openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Items(type=openapi.TYPE_NUMBER)
+                ),
+            }
+        ),
+
+        # -----------------------------------------
+        # RECENT ORDERS TABLE
+        # -----------------------------------------
+        "recent_orders_table": openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "title": openapi.Schema(type=openapi.TYPE_STRING),
+                "rows": openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Items(
                         type=openapi.TYPE_OBJECT,
                         properties={
-                            "name": openapi.Schema(type=openapi.TYPE_STRING),
-                            "type": openapi.Schema(type=openapi.TYPE_STRING),
+                            "order_number": openapi.Schema(type=openapi.TYPE_STRING),
+                            "status": openapi.Schema(type=openapi.TYPE_STRING),
+                            "total_amount": openapi.Schema(type=openapi.TYPE_NUMBER),
+                            "mode": openapi.Schema(type=openapi.TYPE_STRING),
+                            "order_time": openapi.Schema(type=openapi.TYPE_STRING),
                             "outlet": openapi.Schema(type=openapi.TYPE_STRING),
                         }
                     )
-                ),
+                )
             }
-        )
+        ),
+
+        # -----------------------------------------
+        # ORDER STATUS CARDS
+        # -----------------------------------------
+        "order_status_cards": openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "pending_orders": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "processing_orders": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "completed_orders": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "cancelled_orders": openapi.Schema(type=openapi.TYPE_INTEGER),
+            }
+        ),
+
+        # -----------------------------------------
+        # LOW STOCK ITEMS
+        # -----------------------------------------
+        "low_stock_items": openapi.Schema(
+            type=openapi.TYPE_ARRAY,
+            items=openapi.Items(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    "name": openapi.Schema(type=openapi.TYPE_STRING),
+                    "type": openapi.Schema(type=openapi.TYPE_STRING),
+                    "outlet": openapi.Schema(type=openapi.TYPE_STRING),
+                }
+            )
+        ),
+
+        # -----------------------------------------
+        # HELPDESK OVERVIEW
+        # -----------------------------------------
+        "helpdesk_overview": openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "total_tickets": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "open_tickets": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "in_progress_tickets": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "closed_tickets": openapi.Schema(type=openapi.TYPE_INTEGER),
+            }
+        ),
+
+        # -----------------------------------------
+        # QR OVERVIEW
+        # -----------------------------------------
+        "qr_overview": openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "total_table_qrs": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "special_menus": openapi.Schema(type=openapi.TYPE_INTEGER),
+                "advertisement_banners": openapi.Schema(type=openapi.TYPE_INTEGER),
+            }
+        ),
+
+        # -----------------------------------------
+        # OUTLET SALES
+        # -----------------------------------------
+        "outlet_sales": openapi.Schema(
+            type=openapi.TYPE_ARRAY,
+            items=openapi.Items(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    "outlet_id": openapi.Schema(type=openapi.TYPE_INTEGER),
+                    "outlet_name": openapi.Schema(type=openapi.TYPE_STRING),
+                    "total_orders": openapi.Schema(type=openapi.TYPE_INTEGER),
+                    "total_sales": openapi.Schema(type=openapi.TYPE_NUMBER),
+                }
+            )
+        ),
     }
+)
+
+
+@swagger_auto_schema(
+    method='get',
+    operation_summary="Dashboard API",
+    operation_description="""
+    Returns dashboard analytics data including:
+
+    - Summary cards
+    - Sales line chart
+    - Recent orders
+    - Order status overview
+    - Low stock items
+    - Helpdesk overview
+    - QR overview
+    - Outlet-wise sales
+    """,
+    responses={
+        200: openapi.Response(
+            description="Dashboard data fetched successfully",
+            schema=dashboard_response_schema
+        )
+    },
+    tags=['Dashboard']
 )
 @api_view(["GET"])
 @permission_classes([AllowAny])
-def dashboard_sample_data(request):
+def dashboard_data(request):
+    now = timezone.now()
+
+    # -----------------------------------------
+    # 🔵 SUMMARY CARDS
+    # -----------------------------------------
+    total_orders = Order.objects.count()
+
+    total_sales = (
+        Order.objects.filter(
+            payment_status='success'
+        ).aggregate(
+            total=Sum('total_price')
+        )['total'] or 0
+    )
+
+    total_outlets = Outlet.objects.count()
+
+    total_customers = Customer.objects.values(
+        'phone_number'
+    ).distinct().count()
+
+    summary_cards = [
+        {
+            "key": "total_orders",
+            "label": "Total Orders",
+            "value": total_orders,
+        },
+        {
+            "key": "total_sales",
+            "label": "Total Sales",
+            "value": float(total_sales),
+        },
+        {
+            "key": "total_outlets",
+            "label": "Total Outlets",
+            "value": total_outlets,
+        },
+        {
+            "key": "total_customers",
+            "label": "Total Customers",
+            "value": total_customers,
+        },
+    ]
+
+    # -----------------------------------------
+    # 🔵 SALES LINE CHART — LAST 7 DAYS
+    # -----------------------------------------
+    labels = []
+    sales_data = []
+
+    for i in range(6, -1, -1):
+        day = now.date() - timedelta(days=i)
+
+        total = (
+            Order.objects.filter(
+                order_date__date=day,
+                payment_status='success'
+            ).aggregate(
+                total=Sum('total_price')
+            )['total'] or 0
+        )
+
+        labels.append(str(day))
+        sales_data.append(float(total))
+
+    sales_line_chart = {
+        "labels": labels,
+        "data": sales_data
+    }
+
+    # -----------------------------------------
+    # 🔵 LAST 3 HOURS ORDERS
+    # -----------------------------------------
+    recent_orders_queryset = Order.objects.filter(
+        order_date__gte=now - timedelta(hours=3)
+    ).order_by('-order_date')[:10]
+
+    recent_orders = []
+
+    for order in recent_orders_queryset:
+        recent_orders.append({
+            "order_number": order.order_number,
+            "status": order.status.upper(),
+            "total_amount": float(order.total_price),
+            "mode": order.mode,
+            "order_time": order.order_date.strftime("%H:%M"),
+            "outlet": order.outlet.outlet_name
+        })
+
+    recent_orders_table = {
+        "title": "Last 3 Hours Orders",
+        "rows": recent_orders
+    }
+
+    # -----------------------------------------
+    # 🔵 ORDER STATUS CARDS
+    # -----------------------------------------
+    order_status_cards = {
+        "pending_orders": Order.objects.filter(
+            status='pending'
+        ).count(),
+
+        "processing_orders": Order.objects.filter(
+            status='processing'
+        ).count(),
+
+        "completed_orders": Order.objects.filter(
+            status='completed'
+        ).count(),
+
+        "cancelled_orders": Order.objects.filter(
+            status='cancelled'
+        ).count(),
+    }
+
+    # -----------------------------------------
+    # 🔵 LOW STOCK ITEMS
+    # using is_stock_out field
+    # -----------------------------------------
+    low_stock_items = []
+
+    stock_out_products = Product.objects.filter(
+        is_stock_out=True
+    ).select_related('outlet')[:5]
+
+    for product in stock_out_products:
+        low_stock_items.append({
+            "name": product.name,
+            "type": "product",
+            "outlet": product.outlet.outlet_name
+        })
+
+    stock_out_variants = ProductVariant.objects.filter(
+        is_stock_out=True
+    ).select_related('product__outlet')[:5]
+
+    for variant in stock_out_variants:
+        low_stock_items.append({
+            "name": f"{variant.product.name} - {variant.name}",
+            "type": "variant",
+            "outlet": variant.product.outlet.outlet_name
+        })
+
+    # -----------------------------------------
+    # 🔵 HELPDESK OVERVIEW
+    # -----------------------------------------
+    helpdesk_overview = {
+        "total_tickets": Ticket.objects.count(),
+        "open_tickets": Ticket.objects.filter(
+            status='OPEN'
+        ).count(),
+        "in_progress_tickets": Ticket.objects.filter(
+            status='IN_PROGRESS'
+        ).count(),
+        "closed_tickets": Ticket.objects.filter(
+            status='CLOSED'
+        ).count(),
+    }
+
+    # -----------------------------------------
+    # 🔵 QR OVERVIEW
+    # -----------------------------------------
+    qr_overview = {
+        "total_table_qrs": TableQR.objects.count(),
+        "special_menus": SpecialMenu.objects.count(),
+        "advertisement_banners": AdvertisementBanner.objects.count(),
+    }
+
+    # -----------------------------------------
+    # 🔵 OUTLET WISE SALES
+    # -----------------------------------------
+    outlet_sales_queryset = Outlet.objects.annotate(
+        total_sales=Sum(
+            'orders__total_price',
+            filter=Q(orders__payment_status='success')
+        ),
+        total_orders=Count('orders')
+    )
+
+    outlet_sales = []
+
+    for outlet in outlet_sales_queryset:
+        outlet_sales.append({
+            "outlet_id": outlet.id,
+            "outlet_name": outlet.outlet_name,
+            "total_orders": outlet.total_orders,
+            "total_sales": float(outlet.total_sales or 0)
+        })
+
+    # -----------------------------------------
+    # 🔵 FINAL RESPONSE
+    # -----------------------------------------
     data = {
-
-        # -----------------------------------------
-        # 🔵 SUMMARY CARDS (TOP 4 CARDS)
-        # -----------------------------------------
-        "summary_cards": [
-            {
-                "key": "total_orders",
-                "label": "Total Orders",
-                "value": 1280,
-            },
-            {
-                "key": "total_sales",
-                "label": "Total Sales",
-                "value": 452000.75,
-            },
-            {
-                "key": "total_outlets",
-                "label": "Total Outlets",
-                "value": 4,
-            },
-            {
-                "key": "total_customers",
-                "label": "Total Customers",
-                "value": 980,
-            },
-        ],
-
-        # -----------------------------------------
-        # 🔵 LINE CHART — LAST 7 DAYS SALES
-        # -----------------------------------------
-        "sales_line_chart": {
-            "labels": [
-                "2025-11-20",
-                "2025-11-21",
-                "2025-11-22",
-                "2025-11-23",
-                "2025-11-24",
-                "2025-11-25",
-                "2025-11-26"
-            ],
-            "data": [12000, 15000, 18000, 17000, 22000, 25000, 28000]
-        },
-
-        # -----------------------------------------
-        # 🔵 LAST 3 HOURS ORDERS TABLE
-        # -----------------------------------------
-        "recent_orders_table": {
-            "title": "Last 3 Hours Orders",
-            "rows": [
-                {
-                    "order_number": "ORD123456",
-                    "status": "CONFIRMED",
-                    "total_amount": 1450.00,
-                    "mode": "upi",
-                    "order_time": "12:40",
-                },
-                {
-                    "order_number": "ORD123457",
-                    "status": "PENDING",
-                    "total_amount": 220.00,
-                    "mode": "cash",
-                    "order_time": "11:55",
-                },
-                {
-                    "order_number": "ORD123458",
-                    "status": "COMPLETED",
-                    "total_amount": 980.00,
-                    "mode": "upi",
-                    "order_time": "10:45",
-                },
-            ]
-        },
-
-        # -----------------------------------------
-        # 🔵 STATUS OVERVIEW: PENDING, CONFIRMED, REFUNDED
-        # -----------------------------------------
-        "order_status_cards": {
-            "pending_orders": 12,
-            "confirmed_orders": 89,
-            "refunded_orders": 3
-        },
-
-        # -----------------------------------------
-        # 🔵 LOW STOCK ITEMS
-        # -----------------------------------------
-        "low_stock_items": [
-            {
-                "name": "Cold Coffee",
-                "type": "product",
-                "outlet": "Outlet A"
-            },
-            {
-                "name": "Veg Burger - Large",
-                "type": "variant",
-                "outlet": "Outlet A"
-            },
-            {
-                "name": "French Fries",
-                "type": "product",
-                "outlet": "Outlet B"
-            },
-            {
-                "name": "Cheese Sandwich",
-                "type": "product",
-                "outlet": "Outlet C"
-            },
-            {
-                "name": "Chicken Roll - Spicy",
-                "type": "variant",
-                "outlet": "Outlet D"
-            },
-        ],
+        "summary_cards": summary_cards,
+        "sales_line_chart": sales_line_chart,
+        "recent_orders_table": recent_orders_table,
+        "order_status_cards": order_status_cards,
+        "low_stock_items": low_stock_items,
+        "helpdesk_overview": helpdesk_overview,
+        "qr_overview": qr_overview,
+        "outlet_sales": outlet_sales,
     }
 
     return Response(data)
@@ -3520,3 +3824,879 @@ def get_printer_config(request, outlet_id):
 
 
 
+
+
+
+update_plan_schema = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    required=['plan_id'],
+    properties={
+        'plan_id': openapi.Schema(type=openapi.TYPE_INTEGER)
+    }
+)
+
+
+@swagger_auto_schema(
+    method='post',
+    operation_description="Update user plan and expire token",
+    request_body=update_plan_schema
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def update_user_plan(request):
+    try:
+        user = request.user
+        plan_id = request.data.get("plan_id")
+
+        # 🔥 Get Plan
+        try:
+            plan = Plan.objects.get(id=plan_id)
+        except Plan.DoesNotExist:
+            return JsonResponse({"error": True, "message": "Invalid plan"}, status=404)
+
+        # 🔥 Expire old plans
+        PlanAssignment.objects.filter(
+            user=user,
+            status='active'
+        ).update(status='expired')
+
+        # 🔥 Calculate validity
+        today = timezone.now().date()
+
+        if plan.price_tenure == "monthly":
+            valid_till = today + timedelta(days=30)
+        elif plan.price_tenure == "quarterly":
+            valid_till = today + timedelta(days=90)
+        else:
+            valid_till = today + timedelta(days=365)
+
+        # 🔥 Create new assignment
+        assignment = PlanAssignment.objects.create(
+            user=user,
+            plan=plan,
+            valid_till=valid_till,
+            status="active"
+        )
+
+        # 🔥 Expire token (force logout)
+        Token.objects.filter(user=user).delete()
+
+        return JsonResponse({
+            "error": False,
+            "message": "Plan updated successfully. Please login again.",
+            "data": {
+                "plan": plan.plan_name,
+                "valid_till": valid_till,
+                "has_kot": plan.has_kot
+            }
+        })
+
+    except Exception as e:
+        return JsonResponse({"error": True, "details": str(e)}, status=500)
+
+
+
+@swagger_auto_schema(
+    method='post',
+    operation_description="Create a new table",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['outlet_id', 'table_number', 'table_id', 'location'],
+        properties={
+            'outlet_id': openapi.TYPE_INTEGER,
+            'table_number': openapi.TYPE_INTEGER,
+            'table_id': openapi.TYPE_STRING,
+            'location': openapi.TYPE_STRING,
+        }
+    ),
+    responses={200: "Table created"}
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def create_table(request):
+    try:
+        data = request.data
+
+        table = Table.objects.create(
+            outlet_id=data.get("outlet_id"),
+            table_number=data.get("table_number"),
+            table_id=data.get("table_id"),
+            location=data.get("location"),
+            status=data.get("status", "empty")
+        )
+
+        return Response({
+            "error": False,
+            "message": "Table created successfully",
+            "table_id": table.id
+        })
+
+    except Exception as e:
+        return Response({"error": True, "details": str(e)}, status=500)
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='get',
+    operation_description="Get all tables of an outlet",
+    manual_parameters=[
+        openapi.Parameter('outlet_id', openapi.IN_PATH, type=openapi.TYPE_INTEGER)
+    ],
+    responses={200: "Tables fetched"}
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_tables(request, outlet_id):
+    try:
+        tables = Table.objects.filter(outlet_id=outlet_id)
+
+        data = [
+            {
+                "id": t.id,
+                "table_number": t.table_number,
+                "table_id": t.table_id,
+                "location": t.location,
+                "status": t.status
+            } for t in tables
+        ]
+
+        return Response({"error": False, "data": data})
+
+    except Exception as e:
+        return Response({"error": True, "details": str(e)}, status=500)
+
+
+
+
+
+@swagger_auto_schema(
+    method='put',
+    operation_description="Update table details",
+    manual_parameters=[
+        openapi.Parameter('table_id', openapi.IN_PATH, type=openapi.TYPE_INTEGER)
+    ],
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'table_number': openapi.TYPE_INTEGER,
+            'location': openapi.TYPE_STRING,
+            'status': openapi.TYPE_STRING,
+        }
+    ),
+    responses={200: "Table updated"}
+)
+@api_view(['PUT'])
+@permission_classes([AllowAny])
+def update_table(request, table_id):
+    try:
+        table = Table.objects.get(id=table_id)
+
+        table.table_number = request.data.get("table_number", table.table_number)
+        table.location = request.data.get("location", table.location)
+        table.status = request.data.get("status", table.status)
+
+        table.save()
+
+        return Response({
+            "error": False,
+            "message": "Table updated successfully"
+        })
+
+    except Table.DoesNotExist:
+        return Response({"error": True, "message": "Table not found"}, status=404)
+
+    except Exception as e:
+        return Response({"error": True, "details": str(e)}, status=500)
+
+
+
+
+
+
+@swagger_auto_schema(
+    method='post',
+    operation_description="Create an expense",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['outlet_id', 'title', 'amount'],
+        properties={
+            'outlet_id': openapi.TYPE_INTEGER,
+            'title': openapi.TYPE_STRING,
+            'description': openapi.TYPE_STRING,
+            'amount': openapi.TYPE_NUMBER,
+        }
+    ),
+    responses={200: "Expense created"}
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def create_expense(request):
+    try:
+        data = request.data
+
+        expense = Expense.objects.create(
+            outlet_id=data.get("outlet_id"),
+            title=data.get("title"),
+            description=data.get("description"),
+            amount=data.get("amount")
+        )
+
+        return Response({
+            "error": False,
+            "message": "Expense created",
+            "expense_id": expense.id
+        })
+
+    except Exception as e:
+        return Response({"error": True, "details": str(e)}, status=500)
+    
+    
+    
+
+@swagger_auto_schema(
+    method='get',
+    operation_description="Get expenses of an outlet",
+    manual_parameters=[
+        openapi.Parameter('outlet_id', openapi.IN_PATH, type=openapi.TYPE_INTEGER)
+    ],
+    responses={200: "Expenses fetched"}
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_expenses(request, outlet_id):
+    try:
+        expenses = Expense.objects.filter(outlet_id=outlet_id)
+
+        data = [
+            {
+                "id": e.id,
+                "title": e.title,
+                "amount": e.amount,
+                "description": e.description,
+                "expense_date": e.expense_date
+            } for e in expenses
+        ]
+
+        return Response({"error": False, "data": data})
+
+    except Exception as e:
+        return Response({"error": True, "details": str(e)}, status=500)
+
+
+
+
+@swagger_auto_schema(
+    method='put',
+    operation_description="Update an expense",
+    manual_parameters=[
+        openapi.Parameter('expense_id', openapi.IN_PATH, type=openapi.TYPE_INTEGER)
+    ],
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'title': openapi.TYPE_STRING,
+            'description': openapi.TYPE_STRING,
+            'amount': openapi.TYPE_NUMBER,
+        }
+    ),
+    responses={200: "Expense updated"}
+)
+@api_view(['PUT'])
+@permission_classes([AllowAny])
+def update_expense(request, expense_id):
+    try:
+        expense = Expense.objects.get(id=expense_id)
+
+        expense.title = request.data.get("title", expense.title)
+        expense.description = request.data.get("description", expense.description)
+        expense.amount = request.data.get("amount", expense.amount)
+
+        expense.save()
+
+        return Response({
+            "error": False,
+            "message": "Expense updated successfully"
+        })
+
+    except Expense.DoesNotExist:
+        return Response({"error": True, "message": "Expense not found"}, status=404)
+
+    except Exception as e:
+        return Response({"error": True, "details": str(e)}, status=500)
+
+
+
+
+
+
+
+update_table_status_request_schema = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    required=["status"],
+    properties={
+        "status": openapi.Schema(
+            type=openapi.TYPE_STRING,
+            enum=[
+                "empty",
+                "running",
+                "printing",
+                "paid",
+                "running_kot",
+                "pending_counter_confirmation"
+            ],
+            description="New status for the table"
+        )
+    }
+)
+
+@swagger_auto_schema(
+    method='patch',
+    operation_summary="Update table status",
+    operation_description="""
+Update the status of a specific table.
+
+### ✅ Available Statuses:
+- `empty`
+- `pending_counter_confirmation`
+- `running_kot`
+- `running`
+- `printing`
+- `paid`
+
+### 🔄 Typical Flow:
+QR Scan → `pending_counter_confirmation` → `running_kot` → `running` → `paid` → `empty`
+
+### ⚠️ Notes:
+- Status must be one of the allowed values
+- Invalid transitions (if enforced) will return error
+""",
+    request_body=update_table_status_request_schema,
+    responses={
+        200: openapi.Response(
+            description="Status updated successfully",
+            examples={
+                "application/json": {
+                    "error": False,
+                    "message": "Table status updated successfully",
+                    "data": {
+                        "table_id": 1,
+                        "table_number": 5,
+                        "status": "pending_counter_confirmation"
+                    }
+                }
+            }
+        ),
+
+        400: openapi.Response(
+            description="Bad request (invalid or missing status)",
+            examples={
+                "application/json": {
+                    "error": True,
+                    "message": "Invalid status"
+                }
+            }
+        ),
+
+        404: openapi.Response(
+            description="Table not found",
+            examples={
+                "application/json": {
+                    "error": True,
+                    "message": "Table not found"
+                }
+            }
+        )
+    }
+)
+@api_view(['PATCH'])
+@permission_classes([AllowAny])
+def update_table_status(request, table_id):
+    try:
+        table = Table.objects.get(id=table_id)
+    except Table.DoesNotExist:
+        return Response(
+            {"error": True, "message": "Table not found"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    new_status = request.data.get("status")
+
+    if not new_status:
+        return Response(
+            {"error": True, "message": "Status is required"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    valid_statuses = [choice[0] for choice in Table.TABLE_STATUS_CHOICES]
+
+    if new_status not in valid_statuses:
+        return Response(
+            {
+                "error": True,
+                "message": f"Invalid status. Allowed: {valid_statuses}"
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    table.status = new_status
+    table.save(update_fields=["status"])
+
+    return Response({
+        "error": False,
+        "message": "Table status updated successfully",
+        "data": {
+            "table_id": table.id,
+            "table_number": table.table_number,
+            "status": table.status
+        }
+    }, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+def apply_order_filters(qs, request):
+    outlet_id = request.GET.get('outlet_id')
+    company_id = request.GET.get('company_id')
+    from_date = request.GET.get('from_date')
+    to_date = request.GET.get('to_date')
+
+    if outlet_id:
+        qs = qs.filter(outlet_id=outlet_id)
+
+    if company_id:
+        qs = qs.filter(outlet__company_id=company_id)
+
+    if from_date:
+        qs = qs.filter(order_date__date__gte=from_date)
+
+    if to_date:
+        qs = qs.filter(order_date__date__lte=to_date)
+
+    return qs
+
+
+def paginate(qs, request):
+    page = int(request.GET.get('page', 1))
+    limit = int(request.GET.get('limit', 10))
+
+    paginator = Paginator(qs, limit)
+    page_obj = paginator.get_page(page)
+
+    return {
+        "total": paginator.count,
+        "total_pages": paginator.num_pages,
+        "page": page,
+        "results": list(page_obj)
+    }
+
+
+
+
+common_params = [
+    openapi.Parameter('outlet_id', openapi.IN_QUERY, type=openapi.TYPE_INTEGER),
+    openapi.Parameter('company_id', openapi.IN_QUERY, type=openapi.TYPE_INTEGER),
+    openapi.Parameter('from_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, format='date'),
+    openapi.Parameter('to_date', openapi.IN_QUERY, type=openapi.TYPE_STRING, format='date'),
+    openapi.Parameter('page', openapi.IN_QUERY, type=openapi.TYPE_INTEGER),
+    openapi.Parameter('limit', openapi.IN_QUERY, type=openapi.TYPE_INTEGER),
+]
+
+
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def daily_sales_report(request):
+    qs = apply_order_filters(Order.objects.all(), request)
+
+    data = qs.values('order_date__date').annotate(
+        total_sales=Sum('total_price'),
+        total_orders=Count('id'),
+        avg_order_value=Avg('total_price')
+    ).order_by('-order_date__date')
+
+    return Response(paginate(data, request))
+
+
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def outlet_sales_report(request):
+    qs = apply_order_filters(Order.objects.all(), request)
+
+    data = qs.values('outlet__outlet_name').annotate(
+        total_sales=Sum('total_price')
+    )
+
+    return Response(paginate(data, request))
+
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def hourly_sales_report(request):
+    qs = apply_order_filters(Order.objects.all(), request)
+
+    data = qs.values('order_date__hour').annotate(
+        total_sales=Sum('total_price')
+    )
+
+    return Response(paginate(data, request))
+
+
+
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def order_status_report(request):
+    qs = apply_order_filters(Order.objects.all(), request)
+
+    data = qs.values('status').annotate(count=Count('id'))
+
+    return Response(paginate(data, request))
+
+
+
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def payment_status_report(request):
+    qs = apply_order_filters(Order.objects.all(), request)
+
+    data = qs.values('payment_status').annotate(count=Count('id'))
+
+    return Response(paginate(data, request))
+
+
+
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def payment_mode_analysis(request):
+    qs = OrderPayment.objects.select_related('order')
+
+    qs = qs.filter(order__in=apply_order_filters(Order.objects.all(), request))
+
+    data = qs.values('payment_mode').annotate(total=Sum('amount'))
+
+    return Response(paginate(data, request))
+
+
+
+
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def pending_payments_report(request):
+    qs = apply_order_filters(
+        Order.objects.filter(payment_status='pending'),
+        request
+    )
+
+    data = qs.values('order_number', 'total_price', 'order_date')
+
+    return Response(paginate(data, request))
+
+
+
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def top_products(request):
+    qs = OrderItem.objects.select_related('order', 'product')
+
+    qs = qs.filter(order__in=apply_order_filters(Order.objects.all(), request))
+
+    data = qs.values('product__name').annotate(
+        qty=Sum('quantity')
+    ).order_by('-qty')
+
+    return Response(paginate(data, request))
+
+
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def product_revenue(request):
+    qs = OrderItem.objects.select_related('order')
+
+    qs = qs.filter(order__in=apply_order_filters(Order.objects.all(), request))
+
+    data = qs.values('product__name').annotate(
+        revenue=Sum('total_price')
+    )
+
+    return Response(paginate(data, request))
+
+
+
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def variant_performance(request):
+    qs = OrderItem.objects.select_related('order')
+
+    qs = qs.filter(order__in=apply_order_filters(Order.objects.all(), request))
+
+    data = qs.values('product_variant__name').annotate(
+        total=Sum('total_price')
+    )
+
+    return Response(paginate(data, request))
+
+
+
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def category_sales(request):
+    qs = OrderItem.objects.select_related('product__category', 'order')
+
+    qs = qs.filter(order__in=apply_order_filters(Order.objects.all(), request))
+
+    data = qs.values('product__category__name').annotate(
+        total=Sum('total_price')
+    )
+
+    return Response(paginate(data, request))
+
+
+
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def veg_nonveg(request):
+    qs = OrderItem.objects.select_related('order', 'product')
+
+    qs = qs.filter(order__in=apply_order_filters(Order.objects.all(), request))
+
+    data = qs.values('product__is_veg').annotate(
+        total=Sum('total_price')
+    )
+
+    return Response(paginate(data, request))
+
+
+
+
+
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def kot_volume(request):
+    qs = KOT.objects.select_related('order')
+
+    qs = qs.filter(order__in=apply_order_filters(Order.objects.all(), request))
+
+    data = qs.values('created_at__date').annotate(
+        total=Count('id')
+    )
+
+    return Response(paginate(data, request))
+
+
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def table_kot(request):
+    qs = KOT.objects.select_related('table', 'order')
+
+    qs = qs.filter(order__in=apply_order_filters(Order.objects.all(), request))
+
+    data = qs.values('table__table_number').annotate(
+        total=Count('id')
+    )
+
+    return Response(paginate(data, request))
+
+
+
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def kitchen_efficiency(request):
+    qs = OrderItem.objects.select_related('order')
+
+    qs = qs.filter(order__in=apply_order_filters(Order.objects.all(), request))
+
+    data = qs.values('status').annotate(
+        count=Count('id')
+    )
+
+    return Response(paginate(data, request))
+
+
+
+
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def kot_turnaround(request):
+    qs = KOT.objects.select_related('order')
+
+    qs = qs.filter(order__in=apply_order_filters(Order.objects.all(), request))
+
+    data = qs.annotate(
+        turnaround=timezone.now() - F('created_at')
+    ).values('kot_number', 'turnaround')
+
+    return Response(paginate(data, request))
+
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def table_turnover(request):
+    qs = apply_order_filters(Order.objects.all(), request)
+
+    data = qs.values('table_number__table_number').annotate(
+        orders=Count('id')
+    )
+
+    return Response(paginate(data, request))
+
+
+@swagger_auto_schema(method='get')
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def table_utilization(request):
+    data = Table.objects.values('status').annotate(
+        count=Count('id')
+    )
+
+    return Response(paginate(data, request))
+
+
+
+
+
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def expense_vs_revenue(request):
+    qs = apply_order_filters(Order.objects.all(), request)
+
+    revenue = qs.aggregate(total=Sum('total_price'))['total']
+    expense = Expense.objects.aggregate(total=Sum('amount'))['total']
+
+    return Response({
+        "revenue": revenue,
+        "expense": expense
+    })
+    
+    
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def refund_analysis(request):
+    qs = RefundNote.objects.select_related('order')
+
+    qs = qs.filter(order__in=apply_order_filters(Order.objects.all(), request))
+
+    data = qs.values('refund_title').annotate(
+        total=Sum('refund_amount')
+    )
+
+    return Response(paginate(data, request))
+
+
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def customer_repeat_report(request):
+    qs = apply_order_filters(Order.objects.all(), request)
+
+    data = Customer.objects.filter(order__in=qs)\
+        .values('phone_number')\
+        .annotate(order_count=Count('id'))
+
+    repeat = sum(1 for d in data if d['order_count'] > 1)
+    new = sum(1 for d in data if d['order_count'] == 1)
+
+    return Response({
+        "repeat_customers": repeat,
+        "new_customers": new
+    })
+    
+
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def avg_order_value_trend(request):
+    qs = apply_order_filters(Order.objects.all(), request)
+
+    data = qs.values('order_date__date')\
+        .annotate(avg_order_value=Avg('total_price'))\
+        .order_by('order_date__date')
+
+    return Response(paginate(data, request))
+
+
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def peak_days_report(request):
+    qs = apply_order_filters(Order.objects.all(), request)
+
+    data = qs.values('order_date__week_day')\
+        .annotate(total_sales=Sum('total_price'))\
+        .order_by('-total_sales')
+
+    return Response(paginate(data, request))
+
+
+
+
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def coupon_impact_report(request):
+    qs = apply_order_filters(Order.objects.filter(mode='coupon'), request)
+
+    total_discount_orders = qs.count()
+    total_discount_revenue = qs.aggregate(total=Sum('total_price'))['total']
+
+    return Response({
+        "orders_with_coupon": total_discount_orders,
+        "revenue_from_coupon_orders": total_discount_revenue
+    })
+    
+    
+
+@swagger_auto_schema(method='get')
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def stockout_impact_report(request):
+    data = Product.objects.filter(is_stock_out=True)\
+        .values('name', 'price')
+
+    return Response({
+        "out_of_stock_items": list(data),
+        "count": data.count()
+    })
