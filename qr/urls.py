@@ -21,6 +21,7 @@ from .views import (
     list_banners,
     get_banner,
     update_banner,
+    get_qr_customization,
 )
 
 urlpatterns = [
@@ -45,4 +46,5 @@ urlpatterns = [
     path('generate-qr/<int:outlet_id>/', generate_table_qrs, name='generate_table_qrs'),
     path('qr-customization/colors/<int:outlet_id>/add/',add_colors_to_palette,name='add_colors_to_palette'),
     path('qr-customization/colors/<int:outlet_id>/remove/',remove_colors_from_palette,name='remove_colors_from_palette'),
+    path('get-qr-customization/<int:outlet_id>/',get_qr_customization,name='get_qr_customization'),
 ]

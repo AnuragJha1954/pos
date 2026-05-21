@@ -31,6 +31,7 @@ from django.utils.timezone import localtime
 from django.db.models import Q
 from django.conf import settings
 from django.template.loader import render_to_string
+from django.views.decorators.csrf import csrf_exempt
 
 from v1.models import (
     Outlet,
@@ -144,57 +145,208 @@ def category_list(request, outlet_id):
 )
 @permission_classes([AllowAny])
 def product_list(request, outlet_id):
+
     try:
-        # Fetch the outlet to ensure it exists
-        outlet = get_object_or_404(Outlet, id=outlet_id)
 
-        # Get query parameters
-        is_veg = request.query_params.get('isVeg', 'true').lower() == 'true'
-        is_nonveg = request.query_params.get('isNonveg', 'true').lower() == 'true'
+        # -----------------------------------------
+        # CHECK OUTLET
+        # -----------------------------------------
+        outlet = get_object_or_404(
+            Outlet,
+            id=outlet_id
+        )
 
-        # Apply filtering logic based on the query parameters
+        # -----------------------------------------
+        # QUERY PARAMS
+        # -----------------------------------------
+        is_veg = (
+            request.query_params.get(
+                'isVeg',
+                'true'
+            ).lower() == 'true'
+        )
+
+        is_nonveg = (
+            request.query_params.get(
+                'isNonveg',
+                'true'
+            ).lower() == 'true'
+        )
+
+        # -----------------------------------------
+        # FETCH PRODUCTS OF OUTLET ONLY
+        # -----------------------------------------
+        products = Product.objects.filter(
+            outlet=outlet
+        ).select_related(
+            'category'
+        ).order_by(
+            'category__name',
+            'name'
+        )
+
+        # -----------------------------------------
+        # VEG / NONVEG FILTER
+        # -----------------------------------------
         if is_veg and not is_nonveg:
-            products = Product.objects.filter(outlet=outlet, is_veg=True)
+
+            products = products.filter(
+                is_veg=True
+            )
+
         elif not is_veg and is_nonveg:
-            products = Product.objects.filter(outlet=outlet, is_veg=False)
-        else:
-            products = Product.objects.filter(outlet=outlet)  # No filtering on is_veg
 
-        products = products.select_related('category').prefetch_related('variants').all()
+            products = products.filter(
+                is_veg=False
+            )
 
-        # Group products by category
+        # -----------------------------------------
+        # GROUP BY CATEGORY
+        # -----------------------------------------
         category_dict = {}
+
         for product in products:
+
             category_id = product.category.id
+
             category_name = product.category.name
 
-            # Initialize the category in the dictionary if not already present
+            # Create category group
             if category_id not in category_dict:
+
                 category_dict[category_id] = {
                     "category_id": category_id,
                     "category_name": category_name,
                     "items": []
                 }
 
-            # Serialize the product and append it to the category's items
-            product_data = ProductSerializer(product, context={'request': request}).data
-            category_dict[category_id]["items"].append(product_data)
+            # -----------------------------------------
+            # FETCH VARIANTS OF CURRENT PRODUCT ONLY
+            # -----------------------------------------
+            variants_queryset = ProductVariant.objects.filter(
+                product_id=product.id
+            )
 
-        # Convert the dictionary to a list
-        response_data = list(category_dict.values())
+            variants_data = []
+
+            for variant in variants_queryset:
+
+                variants_data.append({
+
+                    "id": variant.id,
+
+                    "name": variant.name,
+
+                    "price": str(variant.price),
+
+                    "is_gst_inclusive": (
+                        variant.is_gst_inclusive
+                    ),
+
+                    "extra_description": (
+                        variant.extra_description
+                    ),
+
+                    "created_at": (
+                        variant.created_at
+                    ),
+
+                    "updated_at": (
+                        variant.updated_at
+                    ),
+
+                    "is_stock_out": (
+                        variant.is_stock_out
+                    )
+                })
+
+            # -----------------------------------------
+            # PRODUCT DATA
+            # -----------------------------------------
+            product_data = {
+
+                "id": product.id,
+
+                "name": product.name,
+
+                "price": str(product.price),
+
+                "description": (
+                    product.description
+                ),
+
+                "gst_percentage": (
+                    str(product.gst_percentage)
+                    if product.gst_percentage
+                    else None
+                ),
+
+                "is_gst_inclusive": (
+                    product.is_gst_inclusive
+                ),
+
+                "created_at": (
+                    product.created_at
+                ),
+
+                "updated_at": (
+                    product.updated_at
+                ),
+
+                "category": category_name,
+
+                "variants": variants_data,
+
+                "image_url": (
+                    request.build_absolute_uri(
+                        product.image.url
+                    )
+                    if product.image
+                    else None
+                ),
+
+                "is_veg": (
+                    product.is_veg
+                ),
+
+                "is_stock_out": (
+                    product.is_stock_out
+                )
+            }
+
+            # -----------------------------------------
+            # ADD PRODUCT TO CATEGORY
+            # -----------------------------------------
+            category_dict[
+                category_id
+            ]["items"].append(
+                product_data
+            )
+
+        # -----------------------------------------
+        # FINAL RESPONSE
+        # -----------------------------------------
+        response_data = list(
+            category_dict.values()
+        )
 
         return Response({
             "error": False,
-            "details": "Products fetched successfully",
+            "details": (
+                "Products fetched successfully"
+            ),
             "sequence": 3,
             "categories": response_data
+
         })
+
     except Exception as e:
         return Response({
             "error": True,
-            "details": f"An error occurred: {str(e)}"
+            "details": (
+                f"An error occurred: {str(e)}"
+            )
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
     
     
 
@@ -580,19 +732,46 @@ special_menu_get_response = openapi.Schema(
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def get_special_menu(request, outlet_id):
+
     try:
-        menus = SpecialMenu.objects.filter(outlet_id=outlet_id)
-        if not menus.exists():
+
+        # 🔥 GET SINGLE SPECIAL MENU
+        menu = SpecialMenu.objects.filter(
+            outlet_id=outlet_id
+        ).first()
+
+        if not menu:
+
             return Response(
-                {"error": True, "detail": "No special menus found for this outlet."},
+                {
+                    "error": True,
+                    "detail": (
+                        "No special menus found for this outlet."
+                    ),
+                },
                 status=status.HTTP_404_NOT_FOUND,
             )
-    except Exception:
-        return Response({"error": True, "detail": "Outlet not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    serializer = SpecialMenuSerializer(menus, many=True)
+    except Exception:
+
+        return Response(
+            {
+                "error": True,
+                "detail": "Outlet not found."
+            },
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    # 🔥 SINGLE OBJECT SERIALIZER
+    serializer = SpecialMenuSerializer(menu)
+
     return Response(
-        {"error": False, "special_menus": serializer.data},
+        {
+            "error": False,
+
+            # 🔥 OBJECT INSTEAD OF ARRAY
+            "special_menus": serializer.data
+        },
         status=status.HTTP_200_OK,
     )
 
@@ -849,7 +1028,7 @@ def get_outlet_details(request, outlet_id):
         },
         "qr_customization_details": {
             "qr_tagline": qr_customization.qr_tagline if qr_customization else None,
-            "qr_logo": request.build_absolute_uri(qr_customization.qr_logo.url) if qr_customization and qr_customization.qr_logo else None,
+            "qr_logo": request.build_absolute_uri(outlet.logo.url) if outlet.logo else None,
             "theme_color": qr_customization.theme_color if qr_customization else None,
         }
     }
@@ -994,15 +1173,117 @@ special_menu_response = openapi.Schema(
 )
 @api_view(["POST"])
 @permission_classes([AllowAny])
-def create_special_menu(request):
-    serializer = SpecialMenuSerializer(data=request.data)
-    if serializer.is_valid():
-        special_menu = serializer.save()
-        return Response(
-            {"error": False, "detail": "Special menu created successfully.", "menu": serializer.data},
-            status=status.HTTP_201_CREATED,
+def create_special_menu(request, outlet_id):
+
+    try:
+
+        # 🔥 GET OUTLET
+        try:
+            outlet = Outlet.objects.get(id=outlet_id)
+
+        except Outlet.DoesNotExist:
+            return Response({
+                "error": True,
+                "detail": "Outlet not found."
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        name = request.data.get("name")
+
+        product_ids = request.data.get(
+            "product_ids",
+            []
         )
-    return Response({"error": True, "detail": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not name:
+            return Response({
+                "error": True,
+                "detail": "Menu name is required."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # 🔥 MAX 5 PRODUCTS CHECK
+        if len(product_ids) > 5:
+            return Response({
+                "error": True,
+                "detail": "Maximum 5 products are allowed in special menu."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Fetch outlet products only
+        products = Product.objects.filter(
+            outlet=outlet,
+            id__in=product_ids
+        )
+
+        # ==========================================
+        # CHECK IF MENU EXISTS
+        # ==========================================
+        special_menu = SpecialMenu.objects.filter(
+            outlet=outlet,
+            name=name
+        ).first()
+
+        # ==========================================
+        # UPDATE EXISTING MENU
+        # ==========================================
+        if special_menu:
+
+            special_menu.products.set(products)
+
+            message = "Special menu updated successfully."
+
+            status_code = status.HTTP_200_OK
+
+        # ==========================================
+        # CREATE NEW MENU
+        # ==========================================
+        else:
+
+            special_menu = SpecialMenu.objects.create(
+                outlet=outlet,
+                name=name
+            )
+
+            special_menu.products.set(products)
+
+            message = "Special menu created successfully."
+
+            status_code = status.HTTP_201_CREATED
+
+        return Response({
+            "error": False,
+
+            "detail": message,
+
+            "menu": {
+                "id": special_menu.id,
+
+                "name": special_menu.name,
+
+                "outlet": {
+                    "id": outlet.id,
+                    "name": outlet.outlet_name
+                },
+
+                "products": [
+                    {
+                        "id": product.id,
+                        "name": product.name,
+                        "price": str(product.price),
+                        "description": product.description,
+                        "is_veg": product.is_veg,
+                        "is_stock_out": product.is_stock_out,
+                    }
+                    for product in special_menu.products.all()
+                ]
+            }
+
+        }, status=status_code)
+
+    except Exception as e:
+
+        return Response({
+            "error": True,
+            "detail": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # ---------------- ADD PRODUCT TO SPECIAL MENU ----------------
@@ -1224,6 +1505,7 @@ Each QR contains:
         )
     }
 )
+@csrf_exempt
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def generate_table_qrs(request, outlet_id):
@@ -1233,63 +1515,47 @@ def generate_table_qrs(request, outlet_id):
 
     except Outlet.DoesNotExist:
         return Response(
-            {
-                "error": True,
-                "message": "Outlet not found"
-            },
+            {"error": True, "message": "Outlet not found"},
             status=status.HTTP_404_NOT_FOUND
         )
 
-    tables = Table.objects.filter(
-        outlet=outlet
-    ).order_by('table_number')
+    tables = Table.objects.filter(outlet=outlet).order_by('table_number')
 
     response_data = []
 
     # ---------------------------------------------------
     # CREATE QR DIRECTORY
     # ---------------------------------------------------
-    qr_folder = os.path.join(
-        settings.MEDIA_ROOT,
-        "table_qrs"
-    )
-
+    qr_folder = os.path.join(settings.MEDIA_ROOT, "table_qrs")
     os.makedirs(qr_folder, exist_ok=True)
 
     # ---------------------------------------------------
     # FONTS
     # ---------------------------------------------------
     try:
-        title_font = ImageFont.truetype("arial.ttf", 44)
-        subtitle_font = ImageFont.truetype("arial.ttf", 30)
-        text_font = ImageFont.truetype("arial.ttf", 26)
-        footer_font = ImageFont.truetype("arial.ttf", 22)
+        outlet_font  = ImageFont.truetype("arial.ttf", 40)   # outlet name
+        table_font   = ImageFont.truetype("arial.ttf", 48)   # table number
+        scan_font    = ImageFont.truetype("arial.ttf", 46)   # scan to order  ← BIG
+        footer_font  = ImageFont.truetype("arial.ttf", 24)   # powered by
 
     except:
-        title_font = ImageFont.load_default()
-        subtitle_font = ImageFont.load_default()
-        text_font = ImageFont.load_default()
-        footer_font = ImageFont.load_default()
+        outlet_font  = ImageFont.load_default()
+        table_font   = ImageFont.load_default()
+        scan_font    = ImageFont.load_default()
+        footer_font  = ImageFont.load_default()
 
     # ---------------------------------------------------
     # QR CARD GENERATOR
     # ---------------------------------------------------
-    def create_qr_card(
-        qr_data,
-        file_name,
-        table_number=None
-    ):
+    def create_qr_card(qr_data, file_name, table_number=None):
 
-        # ---------------------------------------------------
-        # GENERATE QR
-        # ---------------------------------------------------
+        # ── QR CODE ──────────────────────────────────────
         qr = qrcode.QRCode(
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_H,
-            box_size=14,
+            box_size=12,
             border=2
         )
-
         qr.add_data(qr_data)
         qr.make(fit=True)
 
@@ -1298,378 +1564,198 @@ def generate_table_qrs(request, outlet_id):
             back_color="white"
         ).convert("RGB")
 
-        qr_image = qr_image.resize((430, 430))
+        qr_image = qr_image.resize((400, 400))
 
-        # ---------------------------------------------------
-        # MAIN CANVAS
-        # ---------------------------------------------------
-        canvas_width = 700
-        canvas_height = 1050
+        # ── CANVAS ───────────────────────────────────────
+        canvas_width  = 600
+        canvas_height = 1060      # tall enough for all elements
 
-        canvas = Image.new(
-            "RGB",
-            (canvas_width, canvas_height),
-            "#eef2ff"
-        )
+        canvas = Image.new("RGB", (canvas_width, canvas_height), "#f1f5f9")
+        draw   = ImageDraw.Draw(canvas)
 
-        draw = ImageDraw.Draw(canvas)
-
-        # ---------------------------------------------------
-        # MAIN CARD
-        # ---------------------------------------------------
-        card_margin = 30
-
-        card_x1 = card_margin
-        card_y1 = card_margin
-
-        card_x2 = canvas_width - card_margin
-        card_y2 = canvas_height - card_margin
-
+        # ── WHITE CARD ───────────────────────────────────
+        cm = 22   # card margin
         draw.rounded_rectangle(
-            (
-                card_x1,
-                card_y1,
-                card_x2,
-                card_y2
-            ),
-            radius=40,
+            (cm, cm, canvas_width - cm, canvas_height - cm),
+            radius=30,
             fill="white",
-            outline="#dbeafe",
-            width=3
+            outline="#e2e8f0",
+            width=2
         )
 
-        current_y = 60
+        current_y = 55
 
-        # ---------------------------------------------------
-        # TOP HEADER STRIP
-        # ---------------------------------------------------
-        draw.rounded_rectangle(
-            (
-                card_x1,
-                card_y1,
-                card_x2,
-                170
-            ),
-            radius=40,
-            fill="#2563eb"
-        )
-
-        # ---------------------------------------------------
-        # OUTLET LOGO
-        # ---------------------------------------------------
+        # ── OUTLET LOGO ──────────────────────────────────
         logo_rendered = False
 
         if outlet.logo:
-
             try:
-
-                logo_path = os.path.join(
-                    settings.MEDIA_ROOT,
-                    outlet.logo.name
-                )
+                logo_path = os.path.join(settings.MEDIA_ROOT, outlet.logo.name)
 
                 if os.path.exists(logo_path):
+                    logo = Image.open(logo_path).convert("RGBA")
 
-                    logo = Image.open(
-                        logo_path
-                    ).convert("RGBA")
-
-                    # -----------------------------------------
-                    # REMOVE EXTRA TRANSPARENT/WHITE PADDING
-                    # -----------------------------------------
+                    # crop transparent padding
                     bbox = logo.getbbox()
-
                     if bbox:
                         logo = logo.crop(bbox)
 
-                    # -----------------------------------------
-                    # RESIZE LOGO
-                    # -----------------------------------------
-                    logo_size = 130
+                    # fit inside circle
+                    logo_size = 118
+                    logo.thumbnail((logo_size, logo_size), Image.LANCZOS)
 
-                    logo.thumbnail(
-                        (logo_size, logo_size),
-                        Image.LANCZOS
+                    container_size = 148
+
+                    # ── clean white circle with border ──
+                    circle_img  = Image.new("RGBA", (container_size, container_size), (0, 0, 0, 0))
+                    circle_draw = ImageDraw.Draw(circle_img)
+
+                    # border ring
+                    circle_draw.ellipse(
+                        (0, 0, container_size - 1, container_size - 1),
+                        fill=(226, 232, 240, 255)   # #e2e8f0
                     )
 
-                    # -----------------------------------------
-                    # CREATE CLEAN CIRCLE CONTAINER
-                    # -----------------------------------------
-                    container_size = 170
-
-                    logo_container = Image.new(
-                        "RGBA",
-                        (container_size, container_size),
-                        (255, 255, 255, 0)
-                    )
-
-                    container_draw = ImageDraw.Draw(
-                        logo_container
-                    )
-
-                    # soft shadow
-                    container_draw.ellipse(
-                        (6, 8, container_size-2, container_size),
-                        fill=(0, 0, 0, 25)
-                    )
-
-                    # white circle
-                    container_draw.ellipse(
-                        (0, 0, container_size-8, container_size-8),
+                    # white fill
+                    border = 3
+                    circle_draw.ellipse(
+                        (border, border, container_size - border - 1, container_size - border - 1),
                         fill=(255, 255, 255, 255)
                     )
 
-                    # -----------------------------------------
-                    # CENTER LOGO
-                    # -----------------------------------------
-                    paste_x = (
-                        (container_size - logo.width) // 2
-                    ) - 4
+                    # ── circular mask for logo ──────────
+                    inner  = container_size - border * 2 - 1
+                    mask   = Image.new("L", (inner, inner), 0)
+                    ImageDraw.Draw(mask).ellipse((0, 0, inner - 1, inner - 1), fill=255)
 
-                    paste_y = (
-                        (container_size - logo.height) // 2
-                    ) - 4
+                    logo_canvas = Image.new("RGBA", (inner, inner), (255, 255, 255, 255))
+                    lx = (inner - logo.width)  // 2
+                    ly = (inner - logo.height) // 2
+                    logo_canvas.paste(logo, (lx, ly), logo)
+                    logo_canvas.putalpha(mask)
 
-                    logo_container.paste(
-                        logo,
-                        (paste_x, paste_y),
-                        logo
-                    )
+                    circle_img.paste(logo_canvas, (border, border), logo_canvas)
 
-                    # -----------------------------------------
-                    # PASTE TO MAIN CANVAS
-                    # -----------------------------------------
-                    final_x = (
-                        canvas_width - container_size
-                    ) // 2
+                    paste_x = (canvas_width - container_size) // 2
+                    canvas.paste(circle_img, (paste_x, current_y), circle_img)
 
-                    canvas.paste(
-                        logo_container,
-                        (final_x, current_y),
-                        logo_container
-                    )
-
-                    current_y += 185
-
+                    current_y  += container_size + 20
                     logo_rendered = True
 
             except Exception as e:
                 print("Logo Error:", str(e))
-        # ---------------------------------------------------
-        # OUTLET NAME
-        # ---------------------------------------------------
+
+        # ── OUTLET NAME ──────────────────────────────────
         outlet_name = outlet.outlet_name
-
-        bbox = draw.textbbox(
-            (0, 0),
-            outlet_name,
-            font=subtitle_font
-        )
-
-        text_width = bbox[2] - bbox[0]
+        bbox        = draw.textbbox((0, 0), outlet_name, font=outlet_font)
+        text_width  = bbox[2] - bbox[0]
 
         draw.text(
-            (
-                (canvas_width - text_width) // 2,
-                current_y
-            ),
+            ((canvas_width - text_width) // 2, current_y),
             outlet_name,
-            fill="#111827",
-            font=subtitle_font
+            fill="#1e293b",
+            font=outlet_font
         )
 
-        current_y += 60
+        current_y += 55
 
-        # ---------------------------------------------------
-        # TABLE NUMBER
-        # ---------------------------------------------------
+        # ── DIVIDER ──────────────────────────────────────
+        div_margin = 100
+        draw.line(
+            (div_margin, current_y, canvas_width - div_margin, current_y),
+            fill="#e2e8f0",
+            width=2
+        )
+
+        current_y += 28
+
+        # ── TABLE NUMBER PILL ────────────────────────────
         if table_number:
+            table_text = f"Table  {table_number}"
+            bbox       = draw.textbbox((0, 0), table_text, font=table_font)
+            tw         = bbox[2] - bbox[0]
+            th         = bbox[3] - bbox[1]
 
-            table_text = f"Table {table_number}"
-
-            bbox = draw.textbbox(
-                (0, 0),
-                table_text,
-                font=title_font
-            )
-
-            text_width = bbox[2] - bbox[0]
-
-            # Pill background
-            pill_width = text_width + 60
-            pill_height = 65
-
-            pill_x1 = (canvas_width - pill_width) // 2
+            pill_w  = tw + 80
+            pill_h  = th + 30
+            pill_x1 = (canvas_width - pill_w) // 2
             pill_y1 = current_y
 
-            pill_x2 = pill_x1 + pill_width
-            pill_y2 = pill_y1 + pill_height
-
             draw.rounded_rectangle(
-                (
-                    pill_x1,
-                    pill_y1,
-                    pill_x2,
-                    pill_y2
-                ),
-                radius=40,
-                fill="#dbeafe"
+                (pill_x1, pill_y1, pill_x1 + pill_w, pill_y1 + pill_h),
+                radius=pill_h // 2,
+                fill="#eff6ff",
+                outline="#bfdbfe",
+                width=2
             )
 
             draw.text(
-                (
-                    (canvas_width - text_width) // 2,
-                    current_y + 10
-                ),
+                ((canvas_width - tw) // 2, pill_y1 + 14),
                 table_text,
                 fill="#2563eb",
-                font=title_font
+                font=table_font
             )
 
-            current_y += 110
+            current_y += pill_h + 32
 
-        # ---------------------------------------------------
-        # QR CONTAINER
-        # ---------------------------------------------------
-        qr_box_size = 500
+        # ── QR IMAGE BOX ─────────────────────────────────
+        qr_pad   = 20
+        qr_box_w = qr_image.width  + qr_pad * 2
+        qr_box_h = qr_image.height + qr_pad * 2
+        qr_box_x = (canvas_width - qr_box_w) // 2
 
-        qr_box_x1 = (canvas_width - qr_box_size) // 2
-        qr_box_y1 = current_y
-
-        qr_box_x2 = qr_box_x1 + qr_box_size
-        qr_box_y2 = qr_box_y1 + qr_box_size
-
-        # Shadow
+        # shadow
         draw.rounded_rectangle(
-            (
-                qr_box_x1 + 8,
-                qr_box_y1 + 10,
-                qr_box_x2 + 8,
-                qr_box_y2 + 10
-            ),
-            radius=35,
-            fill="#dbeafe"
+            (qr_box_x + 5, current_y + 7, qr_box_x + qr_box_w + 5, current_y + qr_box_h + 7),
+            radius=18,
+            fill="#e2e8f0"
         )
 
-        # Main box
+        # box
         draw.rounded_rectangle(
-            (
-                qr_box_x1,
-                qr_box_y1,
-                qr_box_x2,
-                qr_box_y2
-            ),
-            radius=35,
+            (qr_box_x, current_y, qr_box_x + qr_box_w, current_y + qr_box_h),
+            radius=18,
             fill="white",
-            outline="#bfdbfe",
-            width=3
+            outline="#e2e8f0",
+            width=2
         )
 
-        qr_x = (canvas_width - qr_image.width) // 2
-        qr_y = current_y + 35
+        canvas.paste(qr_image, (qr_box_x + qr_pad, current_y + qr_pad))
 
-        canvas.paste(
-            qr_image,
-            (qr_x, qr_y)
-        )
+        current_y += qr_box_h + 38
 
-        current_y += qr_box_size + 45
-
-        # ---------------------------------------------------
-        # SCAN TEXT
-        # ---------------------------------------------------
-        scan_text = "Scan QR to Order"
-
-        bbox = draw.textbbox(
-            (0, 0),
-            scan_text,
-            font=text_font
-        )
-
+        # ── SCAN QR TO ORDER  (big, bold-ish) ────────────
+        scan_text  = "Scan QR to Order"
+        bbox       = draw.textbbox((0, 0), scan_text, font=scan_font)
         text_width = bbox[2] - bbox[0]
 
         draw.text(
-            (
-                (canvas_width - text_width) // 2,
-                current_y
-            ),
+            ((canvas_width - text_width) // 2, current_y),
             scan_text,
-            fill="#374151",
-            font=text_font
+            fill="#111827",
+            font=scan_font
         )
 
-        current_y += 45
+        current_y += 58
 
-        # ---------------------------------------------------
-        # SUBTEXT
-        # ---------------------------------------------------
-        sub_text = "Fast • Secure • Contactless"
-
-        bbox = draw.textbbox(
-            (0, 0),
-            sub_text,
-            font=footer_font
-        )
-
-        text_width = bbox[2] - bbox[0]
-
-        draw.text(
-            (
-                (canvas_width - text_width) // 2,
-                current_y
-            ),
-            sub_text,
-            fill="#6b7280",
-            font=footer_font
-        )
-
-        current_y += 70
-
-        # ---------------------------------------------------
-        # FOOTER
-        # ---------------------------------------------------
+        # ── POWERED BY MANTRA POS ────────────────────────
         footer_text = "Powered by Mantra POS"
-
-        bbox = draw.textbbox(
-            (0, 0),
-            footer_text,
-            font=footer_font
-        )
-
-        text_width = bbox[2] - bbox[0]
+        bbox        = draw.textbbox((0, 0), footer_text, font=footer_font)
+        text_width  = bbox[2] - bbox[0]
 
         draw.text(
-            (
-                (canvas_width - text_width) // 2,
-                current_y
-            ),
+            ((canvas_width - text_width) // 2, current_y),
             footer_text,
-            fill="#9ca3af",
+            fill="#94a3b8",
             font=footer_font
         )
 
-        # ---------------------------------------------------
-        # SAVE IMAGE
-        # ---------------------------------------------------
-        file_path = os.path.join(
-            qr_folder,
-            file_name
-        )
+        # ── SAVE ─────────────────────────────────────────
+        file_path = os.path.join(qr_folder, file_name)
+        canvas.save(file_path, quality=95)
 
-        canvas.save(
-            file_path,
-            quality=95
-        )
-
-        relative_url = (
-            f"{settings.MEDIA_URL}table_qrs/{file_name}"
-        )
-
-        absolute_url = request.build_absolute_uri(
-            relative_url
-        )
-
-        return absolute_url
+        relative_url = f"{settings.MEDIA_URL}table_qrs/{file_name}"
+        return request.build_absolute_uri(relative_url)
 
     # ---------------------------------------------------
     # TABLE QR FLOW
@@ -1678,11 +1764,8 @@ def generate_table_qrs(request, outlet_id):
 
         for table in tables:
 
-            qr_data = f"table_id={table.table_id}"
-
-            file_name = (
-                f"table_{table.table_id}.png"
-            )
+            qr_data   = f"https://qr.mantrapos.com/{outlet.id}/{table.id}"
+            file_name = f"table_{table.id}.png"
 
             qr_url = create_qr_card(
                 qr_data=qr_data,
@@ -1692,38 +1775,34 @@ def generate_table_qrs(request, outlet_id):
 
             response_data.append({
                 "table_number": table.table_number,
-                "table_id": table.table_id,
-                "location": table.location,
-                "qr_data": qr_data,
-                "qr_image": qr_url
+                "table_id":     table.table_id,
+                "location":     table.location,
+                "qr_data":      qr_data,
+                "qr_image":     qr_url
             })
 
         return Response({
-            "error": False,
-            "type": "table_qrs",
-            "outlet_id": outlet.id,
+            "error":        False,
+            "type":         "table_qrs",
+            "outlet_id":    outlet.id,
             "total_tables": tables.count(),
-            "tables": response_data
+            "tables":       response_data
         })
 
     # ---------------------------------------------------
     # SINGLE OUTLET QR
     # ---------------------------------------------------
-    qr_data = f"outlet_id={outlet.id}"
-
+    qr_data   = f"https://qr.mantrapos.com/{outlet.id}"
     file_name = f"outlet_{outlet.id}.png"
 
-    qr_url = create_qr_card(
-        qr_data=qr_data,
-        file_name=file_name
-    )
+    qr_url = create_qr_card(qr_data=qr_data, file_name=file_name)
 
     return Response({
-        "error": False,
-        "type": "outlet_qr",
+        "error":     False,
+        "type":      "outlet_qr",
         "outlet_id": outlet.id,
-        "qr_data": qr_data,
-        "qr_image": qr_url
+        "qr_data":   qr_data,
+        "qr_image":  qr_url
     })
 
 
@@ -1862,4 +1941,122 @@ def remove_colors_from_palette(request, outlet_id):
 
 
 
+@swagger_auto_schema(
+    method='get',
+    operation_description="Get QR customization details for a specific outlet.",
+    manual_parameters=[
+        openapi.Parameter(
+            'outlet_id',
+            openapi.IN_PATH,
+            description="ID of the outlet",
+            type=openapi.TYPE_INTEGER,
+            required=True
+        )
+    ],
+    responses={
+        200: openapi.Response(
+            description="QR customization fetched successfully",
+            examples={
+                "application/json": {
+                    "error": False,
+                    "detail": "QR customization fetched successfully.",
+                    "customization": {
+                        "id": 1,
+                        "outlet": {
+                            "id": 5,
+                            "name": "Mantra Cafe"
+                        },
+                        "qr_tagline": "Scan & Order",
+                        "qr_logo": "https://yourdomain.com/media/qr_logos/logo.png",
+                        "theme_color": "#FF5733",
+                        "color_palette": [
+                            "#FF5733",
+                            "#FFFFFF",
+                            "#000000"
+                        ]
+                    }
+                }
+            }
+        ),
 
+        404: openapi.Response(
+            description="Outlet not found",
+            examples={
+                "application/json": {
+                    "error": True,
+                    "detail": "Outlet not found."
+                }
+            }
+        ),
+
+        500: openapi.Response(
+            description="Internal server error",
+            examples={
+                "application/json": {
+                    "error": True,
+                    "detail": "Something went wrong."
+                }
+            }
+        )
+    }
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_qr_customization(request, outlet_id):
+    try:
+
+        outlet = Outlet.objects.get(id=outlet_id)
+        qr_customization = QRCustomization.objects.filter(
+            outlet=outlet
+        ).first()
+
+        # If no customization exists
+        if not qr_customization:
+            return Response({
+                "error": False,
+                "detail": "QR customization not found.",
+                "customization": None
+            }, status=status.HTTP_200_OK)
+
+        return Response({
+            "error": False,
+            "detail": "QR customization fetched successfully.",
+            "customization": {
+                "id": qr_customization.id,
+
+                "outlet": {
+                    "id": outlet.id,
+                    "name": outlet.outlet_name
+                },
+
+                "qr_tagline": qr_customization.qr_tagline,
+
+                "qr_logo": (
+                    request.build_absolute_uri(
+                        qr_customization.qr_logo.url
+                    )
+                    if qr_customization.qr_logo
+                    else None
+                ),
+
+                "theme_color": qr_customization.theme_color,
+
+                "color_palette": (
+                    qr_customization.color_palette
+                    if qr_customization.color_palette
+                    else []
+                )
+            }
+        }, status=status.HTTP_200_OK)
+
+    except Outlet.DoesNotExist:
+        return Response({
+            "error": True,
+            "detail": "Outlet not found."
+        }, status=status.HTTP_404_NOT_FOUND)
+
+    except Exception as e:
+        return Response({
+            "error": True,
+            "detail": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

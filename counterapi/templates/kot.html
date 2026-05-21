@@ -88,15 +88,16 @@
     <table class="items">
         <thead>
             <tr>
-                <th class="heading">Item</th>
+                <th class="heading" style="text-align: left;">Item</th>
                 <th class="heading">Qty</th>
             </tr>
         </thead>
+        
         <tbody>
             {% for item in items %}
             <tr>
                 <td>{{ item.product_name|default:item.variant_name }}</td>
-                <td>{{ item.quantity }}</td>
+                <td style="text-align: center;">{{ item.quantity }}</td>
             </tr>
             {% endfor %}
         </tbody>

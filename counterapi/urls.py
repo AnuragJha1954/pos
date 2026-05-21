@@ -64,7 +64,7 @@ urlpatterns = [
     
     path('outlet/<int:outlet_id>/tables/', get_tables_by_outlet),
     path('tables/<int:table_id>/status/', update_table_status),
-    path('tables/<int:table_id>/details/', get_table_with_kot, name='table-with-kot'),
+    path('tables/<str:table_id>/<int:outlet_id>/details/', get_table_with_kot, name='table-with-kot'),
     
     path('outlet/<int:outlet_id>/expenses/', get_expenses),
     path('outlet/<int:outlet_id>/expenses/add/', add_expense),

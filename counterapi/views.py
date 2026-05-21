@@ -30,6 +30,8 @@ from rest_framework.pagination import PageNumberPagination
 
 from datetime import timedelta,datetime
 
+from streamlit import table
+
 from .serializers import ( 
     CustomUserCounterLoginSerializer,
     ProductSerializer,
@@ -330,7 +332,7 @@ def product_list(request, outlet_id):
         search_query = request.GET.get('product')
         
         # Retrieve all products base queryset
-        base_products = Product.objects.filter(outlet_id=outlet_id).select_related('category').prefetch_related('variants').all()
+        base_products = Product.objects.filter(outlet__id=outlet_id).select_related('category').prefetch_related('variants').all()
         
         # Apply search filter if provided
         if search_query:
@@ -674,26 +676,30 @@ def place_order(request, outlet_id):
         data = request.data
 
         customer_data = data.get("customer")
-        items_data = data.get("items")
+        items_data = data.get("items", [])
         table_id = data.get("table_id")
         is_draft = data.get("is_draft", False)
+        # 🔥 QR ORDER FLAG
+        is_qr = data.get("is_qr", False)
 
         payment_mode = data.get("payment_mode")
         upi_type = data.get("upi_type")
-        paid_amount = Decimal(str(data.get("amount", "0")))
 
         order_number = generate_order_number()
 
-        # Customer
+        # -----------------------------------------
+        # CUSTOMER
+        # -----------------------------------------
         customer, _ = Customer.objects.get_or_create(
             name=customer_data.get("name"),
             phone_number=customer_data.get("phone_number")
         )
 
         is_takeaway = not bool(table_id)
-        # kot_enabled = has_kot_access(request.user)
 
-        # 🔥 STATUS DECISION
+        # -----------------------------------------
+        # STATUS DECISION
+        # -----------------------------------------
         if is_draft:
             order_status = "draft"
             payment_required = False
@@ -701,74 +707,265 @@ def place_order(request, outlet_id):
         elif is_takeaway:
             order_status = "payment_pending"
             payment_required = True
+        
+        # 🔥 QR ORDER
+        elif is_qr:
+            order_status = "pending_confirmation"
+            payment_required = False
 
         else:
             order_status = "pending"
             payment_required = False
 
-        # Create Order
-        order = Order.objects.create(
-            outlet_id=outlet_id,
-            order_number=order_number,
-            total_price=Decimal("0.00"),
-            gst=Decimal("0.00"),
-            status=order_status,
-            payment_status="pending"
-        )
+        # -----------------------------------------
+        # TABLE + EXISTING ORDER FLOW
+        # -----------------------------------------
+        table = None
+        existing_order = None
+
+        if table_id:
+
+            table = Table.objects.get(id=table_id)
+
+            # 🔥 USE EXISTING ORDER
+            if (
+                table.current_order and
+                table.current_order.status != "settled"
+            ):
+
+                existing_order = table.current_order
+
+                order = existing_order
+
+                # ==========================================
+                # 🔥 DRAFT TO PENDING FLOW
+                # ==========================================
+                if (
+                    order.status == 'draft'
+                    and not is_draft
+                ):
+
+                    order.status = 'pending'
+                    order.save()
+
+                    existing_items = order.items.all()
+
+                    processed_items = []
+
+                    for item in existing_items:
+
+                        processed_items.append({
+                            "order_item_id": item.id,
+
+                            "product_name": (
+                                item.product.name
+                                if item.product else None
+                            ),
+
+                            "variant_name": (
+                                item.product_variant.name
+                                if item.product_variant else None
+                            ),
+
+                            "quantity": item.quantity,
+
+                            "price": str(item.price),
+
+                            "gst": str(item.gst),
+
+                            "total_price": str(item.total_price),
+
+                            "status": item.status
+                        })
+
+                    # 🔥 CREATE KOT
+                    last_kot = KOT.objects.filter(
+                        table=table
+                    ).order_by('-kot_number').first()
+
+                    next_kot_number = 1
+
+                    if last_kot:
+                        next_kot_number = (
+                            last_kot.kot_number + 1
+                        )
+
+                    KOT.objects.create(
+                        table=table,
+                        order=order,
+                        kot_number=next_kot_number,
+                        items=processed_items
+                    )
+
+                    table.status = "running_kot"
+                    table.save()
+
+                    return JsonResponse({
+                        "error": False,
+
+                        "message": (
+                            "Draft order moved to pending."
+                        ),
+
+                        "data": {
+                            "order_id": order.id,
+
+                            "order_number": order.order_number,
+
+                            "status": order.status,
+
+                            "payment_status": (
+                                order.payment_status
+                            ),
+
+                            "total_price": float(
+                                order.total_price
+                            ),
+
+                            "gst": float(order.gst),
+
+                            "customer": customer.name,
+
+                            "table": table.table_number,
+
+                            "items": processed_items
+                        }
+                    })
+
+                # 🔥 REOPEN COMPLETED ORDER
+                elif order.status in [
+                    'completed',
+                    'ready'
+                ]:
+
+                    order.status =  (
+                        'pending_confirmation'
+                        if is_qr
+                        else 'pending'
+                    )
+                    order.save()
+
+            # ==========================================
+            # 🔥 CREATE NEW ORDER
+            # ==========================================
+            else:
+
+                order = Order.objects.create(
+                    outlet_id=outlet_id,
+                    order_number=order_number,
+                    total_price=Decimal("0.00"),
+                    gst=Decimal("0.00"),
+                    status=order_status,
+                    payment_status="pending"
+                )
+
+                table.current_order = order
+                table.status = "running"
+
+                table.save()
+
+                order.table_number = table
+                order.save()
+
+        # ==========================================
+        # 🔥 TAKEAWAY FLOW
+        # ==========================================
+        else:
+
+            order = Order.objects.create(
+                outlet_id=outlet_id,
+                order_number=order_number,
+                total_price=Decimal("0.00"),
+                gst=Decimal("0.00"),
+                status=order_status,
+                payment_status="pending"
+            )
 
         customer.order = order
         customer.save()
 
-        # Table handling
-        table = None
-        if table_id:
-            table = Table.objects.get(id=table_id)
-            table.current_order = order
-            table.status = "running"
-            table.save()
-
-            order.table_number = table
-            order.save()
-
+        # -----------------------------------------
+        # ITEM PROCESSING
+        # -----------------------------------------
         total_price = Decimal("0.00")
         total_gst = Decimal("0.00")
+
         processed_items = []
 
-        # 🔥 ITEM PROCESSING
         for item_data in items_data:
+
             product_id = item_data.get("product")
             variant_id = item_data.get("product_variant")
             quantity = item_data.get("quantity")
 
             if product_id:
+
                 product = Product.objects.get(id=product_id)
+
                 price = product.price
-                gst = product.gst_percentage or Decimal("0.00")
-                is_gst_inclusive = product.is_gst_inclusive
+
+                gst = (
+                    product.gst_percentage or
+                    Decimal("0.00")
+                )
+
+                is_gst_inclusive = (
+                    product.is_gst_inclusive
+                )
+
                 variant = None
+
             else:
-                variant = ProductVariant.objects.get(id=variant_id)
+
+                variant = ProductVariant.objects.get(
+                    id=variant_id
+                )
+
                 product = variant.product
+
                 price = variant.price
-                gst = product.gst_percentage or Decimal("0.00")
-                is_gst_inclusive = product.is_gst_inclusive
+
+                gst = (
+                    product.gst_percentage or
+                    Decimal("0.00")
+                )
+
+                is_gst_inclusive = (
+                    product.is_gst_inclusive
+                )
 
             total_item_price = price * quantity
 
             if is_gst_inclusive:
-                rate_excl = price / (1 + gst / Decimal("100"))
-                gst_amount = total_item_price - (rate_excl * quantity)
+
+                rate_excl = price / (
+                    1 + gst / Decimal("100")
+                )
+
+                gst_amount = (
+                    total_item_price -
+                    (rate_excl * quantity)
+                )
+
             else:
-                gst_amount = (gst / Decimal("100")) * total_item_price
+
+                gst_amount = (
+                    gst / Decimal("100")
+                ) * total_item_price
 
             final_price = (
-                total_item_price if is_gst_inclusive else total_item_price + gst_amount
+                total_item_price
+                if is_gst_inclusive
+                else total_item_price + gst_amount
             )
 
-            # Item status
-            item_status = "pending"
+            item_status = (
+                "draft"
+                if is_draft
+                else "pending"
+            )
 
-            OrderItem.objects.create(
+            order_item = OrderItem.objects.create(
                 order=order,
                 product=product if product_id else None,
                 product_variant=variant,
@@ -780,57 +977,166 @@ def place_order(request, outlet_id):
             )
 
             processed_items.append({
+                "order_item_id": order_item.id,
+
                 "product_name": product.name,
-                "variant_name": variant.name if variant else None,
+
+                "variant_name": (
+                    variant.name
+                    if variant else None
+                ),
+
                 "quantity": quantity,
-                "price": round(price, 2),
-                "gst": round(gst_amount, 2),
+
+                "price": str(price),
+
+                "gst": str(gst_amount),
+
+                "total_price": str(final_price),
+
+                "status": item_status
             })
 
             total_price += final_price
             total_gst += gst_amount
 
-        # Update totals
-        order.total_price = total_price
-        order.gst = total_gst
+        # -----------------------------------------
+        # UPDATE TOTALS
+        # -----------------------------------------
+        order.total_price = (
+            order.total_price + total_price
+        )
 
-        # 🔥 PAYMENT HANDLING (NEW CLEAN FLOW)
+        order.gst = (
+            order.gst + total_gst
+        )
+
+        # -----------------------------------------
+        # PAYMENT HANDLING
+        # -----------------------------------------
         if payment_required:
+
             order.mode = payment_mode
             order.upi_type = upi_type
 
-            if payment_mode in ["upi", "cash", "coupon"]:
+            if payment_mode in [
+                "upi",
+                "cash",
+                "coupon"
+            ]:
+
                 order.payment_status = "success"
                 order.status = "settled"
+
             else:
+
                 order.payment_status = "pending"
 
         else:
-            order.payment_status = "not_required"
+
+            if not existing_order:
+                order.payment_status = "not_required"
 
         order.save()
 
-        # Response
+        # -----------------------------------------
+        # CREATE TEMPORARY KOT
+        # -----------------------------------------
+        if table and not is_draft:
+
+            last_kot = KOT.objects.filter(
+                table=table
+            ).order_by('-kot_number').first()
+
+            next_kot_number = 1
+
+            if last_kot:
+                next_kot_number = (
+                    last_kot.kot_number + 1
+                )
+
+            kot_items = []
+
+            for item in processed_items:
+
+                kot_items.append({
+                    "order_item_id": item[
+                        "order_item_id"
+                    ],
+
+                    "product_name": item[
+                        "product_name"
+                    ],
+
+                    "variant_name": item[
+                        "variant_name"
+                    ],
+
+                    "quantity": item[
+                        "quantity"
+                    ],
+
+                    "price": item["price"],
+
+                    "gst": item["gst"],
+
+                    "total_price": item[
+                        "total_price"
+                    ],
+
+                    "status": item["status"]
+                })
+
+            KOT.objects.create(
+                table=table,
+                order=order,
+                kot_number=next_kot_number,
+                items=kot_items
+            )
+
+            table.status = "running_kot"
+            table.save()
+
+        # -----------------------------------------
+        # RESPONSE
+        # -----------------------------------------
         return JsonResponse({
             "error": False,
+
             "data": {
                 "order_id": order.id,
+
                 "order_number": order.order_number,
+
                 "status": order.status,
-                "payment_status": order.payment_status,
-                "total_price": float(total_price),
-                "gst": float(total_gst),
+
+                "payment_status": (
+                    order.payment_status
+                ),
+
+                "total_price": float(
+                    order.total_price
+                ),
+
+                "gst": float(order.gst),
+
                 "customer": customer.name,
-                "table": table.table_number if table else None,
-                "items": processed_items,
+
+                "table": (
+                    table.table_number
+                    if table else None
+                ),
+
+                "new_items_added": processed_items
             }
         })
 
     except Exception as e:
-        return JsonResponse(
-            {"error": True, "details": str(e)},
-            status=500
-        )
+
+        return JsonResponse({
+            "error": True,
+            "details": str(e)
+        }, status=500)
 
 
 
@@ -2084,42 +2390,63 @@ def get_tables_by_outlet(request, outlet_id):
 @api_view(['PATCH'])
 @permission_classes([AllowAny])
 def update_table_status(request, table_id):
+
     try:
-        table = get_object_or_404(Table, id=table_id)
 
-        new_status = request.data.get("status")
+        table = Table.objects.get(id=table_id)
 
-        valid_status = ['empty', 'running', 'printing', 'paid', 'running_kot']
+    except Table.DoesNotExist:
 
-        if new_status not in valid_status:
-            return Response({
-                "error": True,
-                "message": "Invalid status"
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        table.status = new_status
-
-        # 🔥 Optional smart handling
-        if new_status == "empty":
-            table.current_order = None
-
-        table.save()
-
-        return Response({
-            "error": False,
-            "message": "Table status updated",
-            "data": {
-                "table_id": table.id,
-                "table_number": table.table_number,
-                "status": table.status
-            }
-        }, status=status.HTTP_200_OK)
-
-    except Exception as e:
         return Response({
             "error": True,
-            "details": str(e)
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            "message": "Table not found"
+        }, status=404)
+
+    new_status = request.data.get("status")
+
+    if not new_status:
+
+        return Response({
+            "error": True,
+            "message": "Status is required"
+        }, status=400)
+
+    # -----------------------------------------
+    # UPDATE TABLE STATUS
+    # -----------------------------------------
+    table.status = new_status
+
+    # 🔥 IF TABLE BECOMES EMPTY
+    if new_status == "empty":
+
+        # Complete current order
+        if table.current_order:
+
+            table.current_order.status = "settled"
+            table.current_order.payment_status = "success"
+
+            table.current_order.save()
+
+        # Delete temporary KOT history
+        KOT.objects.filter(
+            table=table
+        ).delete()
+
+        # Remove current order reference
+        table.current_order = None
+
+    table.save()
+
+    return Response({
+        "error": False,
+        "message": "Table status updated successfully",
+
+        "table": {
+            "table_id": table.id,
+            "table_number": table.table_number,
+            "status": table.status
+        }
+    }, status=200)
 
 
 
@@ -2335,39 +2662,171 @@ def add_items_to_order(request, order_id):
 )
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def get_table_with_kot(request, table_id):
-    try:
-        table = Table.objects.get(id=table_id)
+def get_table_with_kot( request, outlet_id, table_id):
 
-        # 🚫 Hide KOTs for specific statuses
-        if table.status in ['empty', 'pending_counter_confirmation']:
-            return Response({
-                "table_number": table.table_number,
-                "status": table.status,
-                "kots": []  # no KOTs shown
+    try:
+
+        # -----------------------------------------
+        # FETCH TABLE OF SPECIFIC OUTLET
+        # -----------------------------------------
+        table = Table.objects.get(
+            outlet_id=outlet_id,
+            table_number=table_id
+        )
+
+        # -----------------------------------------
+        # FETCH TEMPORARY KOTS
+        # -----------------------------------------
+        kots = KOT.objects.filter(
+            table=table
+        ).select_related(
+            'order'
+        ).order_by(
+            'kot_number',
+            'created_at'
+        )
+
+        kot_list = []
+
+        for kot in kots:
+
+            order = kot.order
+
+            kot_list.append({
+
+                "kot_id": kot.id,
+
+                "kot_number": kot.kot_number,
+
+                "order": {
+
+                    "order_id": order.id,
+
+                    "order_number": (
+                        order.order_number
+                    ),
+
+                    "status": order.status,
+
+                    "payment_status": (
+                        order.payment_status
+                    ),
+
+                    "total_price": str(
+                        order.total_price
+                    ),
+
+                    "gst": str(order.gst),
+
+                    "created_at": (
+                        order.order_date
+                    ),
+
+                    "updated_at": (
+                        order.updated_at
+                    ),
+                },
+
+                "items": kot.items,
+
+                "kot_created_at": (
+                    kot.created_at
+                )
             })
 
-        kots = table.kots.all().order_by('kot_number')
-
-        kot_data = [
-            {
-                "kot_number": kot.kot_number,
-                "items": kot.items,
-                "created_at": kot.created_at
-            }
-            for kot in kots
-        ]
-
+        # -----------------------------------------
+        # RESPONSE
+        # -----------------------------------------
         return Response({
-            "table_number": table.table_number,
-            "status": table.status,
-            "kots": kot_data
-        })
+
+            "error": False,
+
+            "table": {
+
+                "table_id": table.id,
+
+                "table_number": (
+                    table.table_number
+                ),
+
+                "table_status": (
+                    table.status
+                ),
+
+                "current_order": (
+
+                    table.current_order.order_number
+
+                    if table.current_order
+                    else None
+                )
+            },
+
+            "total_kots": len(kot_list),
+
+            "kots": kot_list
+
+        }, status=status.HTTP_200_OK)
 
     except Table.DoesNotExist:
-        return Response({"error": True, "details": "Table not found"}, status=404)
+
+        return Response({
+
+            "error": True,
+
+            "details": (
+                "Table not found for this outlet"
+            )
+
+        }, status=status.HTTP_404_NOT_FOUND)
+
     except Exception as e:
-        return Response({"error": True, "details": str(e)}, status=500)
+
+        return Response({
+
+            "error": True,
+
+            "details": str(e)
+
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        
+        
+        
+        
+# def get_table_with_kot(request, table_id):
+#     try:
+#         table = Table.objects.get(id=table_id)
+
+#         # 🚫 Hide KOTs for specific statuses
+#         if table.status in ['empty', 'pending_counter_confirmation']:
+#             return Response({
+#                 "table_number": table.table_number,
+#                 "status": table.status,
+#                 "kots": []  # no KOTs shown
+#             })
+
+#         kots = table.kots.all().order_by('kot_number')
+
+#         kot_data = [
+#             {
+#                 "kot_number": kot.kot_number,
+#                 "items": kot.items,
+#                 "created_at": kot.created_at
+#             }
+#             for kot in kots
+#         ]
+
+#         return Response({
+#             "table_number": table.table_number,
+#             "status": table.status,
+#             "kots": kot_data
+#         })
+
+#     except Table.DoesNotExist:
+#         return Response({"error": True, "details": "Table not found"}, status=404)
+#     except Exception as e:
+#         return Response({"error": True, "details": str(e)}, status=500)
     
     
 
@@ -2721,38 +3180,50 @@ STATUS_TRANSITIONS = {
 @api_view(['PATCH'])
 @permission_classes([AllowAny])
 def change_order_status(request, order_id):
+
     try:
-        order = Order.objects.select_related('table_number').get(id=order_id)
+
+        order = Order.objects.select_related(
+            'table_number'
+        ).get(id=order_id)
+
     except Order.DoesNotExist:
-        return Response({"error": "Order not found"}, status=404)
+
+        return Response({
+            "error": "Order not found"
+        }, status=404)
 
     new_status = request.data.get('status')
 
     if not new_status:
-        return Response({"error": "Status is required"}, status=400)
 
-    # 🚫 Removed transition validation
-    # 🚫 Removed STATUS_TRANSITIONS check
-
-    # Optional: still prevent update after settlement (remove if not needed)
-    if order.status == 'settled':
         return Response({
-            "error": "Cannot change status after settlement"
+            "error": "Status is required"
         }, status=400)
 
     order.status = new_status
     order.save()
 
-    # 🔥 OPTIONAL: Update table status
+    # -----------------------------------------
+    # TABLE STATUS FLOW
+    # -----------------------------------------
     if order.table_number:
-        if new_status in ['pending', 'processing']:
-            order.table_number.status = 'running_kot'
-        elif new_status == 'completed':
-            order.table_number.status = 'running'
-        elif new_status == 'settled':
-            order.table_number.status = 'paid'
 
-        order.table_number.save()
+        table = order.table_number
+
+        if new_status in ['pending', 'processing']:
+
+            table.status = 'running_kot'
+
+        elif new_status in ['ready', 'completed']:
+
+            table.status = 'running'
+
+        elif new_status == 'settled':
+
+            table.status = 'paid'
+
+        table.save()
 
     return Response({
         "message": "Order status updated successfully",

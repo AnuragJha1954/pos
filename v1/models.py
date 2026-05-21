@@ -254,6 +254,7 @@ class Order(models.Model):
         # End states
         ('cancelled', 'Cancelled'),
         ('rejected', 'Rejected'),
+        ('pending_confirmation', 'Pending Confirmation'),
     ]
     
     MODE_CHOICES = [
@@ -277,7 +278,7 @@ class Order(models.Model):
     order_date = models.DateTimeField(default=timezone.now)
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
     gst = models.DecimalField(max_digits=5, decimal_places=2)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    status = models.CharField(max_length=40, choices=STATUS_CHOICES, default='pending')
     address = models.TextField(blank=True, null=True)  # New optional address field
     mode = models.CharField(max_length=10, choices=MODE_CHOICES, blank=True, null=True)  # New mode field
     updated_at = models.DateTimeField(auto_now=True)

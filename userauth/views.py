@@ -341,7 +341,7 @@ def user_login(request):
                     user_details["plan"] = {
                         "plan_name": active_plan.plan.plan_name,
                         "plan_price": active_plan.plan.plan_price,
-                        "price_tenure": active_plan.plan.price_tenure,
+                        "price_tenure": active_plan.plan.price_tenure.capitalize(),
                         "valid_till": active_plan.valid_till,
                         "status": active_plan.status,
                     }

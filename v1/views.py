@@ -33,6 +33,15 @@ from rest_framework.authtoken.models import Token
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.exceptions import NotFound
 
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+from rest_framework.response import Response
+from django.db.models import Sum, Count, Avg
+from django.db.models.functions import TruncDate
+from django.utils import timezone
+from datetime import timedelta
 
 
 from .models import (
@@ -1047,41 +1056,77 @@ class ProductPagination(PageNumberPagination):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_products(request, outlet_id):
+
     try:
-        # Check if the outlet exists and get the products for the outlet
-        products = Product.objects.filter(outlet__id=outlet_id)
+
+        # Fetch products for outlet
+        products = Product.objects.filter(
+            outlet__id=outlet_id
+        )
+
         if not products.exists():
+
             return Response(
-                {"error": True, "detail": "No products found for this outlet."},
+                {
+                    "error": True,
+                    "detail": (
+                        "No products found for this outlet."
+                    ),
+                },
                 status=status.HTTP_404_NOT_FOUND
             )
-    except Product.DoesNotExist:
+
+    except Exception:
+
         return Response(
-            {"error": True, "detail": "Outlet not found."},
+            {
+                "error": True,
+                "detail": "Outlet not found."
+            },
             status=status.HTTP_404_NOT_FOUND
         )
 
-    # Initialize pagination
-    paginator = ProductPagination()
-    paginated_products = paginator.paginate_queryset(products, request)
+    # -----------------------------------------
+    # SERIALIZE ALL PRODUCTS
+    # -----------------------------------------
+    serializer = ProductSerializer(
+        products,
+        many=True
+    )
 
-    # Serialize the products and variants
-    serializer = ProductSerializer(paginated_products, many=True)
-
-    # Construct pagination data with error and detail fields
+    # -----------------------------------------
+    # SAME RESPONSE STRUCTURE
+    # -----------------------------------------
     response_data = {
+
         "error": False,
-        "detail": "Products fetched successfully.",
+
+        "detail": (
+            "Products fetched successfully."
+        ),
+
         "products": serializer.data,
+
         "total_products": products.count(),
-        "total_pages": paginator.page.paginator.num_pages,
-        "current_page": paginator.page.number,
-        "products_on_current_page": len(serializer.data),
-        "next_page_url": paginator.get_next_link(),
-        "previous_page_url": paginator.get_previous_link()
+
+        # 🔥 KEEP SAME STRUCTURE
+        "total_pages": 1,
+
+        "current_page": 1,
+
+        "products_on_current_page": (
+            products.count()
+        ),
+
+        "next_page_url": None,
+
+        "previous_page_url": None
     }
 
-    return Response(response_data, status=status.HTTP_200_OK)
+    return Response(
+        response_data,
+        status=status.HTTP_200_OK
+    )
 
 
 
@@ -3226,214 +3271,341 @@ dashboard_response_schema = openapi.Schema(
 )
 @api_view(["GET"])
 @permission_classes([AllowAny])
-def dashboard_data(request):
-    now = timezone.now()
+def dashboard_data(request, company_id):
 
-    # -----------------------------------------
-    # 🔵 SUMMARY CARDS
-    # -----------------------------------------
-    total_orders = Order.objects.count()
+    try:
 
-    total_sales = (
-        Order.objects.filter(
-            payment_status='success'
-        ).aggregate(
-            total=Sum('total_price')
-        )['total'] or 0
-    )
+        now = timezone.now()
 
-    total_outlets = Outlet.objects.count()
+        # -----------------------------------------
+        # 🔵 COMPANY
+        # -----------------------------------------
+        company = Company.objects.get(id=company_id)
 
-    total_customers = Customer.objects.values(
-        'phone_number'
-    ).distinct().count()
+        # All outlets under company
+        outlets = Outlet.objects.filter(
+            company=company
+        )
 
-    summary_cards = [
-        {
-            "key": "total_orders",
-            "label": "Total Orders",
-            "value": total_orders,
-        },
-        {
-            "key": "total_sales",
-            "label": "Total Sales",
-            "value": float(total_sales),
-        },
-        {
-            "key": "total_outlets",
-            "label": "Total Outlets",
-            "value": total_outlets,
-        },
-        {
-            "key": "total_customers",
-            "label": "Total Customers",
-            "value": total_customers,
-        },
-    ]
+        outlet_ids = outlets.values_list(
+            'id',
+            flat=True
+        )
 
-    # -----------------------------------------
-    # 🔵 SALES LINE CHART — LAST 7 DAYS
-    # -----------------------------------------
-    labels = []
-    sales_data = []
+        # -----------------------------------------
+        # 🔵 SUMMARY CARDS
+        # -----------------------------------------
+        total_orders = Order.objects.filter(
+            outlet_id__in=outlet_ids
+        ).count()
 
-    for i in range(6, -1, -1):
-        day = now.date() - timedelta(days=i)
-
-        total = (
+        total_sales = (
             Order.objects.filter(
-                order_date__date=day,
+                outlet_id__in=outlet_ids,
                 payment_status='success'
             ).aggregate(
                 total=Sum('total_price')
             )['total'] or 0
         )
 
-        labels.append(str(day))
-        sales_data.append(float(total))
+        total_outlets = outlets.count()
 
-    sales_line_chart = {
-        "labels": labels,
-        "data": sales_data
-    }
+        total_customers = Customer.objects.filter(
+            order__outlet_id__in=outlet_ids
+        ).values(
+            'phone_number'
+        ).distinct().count()
 
-    # -----------------------------------------
-    # 🔵 LAST 3 HOURS ORDERS
-    # -----------------------------------------
-    recent_orders_queryset = Order.objects.filter(
-        order_date__gte=now - timedelta(hours=3)
-    ).order_by('-order_date')[:10]
+        summary_cards = [
+            {
+                "key": "total_orders",
+                "label": "Total Orders",
+                "value": total_orders,
+            },
+            {
+                "key": "total_sales",
+                "label": "Total Sales",
+                "value": float(total_sales),
+            },
+            {
+                "key": "total_outlets",
+                "label": "Total Outlets",
+                "value": total_outlets,
+            },
+            {
+                "key": "total_customers",
+                "label": "Total Customers",
+                "value": total_customers,
+            },
+        ]
 
-    recent_orders = []
+        # -----------------------------------------
+        # 🔵 SALES LINE CHART
+        # -----------------------------------------
+        labels = []
+        sales_data = []
 
-    for order in recent_orders_queryset:
-        recent_orders.append({
-            "order_number": order.order_number,
-            "status": order.status.upper(),
-            "total_amount": float(order.total_price),
-            "mode": order.mode,
-            "order_time": order.order_date.strftime("%H:%M"),
-            "outlet": order.outlet.outlet_name
-        })
+        for i in range(6, -1, -1):
 
-    recent_orders_table = {
-        "title": "Last 3 Hours Orders",
-        "rows": recent_orders
-    }
+            day = now.date() - timedelta(days=i)
 
-    # -----------------------------------------
-    # 🔵 ORDER STATUS CARDS
-    # -----------------------------------------
-    order_status_cards = {
-        "pending_orders": Order.objects.filter(
-            status='pending'
-        ).count(),
+            total = (
+                Order.objects.filter(
+                    outlet_id__in=outlet_ids,
+                    order_date__date=day,
+                    payment_status='success'
+                ).aggregate(
+                    total=Sum('total_price')
+                )['total'] or 0
+            )
 
-        "processing_orders": Order.objects.filter(
-            status='processing'
-        ).count(),
+            labels.append(str(day))
+            sales_data.append(float(total))
 
-        "completed_orders": Order.objects.filter(
-            status='completed'
-        ).count(),
+        sales_line_chart = {
+            "labels": labels,
+            "data": sales_data
+        }
 
-        "cancelled_orders": Order.objects.filter(
-            status='cancelled'
-        ).count(),
-    }
+        # -----------------------------------------
+        # 🔵 LAST 3 HOURS ORDERS
+        # -----------------------------------------
+        recent_orders_queryset = Order.objects.filter(
+            outlet_id__in=outlet_ids,
+            order_date__gte=now - timedelta(hours=3)
+        ).order_by('-order_date')[:10]
 
-    # -----------------------------------------
-    # 🔵 LOW STOCK ITEMS
-    # using is_stock_out field
-    # -----------------------------------------
-    low_stock_items = []
+        recent_orders = []
 
-    stock_out_products = Product.objects.filter(
-        is_stock_out=True
-    ).select_related('outlet')[:5]
+        for order in recent_orders_queryset:
 
-    for product in stock_out_products:
-        low_stock_items.append({
-            "name": product.name,
-            "type": "product",
-            "outlet": product.outlet.outlet_name
-        })
+            recent_orders.append({
+                "order_number": order.order_number,
+                "status": order.status.upper(),
+                "total_amount": float(order.total_price),
+                "mode": order.mode,
+                "order_time": order.order_date.strftime("%H:%M"),
+                "outlet": order.outlet.outlet_name
+            })
 
-    stock_out_variants = ProductVariant.objects.filter(
-        is_stock_out=True
-    ).select_related('product__outlet')[:5]
+        recent_orders_table = {
+            "title": "Last 3 Hours Orders",
+            "rows": recent_orders
+        }
 
-    for variant in stock_out_variants:
-        low_stock_items.append({
-            "name": f"{variant.product.name} - {variant.name}",
-            "type": "variant",
-            "outlet": variant.product.outlet.outlet_name
-        })
+        # -----------------------------------------
+        # 🔵 ORDER STATUS CARDS
+        # -----------------------------------------
+        order_status_cards = {
+            "pending_orders": Order.objects.filter(
+                outlet_id__in=outlet_ids,
+                status='pending'
+            ).count(),
 
-    # -----------------------------------------
-    # 🔵 HELPDESK OVERVIEW
-    # -----------------------------------------
-    helpdesk_overview = {
-        "total_tickets": Ticket.objects.count(),
-        "open_tickets": Ticket.objects.filter(
-            status='OPEN'
-        ).count(),
-        "in_progress_tickets": Ticket.objects.filter(
-            status='IN_PROGRESS'
-        ).count(),
-        "closed_tickets": Ticket.objects.filter(
-            status='CLOSED'
-        ).count(),
-    }
+            "processing_orders": Order.objects.filter(
+                outlet_id__in=outlet_ids,
+                status='processing'
+            ).count(),
 
-    # -----------------------------------------
-    # 🔵 QR OVERVIEW
-    # -----------------------------------------
-    qr_overview = {
-        "total_table_qrs": TableQR.objects.count(),
-        "special_menus": SpecialMenu.objects.count(),
-        "advertisement_banners": AdvertisementBanner.objects.count(),
-    }
+            "completed_orders": Order.objects.filter(
+                outlet_id__in=outlet_ids,
+                status='completed'
+            ).count(),
 
-    # -----------------------------------------
-    # 🔵 OUTLET WISE SALES
-    # -----------------------------------------
-    outlet_sales_queryset = Outlet.objects.annotate(
-        total_sales=Sum(
-            'orders__total_price',
-            filter=Q(orders__payment_status='success')
-        ),
-        total_orders=Count('orders')
-    )
+            "cancelled_orders": Order.objects.filter(
+                outlet_id__in=outlet_ids,
+                status='cancelled'
+            ).count(),
+        }
 
-    outlet_sales = []
+        # -----------------------------------------
+        # 🔵 LOW STOCK ITEMS
+        # -----------------------------------------
+        low_stock_items = []
 
-    for outlet in outlet_sales_queryset:
-        outlet_sales.append({
-            "outlet_id": outlet.id,
-            "outlet_name": outlet.outlet_name,
-            "total_orders": outlet.total_orders,
-            "total_sales": float(outlet.total_sales or 0)
-        })
+        stock_out_products = Product.objects.filter(
+            outlet_id__in=outlet_ids,
+            is_stock_out=True
+        ).select_related('outlet')[:5]
 
-    # -----------------------------------------
-    # 🔵 FINAL RESPONSE
-    # -----------------------------------------
-    data = {
-        "summary_cards": summary_cards,
-        "sales_line_chart": sales_line_chart,
-        "recent_orders_table": recent_orders_table,
-        "order_status_cards": order_status_cards,
-        "low_stock_items": low_stock_items,
-        "helpdesk_overview": helpdesk_overview,
-        "qr_overview": qr_overview,
-        "outlet_sales": outlet_sales,
-    }
+        for product in stock_out_products:
 
-    return Response(data)
+            low_stock_items.append({
+                "name": product.name,
+                "type": "product",
+                "outlet": product.outlet.outlet_name
+            })
+
+        stock_out_variants = ProductVariant.objects.filter(
+            product__outlet_id__in=outlet_ids,
+            is_stock_out=True
+        ).select_related(
+            'product__outlet'
+        )[:5]
+
+        for variant in stock_out_variants:
+
+            low_stock_items.append({
+                "name": f"{variant.product.name} - {variant.name}",
+                "type": "variant",
+                "outlet": variant.product.outlet.outlet_name
+            })
+
+        # -----------------------------------------
+        # 🔵 HELPDESK OVERVIEW
+        # -----------------------------------------
+        helpdesk_overview = {
+            "total_tickets": Ticket.objects.filter(
+                outlet__company=company
+            ).count(),
+
+            "open_tickets": Ticket.objects.filter(
+                outlet__company=company,
+                status='OPEN'
+            ).count(),
+
+            "in_progress_tickets": Ticket.objects.filter(
+                outlet__company=company,
+                status='IN_PROGRESS'
+            ).count(),
+
+            "closed_tickets": Ticket.objects.filter(
+                outlet__company=company,
+                status='CLOSED'
+            ).count(),
+        }
+
+        # -----------------------------------------
+        # 🔵 QR OVERVIEW
+        # -----------------------------------------
+        qr_overview = {
+            "total_table_qrs": TableQR.objects.filter(
+                outlet__company=company
+            ).count(),
+
+            "special_menus": SpecialMenu.objects.filter(
+                outlet__company=company
+            ).count(),
+
+            "advertisement_banners": AdvertisementBanner.objects.filter(
+                outlet__company=company
+            ).count(),
+        }
+
+        # -----------------------------------------
+        # 🔵 OUTLET WISE SALES
+        # -----------------------------------------
+        outlet_sales_queryset = outlets.annotate(
+            total_sales=Sum(
+                'orders__total_price',
+                filter=Q(
+                    orders__payment_status='success'
+                )
+            ),
+
+            total_orders=Count('orders')
+        )
+
+        outlet_sales = []
+
+        for outlet in outlet_sales_queryset:
+
+            outlet_sales.append({
+                "outlet_id": outlet.id,
+                "outlet_name": outlet.outlet_name,
+                "total_orders": outlet.total_orders,
+                "total_sales": float(
+                    outlet.total_sales or 0
+                )
+            })
+
+        # -----------------------------------------
+        # 🔵 FINAL RESPONSE
+        # -----------------------------------------
+        data = {
+            "company": {
+                "id": company.id,
+                "name": company.name
+            },
+
+            "summary_cards": summary_cards,
+
+            "sales_line_chart": sales_line_chart,
+
+            "recent_orders_table": recent_orders_table,
+
+            "order_status_cards": order_status_cards,
+
+            "low_stock_items": low_stock_items,
+
+            "helpdesk_overview": helpdesk_overview,
+
+            "qr_overview": qr_overview,
+
+            "outlet_sales": outlet_sales,
+        }
+
+        return Response(data)
+
+    except Company.DoesNotExist:
+
+        return Response({
+            "error": True,
+            "detail": "Company not found."
+        }, status=status.HTTP_404_NOT_FOUND)
+
+    except Exception as e:
+
+        return Response({
+            "error": True,
+            "detail": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
+
+
+# =========================================================
+# IMPORTS
+# =========================================================
+
+from django.db.models import (
+    Sum,
+    Count,
+    Avg,
+    F,
+    Q
+)
+
+from django.utils import timezone
+
+from datetime import timedelta
+
+from rest_framework.decorators import (
+    api_view,
+    permission_classes
+)
+
+from rest_framework.permissions import AllowAny
+
+from rest_framework.response import Response
+
+from django.shortcuts import get_object_or_404
+
+from drf_yasg.utils import swagger_auto_schema
+
+from .models import (
+    Outlet,
+    Order,
+    OrderItem,
+    Customer,
+    Expense,
+    RefundNote,
+    Table,
+    KOT,
+    Product,
+    OrderPayment
+)
 
 
 # ========== 1. SALES REPORT ==========
@@ -3447,6 +3619,7 @@ def dashboard_data(request):
                 "total_sales": openapi.Schema(type=openapi.TYPE_NUMBER),
                 "total_orders": openapi.Schema(type=openapi.TYPE_INTEGER),
                 "avg_order_value": openapi.Schema(type=openapi.TYPE_NUMBER),
+
                 "kpis": openapi.Schema(
                     type=openapi.TYPE_ARRAY,
                     items=openapi.Schema(
@@ -3458,6 +3631,7 @@ def dashboard_data(request):
                         }
                     )
                 ),
+
                 "daily_sales": openapi.Schema(
                     type=openapi.TYPE_ARRAY,
                     items=openapi.Schema(
@@ -3473,26 +3647,67 @@ def dashboard_data(request):
     }
 )
 @api_view(["GET"])
+@permission_classes([AllowAny])
 def sales_report_sample(request, outlet_id):
+
+    orders = Order.objects.filter(outlet_id=outlet_id)
+
+    total_sales = orders.aggregate(
+        total=Sum('total_price')
+    )['total'] or 0
+
+    total_orders = orders.count()
+
+    avg_order_value = orders.aggregate(
+        avg=Avg('total_price')
+    )['avg'] or 0
+
+    today = timezone.now().date()
+    yesterday = today - timedelta(days=1)
+    week_start = today - timedelta(days=7)
+
+    today_sales = orders.filter(
+        order_date__date=today
+    ).aggregate(total=Sum('total_price'))['total'] or 0
+
+    yesterday_sales = orders.filter(
+        order_date__date=yesterday
+    ).aggregate(total=Sum('total_price'))['total'] or 0
+
+    week_sales = orders.filter(
+        order_date__date__gte=week_start
+    ).aggregate(total=Sum('total_price'))['total'] or 0
+
+    daily_sales_qs = (
+        orders.filter(order_date__date__gte=week_start)
+        .annotate(date=TruncDate('order_date'))
+        .values('date')
+        .annotate(total=Sum('total_price'))
+        .order_by('date')
+    )
+
+    daily_sales = [
+        {
+            "date": item["date"].strftime("%Y-%m-%d"),
+            "total": item["total"] or 0
+        }
+        for item in daily_sales_qs
+    ]
+
     data = {
-        "total_sales": 452000.75,
-        "total_orders": 1280,
-        "avg_order_value": 353.13,
+        "total_sales": total_sales,
+        "total_orders": total_orders,
+        "avg_order_value": round(avg_order_value, 2),
+
         "kpis": [
-            {"label": "Today Sales", "value": 28000, "unit": "INR"},
-            {"label": "Yesterday Sales", "value": 25000, "unit": "INR"},
-            {"label": "Week Sales", "value": 172000, "unit": "INR"},
+            {"label": "Today Sales", "value": today_sales, "unit": "INR"},
+            {"label": "Yesterday Sales", "value": yesterday_sales, "unit": "INR"},
+            {"label": "Week Sales", "value": week_sales, "unit": "INR"},
         ],
-        "daily_sales": [
-            {"date": "2025-11-20", "total": 12000},
-            {"date": "2025-11-21", "total": 15000},
-            {"date": "2025-11-22", "total": 18000},
-            {"date": "2025-11-23", "total": 17000},
-            {"date": "2025-11-24", "total": 22000},
-            {"date": "2025-11-25", "total": 25000},
-            {"date": "2025-11-26", "total": 28000},
-        ],
+
+        "daily_sales": daily_sales,
     }
+
     return Response(data)
 
 
@@ -3504,11 +3719,16 @@ def sales_report_sample(request, outlet_id):
         200: openapi.Schema(
             type=openapi.TYPE_OBJECT,
             properties={
+
                 "total_orders": openapi.Schema(type=openapi.TYPE_INTEGER),
+
                 "status_breakdown": openapi.Schema(
                     type=openapi.TYPE_OBJECT,
-                    additional_properties=openapi.Schema(type=openapi.TYPE_INTEGER),
+                    additional_properties=openapi.Schema(
+                        type=openapi.TYPE_INTEGER
+                    ),
                 ),
+
                 "kpis": openapi.Schema(
                     type=openapi.TYPE_ARRAY,
                     items=openapi.Schema(
@@ -3519,6 +3739,7 @@ def sales_report_sample(request, outlet_id):
                         }
                     )
                 ),
+
                 "recent_orders": openapi.Schema(
                     type=openapi.TYPE_ARRAY,
                     items=openapi.Schema(
@@ -3537,46 +3758,72 @@ def sales_report_sample(request, outlet_id):
     }
 )
 @api_view(["GET"])
+@permission_classes([AllowAny])
 def orders_report_sample(request, outlet_id):
-    data = {
-        "total_orders": 1280,
-        "status_breakdown": {
-            "PENDING": 32,
-            "PROCESSING": 45,
-            "CONFIRMED": 780,
-            "COMPLETED": 380,
-            "CANCELLED": 25,
-            "REFUNDED": 18,
-        },
-        "kpis": [
-            {"label": "Today Orders", "value": 160},
-            {"label": "Avg Orders / Day", "value": 140},
-            {"label": "Cancellation Rate %", "value": 1.9},
-        ],
-        "recent_orders": [
-            {
-                "order_number": "ORD123460",
-                "status": "COMPLETED",
-                "amount": 1450.0,
-                "mode": "upi",
-                "order_time": "12:40",
-            },
-            {
-                "order_number": "ORD123461",
-                "status": "PENDING",
-                "amount": 220.0,
-                "mode": "cash",
-                "order_time": "12:15",
-            },
-            {
-                "order_number": "ORD123462",
-                "status": "REFUNDED",
-                "amount": 520.0,
-                "mode": "upi",
-                "order_time": "11:50",
-            },
-        ],
+
+    orders = Order.objects.filter(outlet_id=outlet_id)
+
+    total_orders = orders.count()
+
+    status_breakdown_qs = (
+        orders.values('status')
+        .annotate(count=Count('id'))
+    )
+
+    status_breakdown = {
+        item['status'].upper(): item['count']
+        for item in status_breakdown_qs
     }
+
+    today = timezone.now().date()
+
+    today_orders = orders.filter(
+        order_date__date=today
+    ).count()
+
+    avg_orders_per_day = (
+        orders.annotate(date=TruncDate('order_date'))
+        .values('date')
+        .annotate(count=Count('id'))
+        .aggregate(avg=Avg('count'))['avg'] or 0
+    )
+
+    cancelled_orders = orders.filter(
+        status='cancelled'
+    ).count()
+
+    cancellation_rate = (
+        (cancelled_orders / total_orders) * 100
+        if total_orders > 0 else 0
+    )
+
+    recent_orders_qs = orders.order_by('-order_date')[:10]
+
+    recent_orders = [
+        {
+            "order_number": order.order_number,
+            "status": order.status.upper(),
+            "amount": order.total_price,
+            "mode": order.mode,
+            "order_time": order.order_date.strftime("%H:%M"),
+        }
+        for order in recent_orders_qs
+    ]
+
+    data = {
+        "total_orders": total_orders,
+
+        "status_breakdown": status_breakdown,
+
+        "kpis": [
+            {"label": "Today Orders", "value": today_orders},
+            {"label": "Avg Orders / Day", "value": round(avg_orders_per_day, 2)},
+            {"label": "Cancellation Rate %", "value": round(cancellation_rate, 2)},
+        ],
+
+        "recent_orders": recent_orders,
+    }
+
     return Response(data)
 
 
@@ -3588,9 +3835,13 @@ def orders_report_sample(request, outlet_id):
         200: openapi.Schema(
             type=openapi.TYPE_OBJECT,
             properties={
+
                 "total_customers": openapi.Schema(type=openapi.TYPE_INTEGER),
+
                 "new_customers_7d": openapi.Schema(type=openapi.TYPE_INTEGER),
+
                 "repeat_customers_rate": openapi.Schema(type=openapi.TYPE_NUMBER),
+
                 "kpis": openapi.Schema(
                     type=openapi.TYPE_ARRAY,
                     items=openapi.Schema(
@@ -3602,6 +3853,7 @@ def orders_report_sample(request, outlet_id):
                         }
                     )
                 ),
+
                 "top_customers": openapi.Schema(
                     type=openapi.TYPE_ARRAY,
                     items=openapi.Schema(
@@ -3619,37 +3871,86 @@ def orders_report_sample(request, outlet_id):
     }
 )
 @api_view(["GET"])
+@permission_classes([AllowAny])
 def customers_report_sample(request, outlet_id):
+
+    customers = Customer.objects.filter(
+        order__outlet_id=outlet_id
+    ).distinct()
+
+    total_customers = customers.count()
+
+    seven_days_ago = timezone.now() - timedelta(days=7)
+    thirty_days_ago = timezone.now() - timedelta(days=30)
+
+    new_customers_7d = customers.filter(
+        order__order_date__gte=seven_days_ago
+    ).distinct().count()
+
+    repeat_customers = customers.annotate(
+        order_count=Count('order')
+    ).filter(order_count__gt=1).count()
+
+    repeat_customers_rate = (
+        (repeat_customers / total_customers) * 100
+        if total_customers > 0 else 0
+    )
+
+    avg_orders_per_customer = (
+        Order.objects.filter(outlet_id=outlet_id).count() / total_customers
+        if total_customers > 0 else 0
+    )
+
+    cltv = (
+        Order.objects.filter(outlet_id=outlet_id)
+        .aggregate(avg=Avg('total_price'))['avg'] or 0
+    )
+
+    active_customers_30d = customers.filter(
+        order__order_date__gte=thirty_days_ago
+    ).distinct().count()
+
+    top_customers_qs = customers.annotate(
+        orders_count=Count('order'),
+        total_spent=Sum('order__total_price')
+    ).order_by('-total_spent')[:10]
+
+    top_customers = [
+        {
+            "name": customer.name,
+            "phone": customer.phone_number,
+            "orders_count": customer.orders_count,
+            "total_spent": customer.total_spent or 0,
+        }
+        for customer in top_customers_qs
+    ]
+
     data = {
-        "total_customers": 980,
-        "new_customers_7d": 120,
-        "repeat_customers_rate": 62.5,  # %
+        "total_customers": total_customers,
+        "new_customers_7d": new_customers_7d,
+        "repeat_customers_rate": round(repeat_customers_rate, 2),
+
         "kpis": [
-            {"label": "Avg Orders / Customer", "value": 3.1, "unit": ""},
-            {"label": "CLTV (Approx.)", "value": 1800, "unit": "INR"},
-            {"label": "Active Customers (30d)", "value": 640, "unit": ""},
-        ],
-        "top_customers": [
             {
-                "name": "Rahul Sharma",
-                "phone": "9876543210",
-                "orders_count": 22,
-                "total_spent": 15400.0,
+                "label": "Avg Orders / Customer",
+                "value": round(avg_orders_per_customer, 2),
+                "unit": ""
             },
             {
-                "name": "Priya Verma",
-                "phone": "9876500012",
-                "orders_count": 18,
-                "total_spent": 13120.5,
+                "label": "CLTV (Approx.)",
+                "value": round(cltv, 2),
+                "unit": "INR"
             },
             {
-                "name": "Aman Gupta",
-                "phone": "9898989898",
-                "orders_count": 15,
-                "total_spent": 11050.0,
+                "label": "Active Customers (30d)",
+                "value": active_customers_30d,
+                "unit": ""
             },
         ],
+
+        "top_customers": top_customers,
     }
+
     return Response(data)
 
 
@@ -3661,7 +3962,9 @@ def customers_report_sample(request, outlet_id):
         200: openapi.Schema(
             type=openapi.TYPE_OBJECT,
             properties={
+
                 "total_outlets": openapi.Schema(type=openapi.TYPE_INTEGER),
+
                 "kpis": openapi.Schema(
                     type=openapi.TYPE_ARRAY,
                     items=openapi.Schema(
@@ -3673,6 +3976,7 @@ def customers_report_sample(request, outlet_id):
                         }
                     )
                 ),
+
                 "outlets": openapi.Schema(
                     type=openapi.TYPE_ARRAY,
                     items=openapi.Schema(
@@ -3693,55 +3997,83 @@ def customers_report_sample(request, outlet_id):
     }
 )
 @api_view(["GET"])
+@permission_classes([AllowAny])
 def outlet_report_sample(request, company_id):
-    data = {
-        "total_outlets": 4,
-        "kpis": [
-            {"label": "Active Outlets", "value": 4, "unit": ""},
-            {"label": "Avg Sales / Outlet (Day)", "value": 42000, "unit": "INR"},
-            {"label": "Best Performing Outlet ID", "value": 2, "unit": ""},
-        ],
-        "outlets": [
-            {
-                "outlet_id": 1,
-                "name": "Outlet A",
-                "city": "Mumbai",
-                "total_sales": 152000.0,
-                "total_orders": 420,
-                "avg_order_value": 362.0,
-                "is_active": True,
-            },
-            {
-                "outlet_id": 2,
-                "name": "Outlet B",
-                "city": "Delhi",
-                "total_sales": 181500.0,
-                "total_orders": 510,
-                "avg_order_value": 356.0,
-                "is_active": True,
-            },
-            {
-                "outlet_id": 3,
-                "name": "Outlet C",
-                "city": "Pune",
-                "total_sales": 68000.0,
-                "total_orders": 210,
-                "avg_order_value": 323.0,
-                "is_active": True,
-            },
-            {
-                "outlet_id": 4,
-                "name": "Outlet D",
-                "city": "Bangalore",
-                "total_sales": 50500.0,
-                "total_orders": 140,
-                "avg_order_value": 360.0,
-                "is_active": False,
-            },
-        ],
-    }
-    return Response(data)
 
+    outlets = Outlet.objects.filter(company_id=company_id)
+
+    total_outlets = outlets.count()
+
+    active_outlets = outlets.filter(
+        is_active=True
+    ).count()
+
+    outlet_data = []
+
+    best_outlet = None
+    best_sales = 0
+    total_sales_all = 0
+
+    for outlet in outlets:
+
+        orders = outlet.orders.all()
+
+        total_sales = orders.aggregate(
+            total=Sum('total_price')
+        )['total'] or 0
+
+        total_orders = orders.count()
+
+        avg_order_value = orders.aggregate(
+            avg=Avg('total_price')
+        )['avg'] or 0
+
+        total_sales_all += total_sales
+
+        if total_sales > best_sales:
+            best_sales = total_sales
+            best_outlet = outlet.id
+
+        outlet_data.append({
+            "outlet_id": outlet.id,
+            "name": outlet.outlet_name,
+            "city": outlet.address,
+            "total_sales": total_sales,
+            "total_orders": total_orders,
+            "avg_order_value": round(avg_order_value, 2),
+            "is_active": outlet.is_active,
+        })
+
+    avg_sales_per_outlet = (
+        total_sales_all / total_outlets
+        if total_outlets > 0 else 0
+    )
+
+    data = {
+        "total_outlets": total_outlets,
+
+        "kpis": [
+            {
+                "label": "Active Outlets",
+                "value": active_outlets,
+                "unit": ""
+            },
+            {
+                "label": "Avg Sales / Outlet (Day)",
+                "value": round(avg_sales_per_outlet, 2),
+                "unit": "INR"
+            },
+            {
+                "label": "Best Performing Outlet ID",
+                "value": best_outlet,
+                "unit": ""
+            },
+        ],
+
+        "outlets": outlet_data,
+    }
+
+    return Response(data)
 
 
 
@@ -4309,11 +4641,27 @@ common_params = [
 
 
 
+# ==========================================
+# COMMON HELPER
+# ==========================================
+
+def get_filtered_orders(outlet_id, request):
+    return apply_order_filters(
+        Order.objects.filter(outlet_id=outlet_id),
+        request
+    )
+
+
+# ==========================================
+# DAILY SALES REPORT
+# ==========================================
+
 @swagger_auto_schema(method='get', manual_parameters=common_params)
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def daily_sales_report(request):
-    qs = apply_order_filters(Order.objects.all(), request)
+def daily_sales_report(request, outlet_id):
+
+    qs = get_filtered_orders(outlet_id, request)
 
     data = qs.values('order_date__date').annotate(
         total_sales=Sum('total_price'),
@@ -4324,12 +4672,16 @@ def daily_sales_report(request):
     return Response(paginate(data, request))
 
 
+# ==========================================
+# OUTLET SALES REPORT
+# ==========================================
 
 @swagger_auto_schema(method='get', manual_parameters=common_params)
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def outlet_sales_report(request):
-    qs = apply_order_filters(Order.objects.all(), request)
+def outlet_sales_report(request, outlet_id):
+
+    qs = get_filtered_orders(outlet_id, request)
 
     data = qs.values('outlet__outlet_name').annotate(
         total_sales=Sum('total_price')
@@ -4338,11 +4690,16 @@ def outlet_sales_report(request):
     return Response(paginate(data, request))
 
 
+# ==========================================
+# HOURLY SALES REPORT
+# ==========================================
+
 @swagger_auto_schema(method='get', manual_parameters=common_params)
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def hourly_sales_report(request):
-    qs = apply_order_filters(Order.objects.all(), request)
+def hourly_sales_report(request, outlet_id):
+
+    qs = get_filtered_orders(outlet_id, request)
 
     data = qs.values('order_date__hour').annotate(
         total_sales=Sum('total_price')
@@ -4351,192 +4708,16 @@ def hourly_sales_report(request):
     return Response(paginate(data, request))
 
 
-
-
-@swagger_auto_schema(method='get', manual_parameters=common_params)
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def order_status_report(request):
-    qs = apply_order_filters(Order.objects.all(), request)
-
-    data = qs.values('status').annotate(count=Count('id'))
-
-    return Response(paginate(data, request))
-
-
-
+# ==========================================
+# ORDER STATUS REPORT
+# ==========================================
 
 @swagger_auto_schema(method='get', manual_parameters=common_params)
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def payment_status_report(request):
-    qs = apply_order_filters(Order.objects.all(), request)
+def order_status_report(request, outlet_id):
 
-    data = qs.values('payment_status').annotate(count=Count('id'))
-
-    return Response(paginate(data, request))
-
-
-
-
-@swagger_auto_schema(method='get', manual_parameters=common_params)
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def payment_mode_analysis(request):
-    qs = OrderPayment.objects.select_related('order')
-
-    qs = qs.filter(order__in=apply_order_filters(Order.objects.all(), request))
-
-    data = qs.values('payment_mode').annotate(total=Sum('amount'))
-
-    return Response(paginate(data, request))
-
-
-
-
-
-@swagger_auto_schema(method='get', manual_parameters=common_params)
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def pending_payments_report(request):
-    qs = apply_order_filters(
-        Order.objects.filter(payment_status='pending'),
-        request
-    )
-
-    data = qs.values('order_number', 'total_price', 'order_date')
-
-    return Response(paginate(data, request))
-
-
-
-
-@swagger_auto_schema(method='get', manual_parameters=common_params)
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def top_products(request):
-    qs = OrderItem.objects.select_related('order', 'product')
-
-    qs = qs.filter(order__in=apply_order_filters(Order.objects.all(), request))
-
-    data = qs.values('product__name').annotate(
-        qty=Sum('quantity')
-    ).order_by('-qty')
-
-    return Response(paginate(data, request))
-
-
-
-@swagger_auto_schema(method='get', manual_parameters=common_params)
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def product_revenue(request):
-    qs = OrderItem.objects.select_related('order')
-
-    qs = qs.filter(order__in=apply_order_filters(Order.objects.all(), request))
-
-    data = qs.values('product__name').annotate(
-        revenue=Sum('total_price')
-    )
-
-    return Response(paginate(data, request))
-
-
-
-
-@swagger_auto_schema(method='get', manual_parameters=common_params)
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def variant_performance(request):
-    qs = OrderItem.objects.select_related('order')
-
-    qs = qs.filter(order__in=apply_order_filters(Order.objects.all(), request))
-
-    data = qs.values('product_variant__name').annotate(
-        total=Sum('total_price')
-    )
-
-    return Response(paginate(data, request))
-
-
-
-
-@swagger_auto_schema(method='get', manual_parameters=common_params)
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def category_sales(request):
-    qs = OrderItem.objects.select_related('product__category', 'order')
-
-    qs = qs.filter(order__in=apply_order_filters(Order.objects.all(), request))
-
-    data = qs.values('product__category__name').annotate(
-        total=Sum('total_price')
-    )
-
-    return Response(paginate(data, request))
-
-
-
-
-@swagger_auto_schema(method='get', manual_parameters=common_params)
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def veg_nonveg(request):
-    qs = OrderItem.objects.select_related('order', 'product')
-
-    qs = qs.filter(order__in=apply_order_filters(Order.objects.all(), request))
-
-    data = qs.values('product__is_veg').annotate(
-        total=Sum('total_price')
-    )
-
-    return Response(paginate(data, request))
-
-
-
-
-
-
-@swagger_auto_schema(method='get', manual_parameters=common_params)
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def kot_volume(request):
-    qs = KOT.objects.select_related('order')
-
-    qs = qs.filter(order__in=apply_order_filters(Order.objects.all(), request))
-
-    data = qs.values('created_at__date').annotate(
-        total=Count('id')
-    )
-
-    return Response(paginate(data, request))
-
-
-
-@swagger_auto_schema(method='get', manual_parameters=common_params)
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def table_kot(request):
-    qs = KOT.objects.select_related('table', 'order')
-
-    qs = qs.filter(order__in=apply_order_filters(Order.objects.all(), request))
-
-    data = qs.values('table__table_number').annotate(
-        total=Count('id')
-    )
-
-    return Response(paginate(data, request))
-
-
-
-
-@swagger_auto_schema(method='get', manual_parameters=common_params)
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def kitchen_efficiency(request):
-    qs = OrderItem.objects.select_related('order')
-
-    qs = qs.filter(order__in=apply_order_filters(Order.objects.all(), request))
+    qs = get_filtered_orders(outlet_id, request)
 
     data = qs.values('status').annotate(
         count=Count('id')
@@ -4545,156 +4726,549 @@ def kitchen_efficiency(request):
     return Response(paginate(data, request))
 
 
-
-
-
-@swagger_auto_schema(method='get', manual_parameters=common_params)
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def kot_turnaround(request):
-    qs = KOT.objects.select_related('order')
-
-    qs = qs.filter(order__in=apply_order_filters(Order.objects.all(), request))
-
-    data = qs.annotate(
-        turnaround=timezone.now() - F('created_at')
-    ).values('kot_number', 'turnaround')
-
-    return Response(paginate(data, request))
-
+# ==========================================
+# PAYMENT STATUS REPORT
+# ==========================================
 
 @swagger_auto_schema(method='get', manual_parameters=common_params)
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def table_turnover(request):
-    qs = apply_order_filters(Order.objects.all(), request)
+def payment_status_report(request, outlet_id):
 
-    data = qs.values('table_number__table_number').annotate(
-        orders=Count('id')
-    )
+    qs = get_filtered_orders(outlet_id, request)
 
-    return Response(paginate(data, request))
-
-
-@swagger_auto_schema(method='get')
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def table_utilization(request):
-    data = Table.objects.values('status').annotate(
+    data = qs.values('payment_status').annotate(
         count=Count('id')
     )
 
     return Response(paginate(data, request))
 
 
-
-
-
+# ==========================================
+# PAYMENT MODE ANALYSIS
+# ==========================================
 
 @swagger_auto_schema(method='get', manual_parameters=common_params)
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def expense_vs_revenue(request):
-    qs = apply_order_filters(Order.objects.all(), request)
+def payment_mode_analysis(request, outlet_id):
 
-    revenue = qs.aggregate(total=Sum('total_price'))['total']
-    expense = Expense.objects.aggregate(total=Sum('amount'))['total']
+    qs = OrderPayment.objects.select_related('order')
+
+    qs = qs.filter(
+        order__in=get_filtered_orders(
+            outlet_id,
+            request
+        )
+    )
+
+    data = qs.values('payment_mode').annotate(
+        total=Sum('amount')
+    )
+
+    return Response(paginate(data, request))
+
+
+# ==========================================
+# PENDING PAYMENTS REPORT
+# ==========================================
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def pending_payments_report(request, outlet_id):
+
+    qs = get_filtered_orders(
+        outlet_id,
+        request
+    ).filter(payment_status='pending')
+
+    data = qs.values(
+        'order_number',
+        'total_price',
+        'order_date'
+    )
+
+    return Response(paginate(data, request))
+
+
+# ==========================================
+# TOP PRODUCTS
+# ==========================================
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def top_products(request, outlet_id):
+
+    qs = OrderItem.objects.select_related(
+        'order',
+        'product'
+    )
+
+    qs = qs.filter(
+        order__in=get_filtered_orders(
+            outlet_id,
+            request
+        )
+    )
+
+    data = qs.values(
+        'product__name'
+    ).annotate(
+        qty=Sum('quantity')
+    ).order_by('-qty')
+
+    return Response(paginate(data, request))
+
+
+# ==========================================
+# PRODUCT REVENUE
+# ==========================================
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def product_revenue(request, outlet_id):
+
+    qs = OrderItem.objects.select_related('order')
+
+    qs = qs.filter(
+        order__in=get_filtered_orders(
+            outlet_id,
+            request
+        )
+    )
+
+    data = qs.values(
+        'product__name'
+    ).annotate(
+        revenue=Sum('total_price')
+    )
+
+    return Response(paginate(data, request))
+
+
+# ==========================================
+# VARIANT PERFORMANCE
+# ==========================================
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def variant_performance(request, outlet_id):
+
+    qs = OrderItem.objects.select_related('order')
+
+    qs = qs.filter(
+        order__in=get_filtered_orders(
+            outlet_id,
+            request
+        )
+    )
+
+    data = qs.values(
+        'product_variant__name'
+    ).annotate(
+        total=Sum('total_price')
+    )
+
+    return Response(paginate(data, request))
+
+
+# ==========================================
+# CATEGORY SALES
+# ==========================================
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def category_sales(request, outlet_id):
+
+    qs = OrderItem.objects.select_related(
+        'product__category',
+        'order'
+    )
+
+    qs = qs.filter(
+        order__in=get_filtered_orders(
+            outlet_id,
+            request
+        )
+    )
+
+    data = qs.values(
+        'product__category__name'
+    ).annotate(
+        total=Sum('total_price')
+    )
+
+    return Response(paginate(data, request))
+
+
+# ==========================================
+# VEG NON VEG
+# ==========================================
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def veg_nonveg(request, outlet_id):
+
+    qs = OrderItem.objects.select_related(
+        'order',
+        'product'
+    )
+
+    qs = qs.filter(
+        order__in=get_filtered_orders(
+            outlet_id,
+            request
+        )
+    )
+
+    data = qs.values(
+        'product__is_veg'
+    ).annotate(
+        total=Sum('total_price')
+    )
+
+    return Response(paginate(data, request))
+
+
+# ==========================================
+# KOT VOLUME
+# ==========================================
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def kot_volume(request, outlet_id):
+
+    qs = KOT.objects.select_related('order')
+
+    qs = qs.filter(
+        order__in=get_filtered_orders(
+            outlet_id,
+            request
+        )
+    )
+
+    data = qs.values(
+        'created_at__date'
+    ).annotate(
+        total=Count('id')
+    )
+
+    return Response(paginate(data, request))
+
+
+# ==========================================
+# TABLE KOT
+# ==========================================
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def table_kot(request, outlet_id):
+
+    qs = KOT.objects.select_related(
+        'table',
+        'order'
+    )
+
+    qs = qs.filter(
+        order__in=get_filtered_orders(
+            outlet_id,
+            request
+        )
+    )
+
+    data = qs.values(
+        'table__table_number'
+    ).annotate(
+        total=Count('id')
+    )
+
+    return Response(paginate(data, request))
+
+
+# ==========================================
+# KITCHEN EFFICIENCY
+# ==========================================
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def kitchen_efficiency(request, outlet_id):
+
+    qs = OrderItem.objects.select_related('order')
+
+    qs = qs.filter(
+        order__in=get_filtered_orders(
+            outlet_id,
+            request
+        )
+    )
+
+    data = qs.values('status').annotate(
+        count=Count('id')
+    )
+
+    return Response(paginate(data, request))
+
+
+# ==========================================
+# KOT TURNAROUND
+# ==========================================
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def kot_turnaround(request, outlet_id):
+
+    qs = KOT.objects.select_related('order')
+
+    qs = qs.filter(
+        order__in=get_filtered_orders(
+            outlet_id,
+            request
+        )
+    )
+
+    data = qs.annotate(
+        turnaround=timezone.now() - F('created_at')
+    ).values(
+        'kot_number',
+        'turnaround'
+    )
+
+    return Response(paginate(data, request))
+
+
+# ==========================================
+# TABLE TURNOVER
+# ==========================================
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def table_turnover(request, outlet_id):
+
+    qs = get_filtered_orders(outlet_id, request)
+
+    data = qs.values(
+        'table_number__table_number'
+    ).annotate(
+        orders=Count('id')
+    )
+
+    return Response(paginate(data, request))
+
+
+# ==========================================
+# TABLE UTILIZATION
+# ==========================================
+
+@swagger_auto_schema(method='get')
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def table_utilization(request, outlet_id):
+
+    data = Table.objects.filter(
+        outlet_id=outlet_id
+    ).values('status').annotate(
+        count=Count('id')
+    )
+
+    return Response(paginate(data, request))
+
+
+# ==========================================
+# EXPENSE VS REVENUE
+# ==========================================
+
+@swagger_auto_schema(method='get', manual_parameters=common_params)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def expense_vs_revenue(request, outlet_id):
+
+    qs = get_filtered_orders(
+        outlet_id,
+        request
+    )
+
+    revenue = qs.aggregate(
+        total=Sum('total_price')
+    )['total']
+
+    expense = Expense.objects.filter(
+        outlet_id=outlet_id
+    ).aggregate(
+        total=Sum('amount')
+    )['total']
 
     return Response({
         "revenue": revenue,
         "expense": expense
     })
-    
-    
+
+
+# ==========================================
+# REFUND ANALYSIS
+# ==========================================
 
 @swagger_auto_schema(method='get', manual_parameters=common_params)
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def refund_analysis(request):
+def refund_analysis(request, outlet_id):
+
     qs = RefundNote.objects.select_related('order')
 
-    qs = qs.filter(order__in=apply_order_filters(Order.objects.all(), request))
+    qs = qs.filter(
+        order__in=get_filtered_orders(
+            outlet_id,
+            request
+        )
+    )
 
-    data = qs.values('refund_title').annotate(
+    data = qs.values(
+        'refund_title'
+    ).annotate(
         total=Sum('refund_amount')
     )
 
     return Response(paginate(data, request))
 
 
+# ==========================================
+# CUSTOMER REPEAT REPORT
+# ==========================================
 
 @swagger_auto_schema(method='get', manual_parameters=common_params)
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def customer_repeat_report(request):
-    qs = apply_order_filters(Order.objects.all(), request)
+def customer_repeat_report(request, outlet_id):
 
-    data = Customer.objects.filter(order__in=qs)\
-        .values('phone_number')\
-        .annotate(order_count=Count('id'))
+    qs = get_filtered_orders(
+        outlet_id,
+        request
+    )
 
-    repeat = sum(1 for d in data if d['order_count'] > 1)
-    new = sum(1 for d in data if d['order_count'] == 1)
+    data = Customer.objects.filter(
+        order__in=qs
+    ).values(
+        'phone_number'
+    ).annotate(
+        order_count=Count('id')
+    )
+
+    repeat = sum(
+        1 for d in data
+        if d['order_count'] > 1
+    )
+
+    new = sum(
+        1 for d in data
+        if d['order_count'] == 1
+    )
 
     return Response({
         "repeat_customers": repeat,
         "new_customers": new
     })
-    
 
+
+# ==========================================
+# AVG ORDER VALUE TREND
+# ==========================================
 
 @swagger_auto_schema(method='get', manual_parameters=common_params)
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def avg_order_value_trend(request):
-    qs = apply_order_filters(Order.objects.all(), request)
+def avg_order_value_trend(request, outlet_id):
 
-    data = qs.values('order_date__date')\
-        .annotate(avg_order_value=Avg('total_price'))\
-        .order_by('order_date__date')
+    qs = get_filtered_orders(
+        outlet_id,
+        request
+    )
+
+    data = qs.values(
+        'order_date__date'
+    ).annotate(
+        avg_order_value=Avg('total_price')
+    ).order_by(
+        'order_date__date'
+    )
 
     return Response(paginate(data, request))
 
 
+# ==========================================
+# PEAK DAYS REPORT
+# ==========================================
 
 @swagger_auto_schema(method='get', manual_parameters=common_params)
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def peak_days_report(request):
-    qs = apply_order_filters(Order.objects.all(), request)
+def peak_days_report(request, outlet_id):
 
-    data = qs.values('order_date__week_day')\
-        .annotate(total_sales=Sum('total_price'))\
-        .order_by('-total_sales')
+    qs = get_filtered_orders(
+        outlet_id,
+        request
+    )
+
+    data = qs.values(
+        'order_date__week_day'
+    ).annotate(
+        total_sales=Sum('total_price')
+    ).order_by('-total_sales')
 
     return Response(paginate(data, request))
 
 
-
-
+# ==========================================
+# COUPON IMPACT REPORT
+# ==========================================
 
 @swagger_auto_schema(method='get', manual_parameters=common_params)
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def coupon_impact_report(request):
-    qs = apply_order_filters(Order.objects.filter(mode='coupon'), request)
+def coupon_impact_report(request, outlet_id):
+
+    qs = get_filtered_orders(
+        outlet_id,
+        request
+    ).filter(mode='coupon')
 
     total_discount_orders = qs.count()
-    total_discount_revenue = qs.aggregate(total=Sum('total_price'))['total']
+
+    total_discount_revenue = qs.aggregate(
+        total=Sum('total_price')
+    )['total']
 
     return Response({
         "orders_with_coupon": total_discount_orders,
         "revenue_from_coupon_orders": total_discount_revenue
     })
-    
-    
+
+
+# ==========================================
+# STOCKOUT IMPACT REPORT
+# ==========================================
 
 @swagger_auto_schema(method='get')
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def stockout_impact_report(request):
-    data = Product.objects.filter(is_stock_out=True)\
-        .values('name', 'price')
+def stockout_impact_report(request, outlet_id):
+
+    data = Product.objects.filter(
+        outlet_id=outlet_id,
+        is_stock_out=True
+    ).values(
+        'name',
+        'price'
+    )
 
     return Response({
         "out_of_stock_items": list(data),

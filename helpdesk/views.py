@@ -83,6 +83,7 @@ def create_ticket(request, user_id, outlet_id):
     },
 )
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def list_tickets(request, outlet_id):
     """
     API view to list all tickets for a specific outlet.
