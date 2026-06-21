@@ -56,7 +56,6 @@ from .models import (
     Menu,
     Category,
     StockRequest, 
-    FCMToken,
     EmployeeCredentials,
     Order,
     OrderItem,
@@ -1982,48 +1981,6 @@ def approve_stock_requests(request, outlet_id,user_id):
 
 
 
-@api_view(["POST"])
-@permission_classes([AllowAny])
-def create_fcm_token(request, outlet_id):
-    try:
-        # Get outlet by ID
-        outlet = get_object_or_404(Outlet, id=outlet_id)
-
-        # Extract token from request data
-        token = request.data.get("token")
-
-        if not token:
-            return Response(
-                {"error": True, "detail": "Token is required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Check if token already exists for this outlet
-        existing_token = FCMToken.objects.filter(outlet=outlet).first()
-
-        if existing_token:
-            existing_token.token = token
-            existing_token.save()
-            return Response(
-                {"error": False, "detail": "FCM Token updated successfully"},
-                status=status.HTTP_200_OK,
-            )
-        else:
-            FCMToken.objects.create(outlet=outlet, token=token)
-            return Response(
-                {"error": False, "detail": "FCM Token created successfully"},
-                status=status.HTTP_201_CREATED,
-            )
-
-    except Exception as e:
-        return Response(
-            {"error": True, "detail": str(e)},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-
-
-
 
 
 @swagger_auto_schema(
@@ -3112,6 +3069,69 @@ def delete_category(request, outlet_id, user_id, category_id):
 
 #     return Response(payload)
 
+
+
+# ==========================================
+# TOGGLE GST STATUS
+# ==========================================
+
+@swagger_auto_schema(
+    method='patch',
+    operation_summary="Toggle GST Status",
+    operation_description="Enable or disable GST calculations for a given company.",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['gst_enabled'],
+        properties={
+            'gst_enabled': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+            'gst_in': openapi.Schema(type=openapi.TYPE_STRING, description="Required if enabling GST and company does not already have a GST number.")
+        }
+    ),
+    responses={
+        200: openapi.Response('Success', openapi.Schema(type=openapi.TYPE_OBJECT, properties={
+            'error': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+            'message': openapi.Schema(type=openapi.TYPE_STRING),
+            'gst_enabled': openapi.Schema(type=openapi.TYPE_BOOLEAN)
+        })),
+        400: 'Bad Request',
+        404: 'Company Not Found'
+    },
+    tags=['Company']
+)
+@api_view(['PATCH'])
+@permission_classes([AllowAny])
+def toggle_gst_status(request, company_id):
+    try:
+        company = Company.objects.get(id=company_id)
+        
+        if 'gst_enabled' not in request.data:
+            return Response({"error": True, "message": "gst_enabled field is required."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        gst_enabled = str(request.data['gst_enabled']).lower() == 'true'
+        
+        if gst_enabled and not company.gst_enabled:
+            gst_in = request.data.get('gst_in')
+            if not company.gst_in and not gst_in:
+                return Response({
+                    "error": True, 
+                    "message": "GST Number is required to enable GST."
+                }, status=status.HTTP_400_BAD_REQUEST)
+            if gst_in:
+                company.gst_in = gst_in
+                
+        company.gst_enabled = gst_enabled
+        company.save()
+        
+        return Response({
+            "error": False,
+            "message": f"GST has been {'enabled' if gst_enabled else 'disabled'} successfully.",
+            "gst_enabled": company.gst_enabled
+        }, status=status.HTTP_200_OK)
+        
+    except Company.DoesNotExist:
+        return Response({"error": True, "message": "Company not found."}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({"error": True, "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 dashboard_response_schema = openapi.Schema(
@@ -5274,3 +5294,53 @@ def stockout_impact_report(request, outlet_id):
         "out_of_stock_items": list(data),
         "count": data.count()
     })
+
+
+# ==========================================
+# ADD-ONS
+# ==========================================
+
+@swagger_auto_schema(
+    method='get',
+    operation_summary="Get User Add-Ons",
+    operation_description="Returns all active and past add-ons for the specified user.",
+    responses={
+        200: openapi.Response('Success', openapi.Schema(
+            type=openapi.TYPE_ARRAY,
+            items=openapi.Items(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                    'name': openapi.Schema(type=openapi.TYPE_STRING),
+                    'purchase_date': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
+                    'active_till': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATE),
+                }
+            )
+        )),
+        404: 'User Not Found'
+    },
+    tags=['AddOns']
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_user_addons(request, user_id):
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    
+    try:
+        user = User.objects.get(id=user_id)
+        addons = user.addons.all()
+        
+        data = []
+        for addon in addons:
+            data.append({
+                "id": addon.id,
+                "name": addon.name,
+                "purchase_date": addon.purchase_date,
+                "active_till": addon.active_till
+            })
+            
+        return Response(data, status=status.HTTP_200_OK)
+        
+    except User.DoesNotExist:
+        return Response({"error": True, "message": "User not found."}, status=status.HTTP_404_NOT_FOUND)

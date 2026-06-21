@@ -1,1 +1,30 @@
 credentials.json
+
+# Environment Variables
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Django
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+
+# Environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db

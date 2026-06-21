@@ -43,7 +43,6 @@ from v1.models import (
     Customer,
     Coupon,
     RazorpayCredential,
-    FCMToken, 
     Table
 )
 
@@ -152,9 +151,10 @@ def product_list(request, outlet_id):
         # CHECK OUTLET
         # -----------------------------------------
         outlet = get_object_or_404(
-            Outlet,
+            Outlet.objects.select_related('company'),
             id=outlet_id
         )
+        gst_enabled = outlet.company.gst_enabled
 
         # -----------------------------------------
         # QUERY PARAMS
@@ -239,9 +239,7 @@ def product_list(request, outlet_id):
 
                     "price": str(variant.price),
 
-                    "is_gst_inclusive": (
-                        variant.is_gst_inclusive
-                    ),
+                    **({"is_gst_inclusive": variant.is_gst_inclusive} if gst_enabled else {}),
 
                     "extra_description": (
                         variant.extra_description
@@ -275,15 +273,8 @@ def product_list(request, outlet_id):
                     product.description
                 ),
 
-                "gst_percentage": (
-                    str(product.gst_percentage)
-                    if product.gst_percentage
-                    else None
-                ),
-
-                "is_gst_inclusive": (
-                    product.is_gst_inclusive
-                ),
+                **({"gst_percentage": str(product.gst_percentage) if product.gst_percentage else None,
+                    "is_gst_inclusive": product.is_gst_inclusive} if gst_enabled else {}),
 
                 "created_at": (
                     product.created_at
@@ -441,6 +432,10 @@ def place_order(request, outlet_id):
                 phone_number=customer_data.get('phone_number')
             )
         
+        # Check GST enabled status
+        outlet = Outlet.objects.select_related('company').get(id=outlet_id)
+        gst_enabled = outlet.company.gst_enabled
+
         # Create the Order
         order = Order.objects.create(
             outlet_id=outlet_id,
@@ -488,16 +483,22 @@ def place_order(request, outlet_id):
 
             total_item_price = price * quantity
 
-            if is_gst_inclusive:
-                rate_excluding_gst = price / (1 + gst / Decimal('100'))
-                gst_amount = total_item_price - (rate_excluding_gst * quantity)
-                amount_excluding_gst = total_item_price - gst_amount
+            if gst_enabled:
+                if is_gst_inclusive:
+                    rate_excluding_gst = price / (1 + gst / Decimal('100'))
+                    gst_amount = total_item_price - (rate_excluding_gst * quantity)
+                    amount_excluding_gst = total_item_price - gst_amount
+                else:
+                    gst_amount = (gst / Decimal('100')) * total_item_price
+                    rate_excluding_gst = price
+                    amount_excluding_gst = total_item_price
+
+                total_item_gst_inclusive = total_item_price + gst_amount if not is_gst_inclusive else total_item_price
             else:
-                gst_amount = (gst / Decimal('100')) * total_item_price
+                gst_amount = Decimal('0.00')
                 rate_excluding_gst = price
                 amount_excluding_gst = total_item_price
-
-            total_item_gst_inclusive = total_item_price + gst_amount if not is_gst_inclusive else total_item_price
+                total_item_gst_inclusive = total_item_price
 
             OrderItem.objects.create(
                 order=order,
@@ -542,16 +543,32 @@ def place_order(request, outlet_id):
         response_data['cgst'] = round(cgst, 2)
         response_data['sgst'] = round(sgst, 2)
         
-        
-        #FCM message integration
-        fcm_token_obj = FCMToken.objects.filter(outlet_id=outlet_id).first()
-        if fcm_token_obj:
-            notification_result = send_order_notification(fcm_token_obj.token)
-            print("Notification response:", notification_result)
-        else:
-            print("No FCM token found for this outlet.")
-        
-        
+        # -----------------------------------------
+        # WEBSOCKET NOTIFICATION
+        # -----------------------------------------
+        try:
+            from channels.layers import get_channel_layer
+            from asgiref.sync import async_to_sync
+            channel_layer = get_channel_layer()
+            room_group_name = f'outlet_{outlet_id}_orders'
+            
+            # Broadcast the message
+            async_to_sync(channel_layer.group_send)(
+                room_group_name,
+                {
+                    'type': 'new_order_notification',
+                    'message': 'new order placed',
+                    'order_data': {
+                        'order_id': order.id,
+                        'order_number': order.order_number,
+                        'total_price': float(order.total_price),
+                        'table': table_number,
+                        'is_qr': True
+                    }
+                }
+            )
+        except Exception as ws_err:
+            print("WebSocket Error:", ws_err)
 
         return Response(response_data, status=status.HTTP_201_CREATED)
 
@@ -1545,214 +1562,227 @@ def generate_table_qrs(request, outlet_id):
         footer_font  = ImageFont.load_default()
 
     # ---------------------------------------------------
-    # QR CARD GENERATOR
+    # QR CARD GENERATOR (HIGH-RES PROFESSIONAL TEMPLATE)
     # ---------------------------------------------------
     def create_qr_card(qr_data, file_name, table_number=None):
+        from PIL import ImageFilter
+        
+        # 1. High-Res Canvas (3x scale for butter-smooth antialiasing)
+        scale = 3  
+        canvas_width = 600 * scale
+        canvas_height = 1250 * scale # Increased from 1060 to prevent overlap
 
-        # ── QR CODE ──────────────────────────────────────
-        qr = qrcode.QRCode(
-            version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_H,
-            box_size=12,
-            border=2
+        # Base background (very light gray)
+        canvas = Image.new("RGBA", (canvas_width, canvas_height), "#f8fafc")
+        
+        # 2. True Drop Shadow
+        # Create a layer for shadow
+        shadow_layer = Image.new("RGBA", (canvas_width, canvas_height), (0,0,0,0))
+        shadow_draw = ImageDraw.Draw(shadow_layer)
+        cm = 25 * scale
+        
+        # Draw shadow box
+        shadow_draw.rounded_rectangle(
+            (cm, cm + 10 * scale, canvas_width - cm, canvas_height - cm + 10 * scale),
+            radius=30 * scale,
+            fill=(0, 0, 0, 25) # Soft black
         )
-        qr.add_data(qr_data)
-        qr.make(fit=True)
-
-        qr_image = qr.make_image(
-            fill_color="#111827",
-            back_color="white"
-        ).convert("RGB")
-
-        qr_image = qr_image.resize((400, 400))
-
-        # ── CANVAS ───────────────────────────────────────
-        canvas_width  = 600
-        canvas_height = 1060      # tall enough for all elements
-
-        canvas = Image.new("RGB", (canvas_width, canvas_height), "#f1f5f9")
-        draw   = ImageDraw.Draw(canvas)
-
-        # ── WHITE CARD ───────────────────────────────────
-        cm = 22   # card margin
-        draw.rounded_rectangle(
+        # Blur the shadow heavily
+        shadow_layer = shadow_layer.filter(ImageFilter.GaussianBlur(15 * scale))
+        
+        # Paste shadow onto canvas
+        canvas = Image.alpha_composite(canvas, shadow_layer)
+        
+        # 3. Main White Card
+        card_layer = Image.new("RGBA", (canvas_width, canvas_height), (0,0,0,0))
+        card_draw = ImageDraw.Draw(card_layer)
+        
+        card_draw.rounded_rectangle(
             (cm, cm, canvas_width - cm, canvas_height - cm),
-            radius=30,
-            fill="white",
-            outline="#e2e8f0",
-            width=2
+            radius=30 * scale,
+            fill=(255, 255, 255, 255)
         )
+        canvas = Image.alpha_composite(canvas, card_layer)
+        
+        # We will draw text and elements onto a transparent layer, then composite
+        draw_layer = Image.new("RGBA", (canvas_width, canvas_height), (0,0,0,0))
+        draw = ImageDraw.Draw(draw_layer)
 
-        current_y = 55
+        current_y = 60 * scale
 
-        # ── OUTLET LOGO ──────────────────────────────────
-        logo_rendered = False
-
+        # 4. Logo Rendering
         if outlet.logo:
             try:
                 logo_path = os.path.join(settings.MEDIA_ROOT, outlet.logo.name)
-
                 if os.path.exists(logo_path):
                     logo = Image.open(logo_path).convert("RGBA")
-
-                    # crop transparent padding
-                    bbox = logo.getbbox()
-                    if bbox:
-                        logo = logo.crop(bbox)
-
-                    # fit inside circle
-                    logo_size = 118
-                    logo.thumbnail((logo_size, logo_size), Image.LANCZOS)
-
-                    container_size = 148
-
-                    # ── clean white circle with border ──
-                    circle_img  = Image.new("RGBA", (container_size, container_size), (0, 0, 0, 0))
-                    circle_draw = ImageDraw.Draw(circle_img)
-
-                    # border ring
-                    circle_draw.ellipse(
-                        (0, 0, container_size - 1, container_size - 1),
-                        fill=(226, 232, 240, 255)   # #e2e8f0
-                    )
-
-                    # white fill
-                    border = 3
-                    circle_draw.ellipse(
-                        (border, border, container_size - border - 1, container_size - border - 1),
-                        fill=(255, 255, 255, 255)
-                    )
-
-                    # ── circular mask for logo ──────────
-                    inner  = container_size - border * 2 - 1
-                    mask   = Image.new("L", (inner, inner), 0)
-                    ImageDraw.Draw(mask).ellipse((0, 0, inner - 1, inner - 1), fill=255)
-
-                    logo_canvas = Image.new("RGBA", (inner, inner), (255, 255, 255, 255))
-                    lx = (inner - logo.width)  // 2
-                    ly = (inner - logo.height) // 2
-                    logo_canvas.paste(logo, (lx, ly), logo)
-                    logo_canvas.putalpha(mask)
-
-                    circle_img.paste(logo_canvas, (border, border), logo_canvas)
-
-                    paste_x = (canvas_width - container_size) // 2
-                    canvas.paste(circle_img, (paste_x, current_y), circle_img)
-
-                    current_y  += container_size + 20
-                    logo_rendered = True
-
+                    
+                    # Target size
+                    logo_size = 140 * scale
+                    
+                    # Calculate aspect ratio preserving resize
+                    ratio = min(logo_size/logo.width, logo_size/logo.height)
+                    new_w = int(logo.width * ratio)
+                    new_h = int(logo.height * ratio)
+                    
+                    logo = logo.resize((new_w, new_h), Image.LANCZOS)
+                    
+                    # Center logo
+                    paste_x = (canvas_width - new_w) // 2
+                    draw_layer.paste(logo, (paste_x, current_y), logo)
+                    
+                    current_y += new_h + 30 * scale
             except Exception as e:
                 print("Logo Error:", str(e))
 
-        # ── OUTLET NAME ──────────────────────────────────
+        # 5. Outlet Name
         outlet_name = outlet.outlet_name
-        bbox        = draw.textbbox((0, 0), outlet_name, font=outlet_font)
-        text_width  = bbox[2] - bbox[0]
-
+        try:
+            outlet_font = ImageFont.truetype("arialbd.ttf", 45 * scale) # Bold
+        except:
+            outlet_font = ImageFont.load_default()
+            
+        bbox = draw.textbbox((0, 0), outlet_name, font=outlet_font)
+        text_width = bbox[2] - bbox[0]
+        
         draw.text(
             ((canvas_width - text_width) // 2, current_y),
             outlet_name,
-            fill="#1e293b",
+            fill="#0f172a",
             font=outlet_font
         )
+        current_y += 75 * scale
 
-        current_y += 55
-
-        # ── DIVIDER ──────────────────────────────────────
-        div_margin = 100
+        # Divider
+        div_margin = 120 * scale
         draw.line(
             (div_margin, current_y, canvas_width - div_margin, current_y),
             fill="#e2e8f0",
-            width=2
+            width=3 * scale
         )
+        current_y += 50 * scale
 
-        current_y += 28
-
-        # ── TABLE NUMBER PILL ────────────────────────────
+        # 6. Table Number Pill
         if table_number:
-            table_text = f"Table  {table_number}"
-            bbox       = draw.textbbox((0, 0), table_text, font=table_font)
-            tw         = bbox[2] - bbox[0]
-            th         = bbox[3] - bbox[1]
+            table_text = f"TABLE {table_number}"
+            try:
+                table_font = ImageFont.truetype("arialbd.ttf", 35 * scale)
+            except:
+                table_font = ImageFont.load_default()
+                
+            bbox = draw.textbbox((0, 0), table_text, font=table_font)
+            tw = bbox[2] - bbox[0]
+            th = bbox[3] - bbox[1]
 
-            pill_w  = tw + 80
-            pill_h  = th + 30
+            pill_w = tw + 90 * scale
+            pill_h = th + 40 * scale
             pill_x1 = (canvas_width - pill_w) // 2
             pill_y1 = current_y
 
             draw.rounded_rectangle(
                 (pill_x1, pill_y1, pill_x1 + pill_w, pill_y1 + pill_h),
                 radius=pill_h // 2,
-                fill="#eff6ff",
-                outline="#bfdbfe",
-                width=2
+                fill="#f1f5f9" # Light slate
             )
 
             draw.text(
-                ((canvas_width - tw) // 2, pill_y1 + 14),
+                ((canvas_width - tw) // 2, pill_y1 + 18 * scale),
                 table_text,
-                fill="#2563eb",
+                fill="#334155",
                 font=table_font
             )
+            current_y += pill_h + 50 * scale
 
-            current_y += pill_h + 32
+        # 7. QR Code Generation
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_H,
+            box_size=15 * scale,
+            border=2
+        )
+        qr.add_data(qr_data)
+        qr.make(fit=True)
 
-        # ── QR IMAGE BOX ─────────────────────────────────
-        qr_pad   = 20
-        qr_box_w = qr_image.width  + qr_pad * 2
+        # Better QR styling if available
+        try:
+            from qrcode.image.styledpil import StyledPilImage
+            from qrcode.image.styles.moduledrawers import RoundedModuleDrawer
+            from qrcode.image.styles.colormasks import SolidFillColorMask
+            
+            qr_image = qr.make_image(
+                image_factory=StyledPilImage,
+                module_drawer=RoundedModuleDrawer(),
+                color_mask=SolidFillColorMask(front_color=(15, 23, 42), back_color=(255, 255, 255))
+            ).convert("RGBA")
+        except:
+            qr_image = qr.make_image(
+                fill_color="#0f172a",
+                back_color="white"
+            ).convert("RGBA")
+
+        # Give the QR a soft border
+        qr_pad = 25 * scale
+        qr_box_w = qr_image.width + qr_pad * 2
         qr_box_h = qr_image.height + qr_pad * 2
         qr_box_x = (canvas_width - qr_box_w) // 2
 
-        # shadow
-        draw.rounded_rectangle(
-            (qr_box_x + 5, current_y + 7, qr_box_x + qr_box_w + 5, current_y + qr_box_h + 7),
-            radius=18,
-            fill="#e2e8f0"
-        )
-
-        # box
+        # Draw QR Background & Border
         draw.rounded_rectangle(
             (qr_box_x, current_y, qr_box_x + qr_box_w, current_y + qr_box_h),
-            radius=18,
+            radius=20 * scale,
             fill="white",
-            outline="#e2e8f0",
-            width=2
+            outline="#cbd5e1",
+            width=3 * scale
         )
 
-        canvas.paste(qr_image, (qr_box_x + qr_pad, current_y + qr_pad))
+        draw_layer.paste(qr_image, (qr_box_x + qr_pad, current_y + qr_pad), qr_image)
+        current_y += qr_box_h + 60 * scale
 
-        current_y += qr_box_h + 38
-
-        # ── SCAN QR TO ORDER  (big, bold-ish) ────────────
-        scan_text  = "Scan QR to Order"
-        bbox       = draw.textbbox((0, 0), scan_text, font=scan_font)
+        # 8. Scan QR To Order
+        scan_text = "Scan QR to Order"
+        try:
+            scan_font = ImageFont.truetype("arialbd.ttf", 55 * scale)
+        except:
+            scan_font = ImageFont.load_default()
+            
+        bbox = draw.textbbox((0, 0), scan_text, font=scan_font)
         text_width = bbox[2] - bbox[0]
-
+        
         draw.text(
             ((canvas_width - text_width) // 2, current_y),
             scan_text,
-            fill="#111827",
+            fill="#f97316", # Vibrant Digitech / POS brand color
             font=scan_font
         )
 
-        current_y += 58
-
-        # ── POWERED BY MANTRA POS ────────────────────────
-        footer_text = "Powered by Mantra POS"
-        bbox        = draw.textbbox((0, 0), footer_text, font=footer_font)
-        text_width  = bbox[2] - bbox[0]
-
+        # 9. Powered By Footer
+        footer_text = "Powered by MantraPOS"
+        try:
+            footer_font = ImageFont.truetype("arial.ttf", 25 * scale)
+        except:
+            footer_font = ImageFont.load_default()
+            
+        bbox = draw.textbbox((0, 0), footer_text, font=footer_font)
+        text_width = bbox[2] - bbox[0]
+        
         draw.text(
-            ((canvas_width - text_width) // 2, current_y),
+            ((canvas_width - text_width) // 2, canvas_height - cm - 50 * scale),
             footer_text,
             fill="#94a3b8",
             font=footer_font
         )
 
-        # ── SAVE ─────────────────────────────────────────
+        # Composite everything
+        final_image = Image.alpha_composite(canvas, draw_layer)
+        
+        # Scale back down for crisp antialiasing
+        final_image = final_image.resize((canvas_width // scale, canvas_height // scale), Image.LANCZOS)
+        
+        # Convert to RGB to save as PNG (no alpha needed for final file)
+        final_image = final_image.convert("RGB")
+
         file_path = os.path.join(qr_folder, file_name)
-        canvas.save(file_path, quality=95)
+        final_image.save(file_path, quality=100)
 
         relative_url = f"{settings.MEDIA_URL}table_qrs/{file_name}"
         return request.build_absolute_uri(relative_url)

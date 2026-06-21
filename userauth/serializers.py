@@ -29,6 +29,7 @@ class CompanyUserSerializer(serializers.Serializer):
     number_of_employees = serializers.IntegerField()
     phone_number = serializers.CharField(max_length=15)
     verified = serializers.BooleanField(default=False)
+    plan_name = serializers.CharField(max_length=50, required=False, default="Free")
 
     def create(self, validated_data):
         # Replace spaces with underscores in the company name to generate the username
@@ -56,21 +57,22 @@ class CompanyUserSerializer(serializers.Serializer):
 
         # Store the plain password in the `plain_password` field
         user.plain_password = password
-        user.save()  # Save the user instance to update the plain_password field
+        user.role = 'manager'
+        user.save()  # Save the user instance to update the plain_password and role fields
 
         
-                # Assign a free plan to the user
+        # Assign the requested plan to the user
+        plan_name = validated_data.get('plan_name', 'Free')
         try:
-            free_plan = Plan.objects.get(plan_name='Free')
+            assigned_plan = Plan.objects.get(plan_name__iexact=plan_name)
             PlanAssignment.objects.create(
-                plan=free_plan,
+                plan=assigned_plan,
                 user=user,
                 valid_till=date.today() + timedelta(days=15),  # Valid for 15 days from today
                 status='active'
             )
         except Plan.DoesNotExist:
-            # Handle the case where a 'Free' plan does not exist
-            raise serializers.ValidationError("Free plan is not available.")
+            raise serializers.ValidationError(f"Plan '{plan_name}' is not available.")
         
         
         
@@ -104,6 +106,7 @@ class OTPVerificationSerializer(serializers.Serializer):
 class CustomUserLoginSerializer(serializers.Serializer):
     username = serializers.EmailField()
     password = serializers.CharField(write_only=True)
+    role = serializers.CharField(required=True)
 
     def validate(self, data):
         email = data.get('username')
@@ -120,6 +123,10 @@ class CustomUserLoginSerializer(serializers.Serializer):
         # Check if the password matches
         if not user.check_password(password):
             raise serializers.ValidationError("Invalid email or password.")
+
+        role = data.get('role')
+        if user.role != role:
+            raise serializers.ValidationError(f"Access denied: User does not have the '{role}' role.")
 
         data['user'] = user
         return data    

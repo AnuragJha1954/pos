@@ -10,7 +10,6 @@ from .models import (
     Menu,
     Category,
     StockRequest,
-    FCMToken,
     EmployeeCredentials,
     Order,
     OrderItem, 
@@ -234,15 +233,6 @@ class ApproveStockRequestSerializer(serializers.ModelSerializer):
         instance.status = 'APPROVED'
         instance.save()
         return instance
-
-
-
-
-class FCMTokenSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = FCMToken
-        fields = ['outlet', 'token']
-
 
 
 

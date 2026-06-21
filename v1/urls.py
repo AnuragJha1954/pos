@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import reports
 
 urlpatterns = [
     
@@ -68,6 +69,9 @@ urlpatterns = [
     #Customer Related Urls
     path('get-customers/<int:company_id>/',views.list_company_customers,name='list_company_customers'),
     
+    # Company Config
+    path('company/<int:company_id>/toggle-gst/', views.toggle_gst_status, name='toggle_gst_status'),
+    
         # -------- DASHBOARD (OUTLET LEVEL) --------
     path("dashboard/<int:company_id>/", views.dashboard_data, name="dashboard"),
 
@@ -98,31 +102,21 @@ urlpatterns = [
 
     
     
-    # Reports
-    path('reports/daily/<int:outlet_id>/', views.daily_sales_report),
-    path('reports/outlet/<int:outlet_id>/', views.outlet_sales_report),
-    path('reports/hourly/<int:outlet_id>/', views.hourly_sales_report),
-    path('reports/order-status/<int:outlet_id>/', views.order_status_report),
-    path('reports/payment-status/<int:outlet_id>/', views.payment_status_report),
-    path('reports/payment-mode/<int:outlet_id>/', views.payment_mode_analysis),
-    path('reports/pending/<int:outlet_id>/', views.pending_payments_report),
-    path('reports/top-products/<int:outlet_id>/', views.top_products),
-    path('reports/product-revenue/<int:outlet_id>/', views.product_revenue),
-    path('reports/variant/<int:outlet_id>/', views.variant_performance),
-    path('reports/category/<int:outlet_id>/', views.category_sales),
-    path('reports/veg-nonveg/<int:outlet_id>/', views.veg_nonveg),
-    path('reports/kot-volume/<int:outlet_id>/', views.kot_volume),
-    path('reports/table-kot/<int:outlet_id>/', views.table_kot),
-    path('reports/kitchen/<int:outlet_id>/', views.kitchen_efficiency),
-    path('reports/kot-turnaround/<int:outlet_id>/', views.kot_turnaround),
-    path('reports/table-turnover/<int:outlet_id>/', views.table_turnover),
-    path('reports/table-utilization/<int:outlet_id>/', views.table_utilization),
-    path('reports/expense/<int:outlet_id>/', views.expense_vs_revenue),
-    path('reports/refund/<int:outlet_id>/', views.refund_analysis),
-    path('reports/customer-repeat/<int:outlet_id>/', views.customer_repeat_report, name='customer_repeat_report'),
-    path('reports/avg-order-value/<int:outlet_id>/', views.avg_order_value_trend, name='avg_order_value_trend'),
-    path('reports/peak-days/<int:outlet_id>/', views.peak_days_report, name='peak_days_report'),
-    path('reports/coupon-impact/<int:outlet_id>/', views.coupon_impact_report, name='coupon_impact_report'),
-    path('reports/stockout-impact/<int:outlet_id>/', views.stockout_impact_report, name='stockout_impact_report'),
+    # -----------------------------------------
+    # Comprehensive Analytics & Reports
+    # -----------------------------------------
+    path('reports/sales/<int:outlet_id>/', reports.comprehensive_sales_report),
+    path('reports/menu/<int:outlet_id>/', reports.menu_performance_report),
+    path('reports/kitchen/<int:outlet_id>/', reports.kitchen_efficiency_report),
+    path('reports/tables/<int:outlet_id>/', reports.table_utilization_report),
+    path('reports/customers/<int:outlet_id>/', reports.customer_retention_report),
+    path('reports/payments/<int:outlet_id>/', reports.payment_analytics_report),
+    path('reports/expenses/<int:outlet_id>/', reports.expense_profitability_report),
+    path('reports/staff/<int:outlet_id>/', reports.staff_performance_report),
+    path('reports/inventory/<int:outlet_id>/', reports.inventory_stockout_report),
+    path('reports/discounts/<int:outlet_id>/', reports.discount_impact_report),
+
+    # Add-Ons
+    path('users/<int:user_id>/addons/', views.get_user_addons, name='get_user_addons'),
 
 ]

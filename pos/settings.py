@@ -38,6 +38,7 @@ ALLOWED_HOSTS = ['127.0.0.1','192.168.1.7','localhost','0.0.0.0','*']
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -54,7 +55,8 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'corsheaders',
     'rest_framework',
-
+    'inventory',
+    'channels',
 ]
 
 MIDDLEWARE = [
@@ -73,7 +75,7 @@ ROOT_URLCONF = 'pos.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -87,6 +89,18 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'pos.wsgi.application'
+ASGI_APPLICATION = 'pos.asgi.application'
+REDIS_HOST = os.environ.get('REDIS_HOST', '127.0.0.1')
+REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [(REDIS_HOST, REDIS_PORT)],
+        },
+    },
+}
 
 
 # Database
@@ -211,3 +225,32 @@ PINELABS_CLIENT_ID=1013457
 PINELABS_AUTO_CANCEL_MINUTES=3
 PINELABS_TERMINAL_ID=1221258
 
+SWAGGER_SETTINGS = {
+    'DEFAULT_AUTO_SCHEMA_CLASS': 'pos.swagger.CustomSwaggerAutoSchema',
+}
+
+REDOC_SETTINGS = {
+    'LAZY_RENDERING': False,
+    'HIDE_HOSTNAME': False,
+    'EXPAND_RESPONSES': '200,201',
+    'THEME': {
+        'typography': {
+            'fontFamily': '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+            'headings': {
+                'fontFamily': '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+                'fontWeight': '600',
+            }
+        },
+        'colors': {
+            'primary': {
+                'main': '#f97316'
+            }
+        },
+        'sidebar': {
+            'backgroundColor': '#fafbfc'
+        },
+        'logo': {
+            'gutter': '20px'
+        }
+    }
+}

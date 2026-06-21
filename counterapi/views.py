@@ -63,7 +63,6 @@ from v1.models import (
     Employee,
     PlanAssignment,
     Plan,
-    FCMToken,
     Table,
     Expense,
     KOT,
@@ -330,6 +329,10 @@ def product_list(request, outlet_id):
     try:
         # Get the search query parameter
         search_query = request.GET.get('product')
+
+        # Check GST enabled status
+        outlet = Outlet.objects.select_related('company').get(id=outlet_id)
+        gst_enabled = outlet.company.gst_enabled
         
         # Retrieve all products base queryset
         base_products = Product.objects.filter(outlet__id=outlet_id).select_related('category').prefetch_related('variants').all()
@@ -378,7 +381,7 @@ def product_list(request, outlet_id):
                             "id": v["id"],
                             "name": v["name"],
                             "price": v["price"],
-                            "is_gst_inclusive": v["is_gst_inclusive"],
+                            **({"is_gst_inclusive": v["is_gst_inclusive"]} if gst_enabled else {}),
                             "extra_description": v.get("extra_description", []),
                             "created_at": v.get("created_at"),
                             "updated_at": v.get("updated_at"),
@@ -387,6 +390,11 @@ def product_list(request, outlet_id):
                         for v in product_data.get("variants", [])
                     ],
                 }
+
+                # Dynamically remove GST fields if disabled
+                if not gst_enabled:
+                    formatted_product.pop("gst_percent", None)
+                    formatted_product.pop("is_gst_inclusive", None)
 
                 category_dict[category_id]["items"].append(formatted_product)
             return list(category_dict.values())
@@ -687,6 +695,10 @@ def place_order(request, outlet_id):
 
         order_number = generate_order_number()
 
+        # 🔥 GET OUTLET AND CHECK GST STATUS
+        outlet = Outlet.objects.select_related('company').get(id=outlet_id)
+        gst_enabled = outlet.company.gst_enabled
+
         # -----------------------------------------
         # CUSTOMER
         # -----------------------------------------
@@ -936,28 +948,29 @@ def place_order(request, outlet_id):
 
             total_item_price = price * quantity
 
-            if is_gst_inclusive:
+            if gst_enabled:
+                if is_gst_inclusive:
+                    rate_excl = price / (
+                        1 + gst / Decimal("100")
+                    )
+                    gst_amount = (
+                        total_item_price -
+                        (rate_excl * quantity)
+                    )
+                else:
+                    gst_amount = (
+                        gst / Decimal("100")
+                    ) * total_item_price
 
-                rate_excl = price / (
-                    1 + gst / Decimal("100")
+                final_price = (
+                    total_item_price
+                    if is_gst_inclusive
+                    else total_item_price + gst_amount
                 )
-
-                gst_amount = (
-                    total_item_price -
-                    (rate_excl * quantity)
-                )
-
             else:
-
-                gst_amount = (
-                    gst / Decimal("100")
-                ) * total_item_price
-
-            final_price = (
-                total_item_price
-                if is_gst_inclusive
-                else total_item_price + gst_amount
-            )
+                # GST is disabled, ignore inclusive flags and set GST to 0
+                gst_amount = Decimal("0.00")
+                final_price = total_item_price
 
             item_status = (
                 "draft"
@@ -1019,18 +1032,37 @@ def place_order(request, outlet_id):
             order.mode = payment_mode
             order.upi_type = upi_type
 
-            if payment_mode in [
-                "upi",
-                "cash",
-                "coupon"
-            ]:
+            if payment_mode != "cash":
+                
+                # Check PineLabs Addon
+                from v1.models import AddOn
+                from django.utils import timezone
+                
+                has_pine_labs = AddOn.objects.filter(
+                    user__company=outlet.company, 
+                    name='pine_labs', 
+                    active_till__gte=timezone.now().date()
+                ).first()
 
-                order.payment_status = "success"
-                order.status = "settled"
+                if has_pine_labs:
+                    order.payment_status = "pending"
+                    order.status = "payment_pending"
+                    order.save()
+                    
+                    user_username = has_pine_labs.user.username
+                    threading.Thread(
+                        target=process_pine_labs_payment_thread,
+                        args=(user_username, order.total_price, order.order_number, order.id, outlet_id)
+                    ).start()
+                else:
+                    # Normal non-cash payment
+                    order.payment_status = "success"
+                    order.status = "settled"
 
             else:
-
-                order.payment_status = "pending"
+                # Cash payment
+                order.payment_status = "success"
+                order.status = "settled"
 
         else:
 
@@ -1096,6 +1128,34 @@ def place_order(request, outlet_id):
 
             table.status = "running_kot"
             table.save()
+
+        # -----------------------------------------
+        # WEBSOCKET NOTIFICATION
+        # -----------------------------------------
+        try:
+            from channels.layers import get_channel_layer
+            from asgiref.sync import async_to_sync
+            channel_layer = get_channel_layer()
+            room_group_name = f'outlet_{outlet_id}_orders'
+            
+            # Broadcast the message
+            async_to_sync(channel_layer.group_send)(
+                room_group_name,
+                {
+                    'type': 'new_order_notification',
+                    'message': 'new order placed',
+                    'order_data': {
+                        'order_id': order.id,
+                        'order_number': order.order_number,
+                        'total_price': float(order.total_price),
+                        'table': table.table_number if table else None,
+                        'is_qr': is_qr
+                    }
+                }
+            )
+        except Exception as ws_err:
+            print("WebSocket Error:", ws_err)
+
 
         # -----------------------------------------
         # RESPONSE
@@ -2134,6 +2194,128 @@ def mark_items_stock_out(request, outlet_id):
 #             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
 #         )
 
+import threading
+import time
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+
+def process_pine_labs_payment_thread(user_username, amount, order_number, order_id, outlet_id):
+    # 1. Initiate Transaction
+    init_payload = {
+        "TransactionNumber": order_number,
+        "SequenceNumber": 1,
+        "AllowedPaymentMode": "1",
+        "Amount": str(amount),
+        "UserID": user_username,
+        "MerchantID": 29610,
+        "ClientID": 1013457,
+        "StoreID": 1221258,
+        "SecurityToken": "a4c9741b-2889-47b8-be2f-ba42081a246e",
+        "AutoCancelDurationInMinutes": 5,
+    }
+    
+    init_url = "https://www.plutuscloudserviceuat.in:8201/API/CloudBasedIntegration/V1/UploadBilledTransaction"
+    try:
+        init_resp = requests.post(init_url, json=init_payload, timeout=30)
+        init_data = init_resp.json()
+    except Exception as e:
+        print("PineLabs Init Error:", e)
+        return
+        
+    plutus_txn_id = init_data.get("PlutusTransactionReferenceID")
+    if not plutus_txn_id:
+        print("No PlutusTransactionReferenceID returned:", init_data)
+        return
+
+    # 2. Poll for Status
+    status_url = "https://www.plutuscloudserviceuat.in:8201/API/CloudBasedIntegration/V1/GetCloudBasedTxnStatus"
+    status_payload = {
+        "UserID": user_username,
+        "MerchantID": 29610,
+        "ClientID": 1013457,
+        "StoreID": 1221258,
+        "SecurityToken": "a4c9741b-2889-47b8-be2f-ba42081a246e",
+        "PlutusTransactionReferenceID": plutus_txn_id,
+    }
+    
+    max_retries = 20
+    for _ in range(max_retries):
+        time.sleep(3)
+        try:
+            status_resp = requests.post(status_url, json=status_payload, timeout=30)
+            status_data = status_resp.json()
+            
+            resp_code = str(status_data.get("ResponseCode"))
+            resp_msg = str(status_data.get("ResponseMessage", "")).upper()
+            
+            # APPROVED -> 0, CANCELLED -> usually non-zero and msg
+            if resp_code == "0" or "APPROVED" in resp_msg:
+                # Success!
+                order = Order.objects.get(id=order_id)
+                order.payment_status = "success"
+                order.status = "settled"
+                order.mode = "pine_labs_card"
+                order.save()
+                
+                OrderPayment.objects.create(
+                    order=order,
+                    amount=amount,
+                    payment_mode="card",
+                    transaction_id=str(plutus_txn_id)
+                )
+                
+                # Free table if it's a dine-in
+                table = order.table_number
+                if table:
+                    table.status = "paid"
+                    table.current_order = None
+                    table.save()
+                
+                # Broadcast WS
+                channel_layer = get_channel_layer()
+                async_to_sync(channel_layer.group_send)(
+                    f'outlet_{outlet_id}_orders',
+                    {
+                        'type': 'new_order_notification',
+                        'message': 'PineLabs Payment Confirmed',
+                        'order_data': {
+                            'order_id': order.id,
+                            'status': 'settled',
+                            'payment_status': 'success',
+                            'pine_labs_msg': resp_msg
+                        }
+                    }
+                )
+                return
+                
+            elif "CANCELLED" in resp_msg or "FAILED" in resp_msg or "DECLINED" in resp_msg:
+                # Failed/Cancelled
+                order = Order.objects.get(id=order_id)
+                order.payment_status = "failed"
+                # Keep status as payment_pending or mark as failed depending on business logic
+                order.save()
+                
+                channel_layer = get_channel_layer()
+                async_to_sync(channel_layer.group_send)(
+                    f'outlet_{outlet_id}_orders',
+                    {
+                        'type': 'new_order_notification',
+                        'message': f'PineLabs Payment Failed: {resp_msg}',
+                        'order_data': {
+                            'order_id': order.id,
+                            'status': order.status,
+                            'payment_status': 'failed',
+                            'pine_labs_msg': resp_msg
+                        }
+                    }
+                )
+                return
+                
+        except Exception as e:
+            print("PineLabs Polling Error:", e)
+            continue
+    
+    print("PineLabs polling timed out for order", order_id)
 
 
 @api_view(["POST"])
@@ -3005,7 +3187,25 @@ def settle_order(request, order_id):
                 "message": "At least one payment is required"
             }, status=400)
 
+        # Check PineLabs Addon
+        outlet = order.outlet
+        from v1.models import AddOn
+        from django.utils import timezone
+        
+        has_pine_labs = False
+        pine_labs_user = None
+        pine_labs_addon = AddOn.objects.filter(
+            user__company=outlet.company, 
+            name='pine_labs', 
+            active_till__gte=timezone.now().date()
+        ).first()
+
+        if pine_labs_addon:
+            has_pine_labs = True
+            pine_labs_user = pine_labs_addon.user.username
+
         total_paid = 0
+        pine_labs_amount = 0
 
         # 🔥 Create payment entries
         for payment in payments_data:
@@ -3018,12 +3218,15 @@ def settle_order(request, order_id):
                     "message": "Invalid payment data"
                 }, status=400)
 
-            OrderPayment.objects.create(
-                order=order,
-                amount=amount,
-                payment_mode=mode,
-                transaction_id=payment.get("transaction_id")
-            )
+            if mode != 'cash' and has_pine_labs:
+                pine_labs_amount += amount
+            else:
+                OrderPayment.objects.create(
+                    order=order,
+                    amount=amount,
+                    payment_mode=mode,
+                    transaction_id=payment.get("transaction_id")
+                )
 
             total_paid += amount
 
@@ -3034,9 +3237,35 @@ def settle_order(request, order_id):
                 "message": f"Insufficient payment. Paid {total_paid}, required {order.total_price}"
             }, status=400)
 
-        # ✅ Update order
-        order.status = "settled"
-        order.payment_status = "success"
+        if pine_labs_amount > 0:
+            # ✅ Pending PineLabs
+            order.status = "payment_pending"
+            order.payment_status = "pending"
+            order.mode = payments_data[0]["payment_mode"]
+            order.save()
+            
+            threading.Thread(
+                target=process_pine_labs_payment_thread,
+                args=(pine_labs_user, pine_labs_amount, order.order_number, order.id, outlet.id)
+            ).start()
+            
+            return Response({
+                "error": False,
+                "message": "PineLabs Transaction Initiated. Awaiting tap.",
+                "data": {
+                    "order_id": order.id,
+                    "order_number": order.order_number,
+                    "total_bill": float(order.total_price),
+                    "total_paid": total_paid,
+                    "status": order.status,
+                    "payment_status": order.payment_status
+                }
+            })
+        else:
+            # ✅ Update order normally
+            order.status = "settled"
+            order.payment_status = "success"
+            order.mode = payments_data[0]["payment_mode"]
         order.mode = payments_data[0]["payment_mode"]
         order.save()
 

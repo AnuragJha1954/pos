@@ -30,6 +30,11 @@ schema_view = get_schema_view(
       terms_of_service="https://www.vibrantdigitech.com/terms/",
       contact=openapi.Contact(email="vibrantdigitech@gmail.com"),
       license=openapi.License(name="BSD License", url="https://opensource.org/licenses/BSD-3-Clause"),
+      x_logo={
+          "url": "/static/mantra-logo-white.png",
+          "backgroundColor": "#FFFFFF",
+          "altText": "MantraPOS Logo"
+      }
    ),
    public=True,
    permission_classes=(permissions.AllowAny,),
@@ -43,9 +48,11 @@ urlpatterns = [
     path('v1/counter/api/', include('counterapi.urls')),
     path('v1/helpdesk/api/', include('helpdesk.urls')),
     path('v1/auth/', include('userauth.urls')),
+    path('v1/inventory/api/', include('inventory.urls')),
     path('redoc/', schema_view.with_ui('redoc',cache_timeout=0), name='schema-redoc'),
     path('swagger/', schema_view.with_ui('swagger',cache_timeout=0), name='schema-swagger-ui'),
 ]
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])

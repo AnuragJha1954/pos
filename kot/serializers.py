@@ -2,8 +2,7 @@ from rest_framework import serializers
 from v1.models import (
     Order,
     OrderItem,
-    Customer,
-    FCMToken
+    Customer
 )
 
 
@@ -36,10 +35,4 @@ class OrderSerializer(serializers.ModelSerializer):
         model = Order
         fields = ['order_number', 'order_date', 'total_price', 'gst', 'status', 'address', 'mode', 'items', 'customers','table_number']
         ref_name = 'KotOrderSerializer'
-
-
-class FCMTokenSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = FCMToken
-        fields = ['token']
 

@@ -14,6 +14,7 @@ class Company(models.Model):
     number_of_employees = models.IntegerField( null=True, blank=True)
     address = models.TextField( null=True, blank=True)
     gst_in = models.CharField(max_length=15, unique=True, null=True, blank=True)
+    gst_enabled = models.BooleanField(default=True)
     
     # Add other company details fields here
 
@@ -71,6 +72,8 @@ class Plan(models.Model):
 
     # 🔥 ADD-ON (KOT)
     has_kot = models.BooleanField(default=False)
+
+    permissions = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
         return f"{self.plan_name} - {self.price_tenure}"
@@ -498,55 +501,6 @@ class Coupon(models.Model):
         return self.coupon_code
 
 
-
-
-
-
-class RazorpayCredential(models.Model):
-    outlet = models.OneToOneField(Outlet, on_delete=models.CASCADE, related_name='razorpay_credential')
-    razorpay_client_id = models.CharField(max_length=100)
-    razorpay_client_secret = models.CharField(max_length=100)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f"Razorpay Credentials for {self.outlet.outlet_name}"
-
-
-
-
-
-class FCMToken(models.Model):
-    outlet = models.ForeignKey('Outlet', on_delete=models.CASCADE, related_name='fcmtokens')  # 👈 ForeignKey to Outlet
-    token = models.CharField(max_length=500)  # Adjust max_length as needed
-
-    def __str__(self):
-        return f"FCM Token for {self.outlet.outlet_name}"
-    
-    
-
-
-
-
-class EmployeeCredentials(models.Model):
-    employee = models.OneToOneField('Employee', on_delete=models.CASCADE, related_name='credentials')
-    email = email = models.EmailField(unique=True)
-    password = models.CharField(max_length=128)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"Credentials for {self.employee}"
-
-
-
-
-
-
-
-
-
-
-
 class RefundNote(models.Model):
     order = models.ForeignKey('Order', on_delete=models.CASCADE, related_name='refund_notes')
     refund_title = models.CharField(max_length=255)
@@ -557,12 +511,30 @@ class RefundNote(models.Model):
     def __str__(self):
         return f"Refund for Order {self.order.order_number} - {self.refund_title}"
 
+class RazorpayCredential(models.Model):
+    outlet = models.OneToOneField('Outlet', on_delete=models.CASCADE, related_name='razorpay_credential')
+    razorpay_client_id = models.CharField(max_length=100)
+    razorpay_client_secret = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Razorpay Credentials for {self.outlet.outlet_name}"
+
+class EmployeeCredentials(models.Model):
+    employee = models.OneToOneField('Employee', on_delete=models.CASCADE, related_name='credentials')
+    email = models.EmailField(unique=True)
+    password = models.CharField(max_length=128)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Credentials for {self.employee}"
 
 
 
 class PrinterConfig(models.Model):
     outlet = models.OneToOneField(
-        Outlet,
+        'Outlet',
         on_delete=models.CASCADE,
         related_name='printer_config'
     )
@@ -572,7 +544,6 @@ class PrinterConfig(models.Model):
 
     def __str__(self):
         return f"Printers for {self.outlet.outlet_name}"
-
 
 
 class Table(models.Model):
@@ -603,11 +574,6 @@ class Table(models.Model):
 
     def __str__(self):
         return f"Table {self.table_number}"
-    
-    
-
-
-
 
 
 class Expense(models.Model):
@@ -626,13 +592,9 @@ class Expense(models.Model):
         return f"{self.title} - ₹{self.amount}"
 
 
-
-
-
-
 class KOT(models.Model):
-    table = models.ForeignKey('Table', on_delete=models.CASCADE, related_name='kots')
-    order = models.ForeignKey('Order', on_delete=models.CASCADE, related_name='kots')
+    table = models.ForeignKey('Table', on_delete=models.CASCADE, related_name='kots', null=True, blank=True)
+    order = models.ForeignKey('Order', on_delete=models.CASCADE, related_name='kots', null=True, blank=True)
 
     kot_number = models.PositiveIntegerField()  # 1, 2, 3...
     
@@ -643,11 +605,8 @@ class KOT(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"KOT {self.kot_number} - Table {self.table.table_number}"
-
-
-
-
+        table_str = f"Table {self.table.table_number}" if self.table else "Takeaway"
+        return f"KOT {self.kot_number} - {table_str}"
 
 
 class OrderPayment(models.Model):
@@ -656,6 +615,7 @@ class OrderPayment(models.Model):
         ('cash', 'Cash'),
         ('card', 'Card'),
         ('coupon', 'Coupon'),
+        ('pine_labs_card', 'Pine Labs Card'),
     ]
 
     order = models.ForeignKey('Order', on_delete=models.CASCADE, related_name='payments')
@@ -669,9 +629,6 @@ class OrderPayment(models.Model):
 
     def __str__(self):
         return f"{self.order.order_number} - {self.payment_mode} - {self.amount}"
-
-
-
 
 
 class KOTDevice(models.Model):
@@ -691,5 +648,24 @@ class KOTDevice(models.Model):
 
     def __str__(self):
         return f"{self.device_id}"
+
+
+class AddOn(models.Model):
+    ADDON_CHOICES = [
+        ('pine_labs', 'Pine Labs Integration'),
+        ('kot', 'Kitchen Order Ticket (KOT)'),
+    ]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='addons')
+    name = models.CharField(max_length=255, choices=ADDON_CHOICES)
+    purchase_date = models.DateTimeField(auto_now_add=True)
+    active_till = models.DateField()
+
+    def __str__(self):
+        return f"{self.name} - {self.user.username}"
+
+
+
+
 
 

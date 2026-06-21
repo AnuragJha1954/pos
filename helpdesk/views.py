@@ -14,11 +14,33 @@ from rest_framework.parsers import MultiPartParser, FormParser
 
 # Create your views here.
 
+from drf_yasg import openapi
+
 @swagger_auto_schema(
     method='post',
     request_body=TicketSerializer,
     responses={
-        201: TicketSerializer,
+        201: openapi.Response("Ticket Created", openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'error': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                'details': openapi.Schema(type=openapi.TYPE_STRING),
+                'ticket': openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'title': openapi.Schema(type=openapi.TYPE_STRING),
+                        'description': openapi.Schema(type=openapi.TYPE_STRING),
+                        'media': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI),
+                        'outlet': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'raised_by': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'status': openapi.Schema(type=openapi.TYPE_STRING),
+                        'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
+                        'updated_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
+                    }
+                )
+            }
+        )),
         400: 'Bad Request',
     },
 )
@@ -79,7 +101,33 @@ def create_ticket(request, user_id, outlet_id):
 @swagger_auto_schema(
     method='get',
     responses={
-        200: TicketSerializer(many=True),
+        200: openapi.Response("List of Tickets", openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'error': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                'details': openapi.Schema(type=openapi.TYPE_STRING),
+                'tickets': openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            'id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                            'title': openapi.Schema(type=openapi.TYPE_STRING),
+                            'description': openapi.Schema(type=openapi.TYPE_STRING),
+                            'media': openapi.Schema(
+                                type=openapi.TYPE_ARRAY,
+                                items=openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI)
+                            ),
+                            'outlet': openapi.Schema(type=openapi.TYPE_INTEGER),
+                            'raised_by': openapi.Schema(type=openapi.TYPE_INTEGER),
+                            'status': openapi.Schema(type=openapi.TYPE_STRING),
+                            'created_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
+                            'updated_at': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATETIME),
+                        }
+                    )
+                )
+            }
+        )),
     },
 )
 @api_view(['GET'])

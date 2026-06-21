@@ -320,6 +320,7 @@ def user_login(request):
                     "name": user.first_name + " " + user.last_name,
                     "email": user.email,
                     "slug": slug,
+                    "role": user.role,
                     }
                 
                 
@@ -481,4 +482,191 @@ def reset_password(request, user_id):
         "error": False,
         "message": "Password reset successfully"
     }, status=status.HTTP_200_OK)
+
+
+# ==========================================
+# Admin Password Change API
+# ==========================================
+@swagger_auto_schema(
+    method='patch',
+    operation_summary="Change Password (Admin)",
+    operation_description="Change a user's password from admin panel without needing the old password.",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['new_password'],
+        properties={
+            'new_password': openapi.Schema(type=openapi.TYPE_STRING, description='New password (min 6 chars)')
+        }
+    ),
+    responses={
+        200: openapi.Response(description="Password changed successfully"),
+        400: openapi.Response(description="Validation error"),
+        404: openapi.Response(description="User not found")
+    }
+)
+@api_view(['PATCH'])
+@permission_classes([AllowAny])
+def admin_change_password(request, user_id):
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({"error": True, "message": "User not found"}, status=404)
+
+    new_password = request.data.get('new_password')
+    if not new_password or len(new_password) < 6:
+        return Response({"error": True, "message": "New password must be at least 6 characters"}, status=400)
+
+    user.set_password(new_password)
+    user.plain_password = new_password  # Following existing pattern
+    user.save()
+
+    return Response({"error": False, "message": "Password changed successfully"})
+
+
+# ==========================================
+# Forgot Password Flow
+# ==========================================
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.core.mail import send_mail, EmailMultiAlternatives
+from django.conf import settings
+from django.http import HttpResponse
+from django.shortcuts import render
+from django.template.loader import render_to_string
+from email.mime.image import MIMEImage
+import os
+
+@swagger_auto_schema(
+    method='post',
+    operation_summary="Forgot Password",
+    operation_description="Initiates password reset flow by sending an email link.",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['email'],
+        properties={'email': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_EMAIL)}
+    )
+)
+@api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
+def forgot_password(request):
+    if request.method == 'GET':
+        return render(request, 'forgot_password.html', {'error_msg': None, 'success_msg': None})
+
+    email = request.data.get('email') or request.POST.get('email')
+    if not email:
+        if request.content_type != 'application/json':
+            return render(request, 'forgot_password.html', {'error_msg': 'Email is required', 'success_msg': None})
+        return Response({"error": True, "message": "Email is required"}, status=400)
+
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        # Prevent email enumeration by returning a success-like message anyway
+        if request.content_type != 'application/json':
+            return render(request, 'forgot_password.html', {'error_msg': None, 'success_msg': 'If this email is registered, a reset link has been sent.'})
+        return Response({"error": False, "message": "If this email is registered, a reset link has been sent."}, status=200)
+
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = PasswordResetTokenGenerator().make_token(user)
+    
+    # Build URL. For testing locally, request.build_absolute_uri will use the server's domain/port
+    reset_url = request.build_absolute_uri(f"/v1/auth/reset-password-confirm/?uid={uid}&token={token}")
+
+    subject = "Password Reset Request"
+    text_content = f"Hello {user.username},\n\nPlease click the link below to reset your password:\n\n{reset_url}\n\nIf you did not request this, please ignore this email."
+    
+    html_content = render_to_string('forgot_password_email.html', {
+        'username': user.username,
+        'reset_url': reset_url,
+    })
+    
+    try:
+        msg = EmailMultiAlternatives(
+            subject,
+            text_content,
+            getattr(settings, 'EMAIL_HOST_USER', 'noreply@mantrapos.com'),
+            [user.email]
+        )
+        msg.attach_alternative(html_content, "text/html")
+        
+        # Attach Mantra Logo inline
+        mantra_logo_path = os.path.join(settings.BASE_DIR, 'static', 'mantra-logo-white.png')
+        if os.path.exists(mantra_logo_path):
+            with open(mantra_logo_path, 'rb') as img:
+                logo_img = MIMEImage(img.read())
+                logo_img.add_header('Content-ID', '<mantra_logo>')
+                msg.attach(logo_img)
+                
+        # Attach Vibrant Logo inline
+        vibrant_logo_path = os.path.join(settings.BASE_DIR, 'static', 'vibrant-logo.png')
+        if os.path.exists(vibrant_logo_path):
+            with open(vibrant_logo_path, 'rb') as img:
+                vib_img = MIMEImage(img.read())
+                vib_img.add_header('Content-ID', '<vibrant_logo>')
+                msg.attach(vib_img)
+
+        msg.send()
+    except Exception as e:
+        print(f"Email failed to send: {e}")
+        # We proceed anyway, maybe it prints to console if misconfigured
+
+    if request.content_type != 'application/json':
+        return render(request, 'forgot_password.html', {'error_msg': None, 'success_msg': 'If this email is registered, a reset link has been sent.'})
+    return Response({"error": False, "message": "If this email is registered, a reset link has been sent."}, status=200)
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
+def reset_password_confirm(request):
+    """
+    Renders the HTML form on GET and processes it on POST.
+    """
+    # 1. Handle HTML GET Request
+    if request.method == 'GET':
+        uid = request.GET.get('uid', '')
+        token = request.GET.get('token', '')
+
+        # Basic HTML template for the reset form
+        return render(request, 'reset_password.html', {'uid': uid, 'token': token, 'error_msg': None})
+
+    # 2. Handle HTML Form POST Request
+    elif request.method == 'POST':
+        uid = request.data.get('uid') or request.POST.get('uid')
+        token = request.data.get('token') or request.POST.get('token')
+        new_password = request.data.get('new_password') or request.POST.get('new_password')
+        confirm_password = request.data.get('confirm_password') or request.POST.get('confirm_password')
+
+        error_msg = None
+
+        if not uid or not token:
+            error_msg = "Invalid or missing reset link."
+        elif new_password != confirm_password:
+            error_msg = "Passwords do not match."
+        elif len(new_password) < 6:
+            error_msg = "Password must be at least 6 characters."
+
+        user = None
+        if not error_msg:
+            try:
+                user_id = force_str(urlsafe_base64_decode(uid))
+                user = User.objects.get(pk=user_id)
+            except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+                error_msg = "Invalid reset link."
+
+        if user and not error_msg:
+            if not PasswordResetTokenGenerator().check_token(user, token):
+                error_msg = "Reset link has expired or is invalid."
+
+        if error_msg:
+            # Re-render form with error
+            return render(request, 'reset_password.html', {'uid': uid, 'token': token, 'error_msg': error_msg})
+
+        # Success!
+        user.set_password(new_password)
+        user.plain_password = new_password
+        user.save()
+
+        # Success Page with Redirect
+        return render(request, 'reset_password_success.html')
 

@@ -401,5 +401,5 @@ class RazorpayCredentialAdmin(admin.ModelAdmin):
     )
 
 
-admin.site.register(FCMToken)
+
 admin.site.register(EmployeeCredentials)

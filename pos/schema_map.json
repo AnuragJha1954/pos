@@ -1,0 +1,577 @@
+{
+  "user_login": [
+    "token",
+    "error",
+    "detail",
+    "user_details"
+  ],
+  "category_list": [
+    "detail",
+    "categories",
+    "error",
+    "sequence",
+    "total_count"
+  ],
+  "product_list": [
+    "categories",
+    "sequence",
+    "error",
+    "details"
+  ],
+  "orders_past_three_hours": [
+    "error",
+    "details"
+  ],
+  "order_details": [
+    "error",
+    "details"
+  ],
+  "create_stock_request": [
+    "error",
+    "stock_requests",
+    "details"
+  ],
+  "mark_items_stock_out": [
+    "error",
+    "details"
+  ],
+  "upload_billed_transaction": [
+    "gateway_response",
+    "error",
+    "detail",
+    "order_number"
+  ],
+  "get_transaction_status": [
+    "status",
+    "error",
+    "detail"
+  ],
+  "cancel_transaction": [
+    "status",
+    "error",
+    "detail"
+  ],
+  "get_tables_by_outlet": [
+    "error",
+    "data"
+  ],
+  "update_table_status": [
+    "message",
+    "error",
+    "data"
+  ],
+  "add_expense": [
+    "message",
+    "error",
+    "data",
+    "details"
+  ],
+  "get_expenses": [
+    "error",
+    "data",
+    "details"
+  ],
+  "add_items_to_order": [
+    "message",
+    "error",
+    "details",
+    "kot_number"
+  ],
+  "get_table_with_kot": [
+    "total_kots",
+    "kots",
+    "error",
+    "table",
+    "details"
+  ],
+  "update_order_item_status": [
+    "message",
+    "error",
+    "data",
+    "details"
+  ],
+  "bulk_update_order_items": [
+    "updated_items",
+    "message",
+    "error",
+    "details"
+  ],
+  "settle_order": [
+    "message",
+    "error",
+    "data",
+    "details"
+  ],
+  "change_order_status": [
+    "order_id",
+    "message",
+    "error",
+    "new_status"
+  ],
+  "delete_draft_order": [
+    "message",
+    "error"
+  ],
+  "create_ticket": [
+    "errors",
+    "error",
+    "ticket",
+    "details"
+  ],
+  "list_tickets": [
+    "tickets",
+    "error",
+    "details"
+  ],
+  "change_order_status_to_processing": [
+    "error",
+    "detail",
+    "data"
+  ],
+  "change_order_status_to_completed": [
+    "error",
+    "detail",
+    "data"
+  ],
+  "register_fcm_token": [
+    "error",
+    "detail"
+  ],
+  "kot_login": [
+    "token",
+    "error",
+    "is_logged_in",
+    "details",
+    "device_id",
+    "message"
+  ],
+  "deregister_kot_device": [
+    "message",
+    "error",
+    "details"
+  ],
+  "check_kot_status": [
+    "is_active",
+    "error",
+    "is_logged_in",
+    "details",
+    "device_id",
+    "message"
+  ],
+  "get_special_menu": [
+    "special_menus",
+    "error",
+    "detail"
+  ],
+  "create_banner": [
+    "error",
+    "detail",
+    "data"
+  ],
+  "list_banners": [
+    "banners",
+    "error"
+  ],
+  "get_banner": [
+    "error",
+    "detail",
+    "banner"
+  ],
+  "update_banner": [
+    "error",
+    "detail",
+    "data"
+  ],
+  "delete_banner": [
+    "error",
+    "detail"
+  ],
+  "active_coupons": [
+    "coupons",
+    "error",
+    "details"
+  ],
+  "add_or_update_razorpay_credentials": [
+    "detail"
+  ],
+  "add_or_update_qr_customization": [
+    "detail"
+  ],
+  "create_special_menu": [
+    "menu",
+    "error",
+    "detail"
+  ],
+  "add_product_to_special_menu": [
+    "error",
+    "detail"
+  ],
+  "remove_product_from_special_menu": [
+    "error",
+    "detail"
+  ],
+  "update_special_menu_name": [
+    "menu_name",
+    "error",
+    "details"
+  ],
+  "generate_table_qrs": [
+    "total_tables",
+    "type",
+    "tables",
+    "qr_data",
+    "error",
+    "qr_image",
+    "outlet_id",
+    "message"
+  ],
+  "add_colors_to_palette": [
+    "color_palette",
+    "error",
+    "details"
+  ],
+  "remove_colors_from_palette": [
+    "color_palette",
+    "error",
+    "details"
+  ],
+  "get_qr_customization": [
+    "customization",
+    "error",
+    "detail"
+  ],
+  "create_user": [
+    "username",
+    "detail",
+    "email",
+    "error",
+    "user_id"
+  ],
+  "resend_otp": [
+    "error",
+    "detail"
+  ],
+  "verify_otp": [
+    "error",
+    "detail"
+  ],
+  "reset_password": [
+    "message",
+    "error"
+  ],
+  "create_outlet": [
+    "error",
+    "detail"
+  ],
+  "grant_outlet_access": [
+    "error",
+    "detail",
+    "permissions"
+  ],
+  "list_company_outlets": [
+    "total_inactive_outlets",
+    "detail",
+    "total_outlets",
+    "total_active_outlets",
+    "error",
+    "outlets"
+  ],
+  "get_outlet_detail": [
+    "error",
+    "detail",
+    "outlet"
+  ],
+  "update_outlet": [
+    "errors",
+    "error",
+    "detail",
+    "outlet"
+  ],
+  "delete_outlet": [
+    "error",
+    "detail"
+  ],
+  "create_employee": [
+    "username",
+    "detail",
+    "email",
+    "employee_code",
+    "error"
+  ],
+  "add_product": [
+    "error",
+    "detail",
+    "data"
+  ],
+  "add_product_variant": [
+    "error",
+    "detail",
+    "data"
+  ],
+  "add_product_with_variants": [
+    "product",
+    "variants",
+    "error",
+    "detail"
+  ],
+  "edit_product": [
+    "error",
+    "detail",
+    "data"
+  ],
+  "delete_product": [
+    "error",
+    "detail"
+  ],
+  "edit_product_variant": [
+    "error",
+    "detail",
+    "data"
+  ],
+  "delete_product_variant": [
+    "error",
+    "detail"
+  ],
+  "get_products": [
+    "error",
+    "detail"
+  ],
+  "add_menu": [
+    "menu",
+    "error",
+    "detail"
+  ],
+  "edit_menu": [
+    "menu",
+    "error",
+    "detail"
+  ],
+  "duplicate_menu": [
+    "menu_id",
+    "name",
+    "error",
+    "detail"
+  ],
+  "toggle_menu": [
+    "error",
+    "detail"
+  ],
+  "add_products_to_menu": [
+    "error",
+    "detail"
+  ],
+  "remove_products_from_menu": [
+    "error",
+    "detail"
+  ],
+  "get_menu_products": [
+    "products",
+    "error",
+    "detail"
+  ],
+  "get_outlet_menus": [
+    "error",
+    "detail"
+  ],
+  "get_menu_details": [
+    "menu",
+    "error",
+    "detail"
+  ],
+  "add_category": [
+    "error",
+    "detail",
+    "category_name",
+    "category_id"
+  ],
+  "get_categories_by_outlet": [
+    "total_count",
+    "error",
+    "detail",
+    "categories"
+  ],
+  "update_profile": [
+    "error",
+    "detail"
+  ],
+  "get_pending_stock_requests": [
+    "error",
+    "detail",
+    "details"
+  ],
+  "approve_stock_requests": [
+    "error",
+    "detail",
+    "details"
+  ],
+  "create_fcm_token": [
+    "error",
+    "detail"
+  ],
+  "get_employees_by_user": [
+    "error",
+    "detail",
+    "employees"
+  ],
+  "toggle_employee_status": [
+    "is_active",
+    "error",
+    "detail",
+    "employee_id"
+  ],
+  "update_employee_permissions": [
+    "error",
+    "detail",
+    "permissions"
+  ],
+  "get_employee_credentials": [
+    "error",
+    "credentials",
+    "detail"
+  ],
+  "manage_employee_credentials": [
+    "message",
+    "error",
+    "detail"
+  ],
+  "get_company_orders": [
+    "next_page_url",
+    "detail",
+    "total_pages",
+    "total_orders",
+    "previous_page_url",
+    "current_page",
+    "orders"
+  ],
+  "add_refund_note": [
+    "detail",
+    "data"
+  ],
+  "get_refund_notes_by_order": [
+    "refund_notes",
+    "order_number",
+    "detail"
+  ],
+  "cancel_order": [
+    "error",
+    "detail"
+  ],
+  "list_company_customers": [
+    "next_page_url",
+    "new_customers_this_month",
+    "detail",
+    "total_pages",
+    "error",
+    "previous_page_url",
+    "current_page",
+    "customers",
+    "total_customers",
+    "active_customers"
+  ],
+  "edit_category": [
+    "error",
+    "detail",
+    "category_name",
+    "category_id"
+  ],
+  "delete_category": [
+    "error",
+    "detail"
+  ],
+  "dashboard_data": [
+    "error",
+    "detail"
+  ],
+  "set_printer_config": [
+    "printers",
+    "message",
+    "error",
+    "outlet"
+  ],
+  "get_printer_config": [
+    "printers",
+    "error",
+    "outlet"
+  ],
+  "create_table": [
+    "table_id",
+    "message",
+    "error",
+    "details"
+  ],
+  "get_tables": [
+    "error",
+    "data",
+    "details"
+  ],
+  "update_table": [
+    "message",
+    "error",
+    "details"
+  ],
+  "create_expense": [
+    "message",
+    "error",
+    "details",
+    "expense_id"
+  ],
+  "update_expense": [
+    "message",
+    "error",
+    "details"
+  ],
+  "expense_vs_revenue": [
+    "revenue",
+    "expense"
+  ],
+  "customer_repeat_report": [
+    "new_customers",
+    "repeat_customers"
+  ],
+  "coupon_impact_report": [
+    "revenue_from_coupon_orders",
+    "orders_with_coupon"
+  ],
+  "stockout_impact_report": [
+    "count",
+    "out_of_stock_items"
+  ],
+  "list_suppliers": [
+    "error",
+    "details",
+    "suppliers"
+  ],
+  "create_supplier": [
+    "error",
+    "details",
+    "supplier"
+  ],
+  "list_inventory_items": [
+    "error",
+    "details",
+    "inventory_items"
+  ],
+  "create_inventory_item": [
+    "error",
+    "details",
+    "inventory_item"
+  ],
+  "add_stock_transaction": [
+    "error",
+    "details",
+    "transaction"
+  ],
+  "list_stock_transactions": [
+    "error",
+    "details",
+    "transactions"
+  ],
+  "mark_out_of_stock": [
+    "error",
+    "details"
+  ],
+  "restock": [
+    "error",
+    "details"
+  ]
+}
