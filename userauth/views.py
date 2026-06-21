@@ -421,9 +421,8 @@ User = get_user_model()
     }
 )
 @api_view(['PATCH'])
-@permission_classes([AllowAny])
-
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def reset_password(request, user_id):
     try:
         user = User.objects.get(id=user_id)

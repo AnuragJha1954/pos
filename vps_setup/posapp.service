@@ -1,0 +1,25 @@
+[Unit]
+Description=Uvicorn daemon for POS App
+After=network.target
+
+[Service]
+# User and group that the process will run as. 
+# Usually 'ubuntu' or your SSH user on the VPS.
+User=ubuntu
+Group=www-data
+
+# The path to your Django project root (where manage.py is)
+WorkingDirectory=/path/to/your/project
+
+# Environment variables can be passed here or loaded from a file
+# EnvironmentFile=/path/to/your/project/.env
+
+# The path to uvicorn in your virtual environment
+# We are changing the port to 8001 since 8000 is occupied
+ExecStart=/path/to/your/project/venv/bin/uvicorn pos.asgi:application --host 127.0.0.1 --port 8001 --workers 4
+
+# Restart automatically if the process crashes
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
