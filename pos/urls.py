@@ -26,7 +26,7 @@ schema_view = get_schema_view(
    openapi.Info(
       title="POS API",
       default_version='v1',
-      description="Comprehensive API documentation for the POS project, developed by Vibrant DigiTech.",
+      description="<img src='/static/mantra-logo.png' width='200' alt='Mantra POS Logo'>\n\nComprehensive API documentation for the POS project, developed by Vibrant DigiTech.",
       terms_of_service="https://www.vibrantdigitech.com/terms/",
       contact=openapi.Contact(email="vibrantdigitech@gmail.com"),
       license=openapi.License(name="BSD License", url="https://opensource.org/licenses/BSD-3-Clause"),
@@ -50,8 +50,7 @@ urlpatterns = [
     path('v1/helpdesk/api/', include('helpdesk.urls')),
     path('v1/auth/', include('userauth.urls')),
     path('v1/inventory/api/', include('inventory.urls')),
-    path('redoc/', schema_view.with_ui('swagger',cache_timeout=0), name='schema-redoc'),
-    path('swagger/', schema_view.with_ui('swagger',cache_timeout=0), name='schema-swagger-ui'),
+    path('apidocs/', schema_view.with_ui('swagger',cache_timeout=0), name='schema-swagger-ui'),
 ]
 
 if settings.DEBUG:

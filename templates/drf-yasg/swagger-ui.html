@@ -9,20 +9,10 @@
         --primary-color: #f97316;
         --text-color: #1f2937;
         --bg-color: #ffffff;
-        --header-bg: #ffffff;
+        --header-bg: #1f2937; /* Dark header so white logo is visible */
+        --header-text: #ffffff;
         --footer-bg: #f9fafb;
         --border-color: #e5e7eb;
-    }
-
-    /* Perfect Dark Mode via CSS Filter on the HTML element */
-    html[data-theme="dark"] {
-        filter: invert(1) hue-rotate(180deg) brightness(1.05);
-        background-color: #111; /* fallback */
-    }
-
-    /* Un-invert images to keep their original colors */
-    html[data-theme="dark"] img {
-        filter: invert(1) hue-rotate(180deg);
     }
 
     body.swagger-body {
@@ -77,7 +67,7 @@
     .custom-header .left-section .title {
         font-size: 20px;
         font-weight: 700;
-        color: var(--text-color);
+        color: var(--header-text);
         margin: 0;
         letter-spacing: -0.02em;
         white-space: nowrap;
@@ -134,38 +124,38 @@
     .custom-header .right-section h1 {
         font-size: 18px;
         font-weight: 600;
-        color: var(--text-color);
+        color: var(--header-text);
         margin: 0;
         letter-spacing: -0.02em;
         white-space: nowrap;
-    }
-
-    /* Theme Toggle Button */
-    .theme-btn {
-        background: transparent;
-        border: 1px solid var(--border-color);
-        border-radius: 50%;
-        width: 36px;
-        height: 36px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        cursor: pointer;
-        color: var(--text-color);
-        transition: all 0.2s;
-    }
-    .theme-btn:hover {
-        background: var(--border-color);
-    }
-    .theme-btn svg {
-        width: 18px;
-        height: 18px;
     }
 
     /* Polish Swagger UI typography */
     .swagger-ui .info .title {
         font-family: 'Outfit', sans-serif !important;
         color: var(--text-color) !important;
+    }
+
+    /* Force API Info Description Layout (Logo Right, Text Left) */
+    .swagger-ui .info {
+        overflow: hidden !important; /* Clear floats */
+    }
+    
+    .swagger-ui .info img {
+        float: right !important;
+        margin-left: 30px !important;
+        margin-bottom: 20px !important;
+        background-color: #1f2937 !important;
+        padding: 15px !important;
+        border-radius: 10px !important;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
+        max-width: 250px !important;
+    }
+    
+    .swagger-ui .info p {
+        margin-top: 10px !important;
+        font-size: 15px !important;
+        line-height: 1.6 !important;
     }
 
     #swagger-ui {
@@ -201,7 +191,7 @@
     <div class="left-section">
         <img src="{% static 'vibrant-logo.png' %}" alt="Vibrant Digitech" class="vibrant-logo">
         <div class="divider"></div>
-        <img src="{% static 'mantra-logo-white.png' %}" alt="MantraPOS" class="mantra-logo" id="mantra-brand-logo">
+        <img src="{% static 'mantra-logo.png' %}" alt="MantraPOS" class="mantra-logo" id="mantra-brand-logo">
         <span class="title">Mantra POS</span>
     </div>
 
@@ -214,49 +204,10 @@
 
     <div class="right-section">
         <h1>API Documentation</h1>
-        <button id="theme-toggle" class="theme-btn" aria-label="Toggle dark mode">
-            <!-- Moon Icon (for Light Mode) -->
-            <svg id="icon-moon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
-            <!-- Sun Icon (for Dark Mode) -->
-            <svg id="icon-sun" style="display: none;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-        </button>
     </div>
 </header>
 
 <script>
-    // Theme Toggle Logic
-    const toggleBtn = document.getElementById('theme-toggle');
-    const root = document.documentElement;
-    const iconMoon = document.getElementById('icon-moon');
-    const iconSun = document.getElementById('icon-sun');
-    const mantraLogo = document.getElementById('mantra-brand-logo');
-
-    const mantraLogoLightUrl = "{% static 'mantra-logo-white.png' %}";
-    const mantraLogoDarkUrl = "{% static 'mantra-logo.png' %}";
-
-    // Check for saved theme
-    const savedTheme = localStorage.getItem('api-theme') || 'light';
-    setTheme(savedTheme);
-
-    toggleBtn.addEventListener('click', () => {
-        const currentTheme = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-        setTheme(currentTheme);
-    });
-
-    function setTheme(theme) {
-        root.setAttribute('data-theme', theme);
-        localStorage.setItem('api-theme', theme);
-        if(theme === 'dark') {
-            iconMoon.style.display = 'none';
-            iconSun.style.display = 'block';
-            mantraLogo.src = mantraLogoDarkUrl;
-        } else {
-            iconMoon.style.display = 'block';
-            iconSun.style.display = 'none';
-            mantraLogo.src = mantraLogoLightUrl;
-        }
-    }
-
     // Live search functionality for Swagger UI
     document.addEventListener('DOMContentLoaded', () => {
         const searchInput = document.getElementById('api-search');
