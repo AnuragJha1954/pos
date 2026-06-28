@@ -24,6 +24,32 @@ class CustomSwaggerAutoSchema(SwaggerAutoSchema):
             return operation_id.replace('_', ' ').title()
         return operation_id
 
+    def get_tags(self, operation_keys=None):
+        tags = super().get_tags(operation_keys)
+        
+        if hasattr(self.view, '__module__'):
+            module = self.view.__module__
+            app_name = module.split('.')[0]
+            
+            tag_map = {
+                'counterapi': 'Counter',
+                'v1': 'V1 Core',
+                'kot': 'KOT',
+                'qr': 'QR',
+                'userauth': 'UserAuth',
+                'subscriptions': 'Subscriptions',
+                'users': 'Users',
+                'helpdesk': 'Helpdesk',
+                'adminpanel': 'AdminPanel',
+            }
+            
+            if app_name in tag_map:
+                return [tag_map[app_name]]
+            else:
+                return [app_name.title()]
+                
+        return tags
+
     def get_summary_and_description(self):
         summary, description = super().get_summary_and_description()
         if not summary:
