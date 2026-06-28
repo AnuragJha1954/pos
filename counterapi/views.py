@@ -33,7 +33,7 @@ from datetime import timedelta,datetime
 from streamlit import table
 
 from .serializers import ( 
-    CustomUserCounterLoginSerializer,
+    CategorySerializer,
     ProductSerializer,
     OrderItemSerializer,
     OrderSerializer,
@@ -76,119 +76,6 @@ from v1.models import (
 
 
 # Create your views here.
-@swagger_auto_schema(
-    method="post",
-    request_body=CustomUserCounterLoginSerializer,
-    responses={
-        status.HTTP_200_OK: "User Logged in successfully",
-        status.HTTP_400_BAD_REQUEST: "Invalid credentials",
-    },
-)
-@api_view(["POST"])
-@permission_classes([AllowAny])
-def user_login(request):
-    try:
-        if request.method == "POST":
-            serializer = CustomUserCounterLoginSerializer(data=request.data)
-            # print(request.data)
-            # print(serializer.is_valid())
-            if serializer.is_valid():
-                user = serializer.validated_data["user"]
-                # role = serializer.validated_data["role"]
-                # print(user)
-                # print(role)
-                token, _ = Token.objects.get_or_create(user=user)
-
-                # Fetch the employee record for the user and role
-                employee = Employee.objects.get(user=user)
-
-                # Prepare user details
-                user_details = {
-                    "id": employee.user.id,
-                    "username": employee.user.username,
-                    "name": f"{employee.first_name} {employee.last_name}",
-                    "email": employee.email,
-                    "phone_number": employee.phone_number,
-                    "address": employee.address,
-                    "date_of_birth": employee.date_of_birth,
-                    "profile_image": employee.profile_image.url if employee.profile_image else None,
-                    "role": employee.get_role_display(),
-                    "is_active": employee.is_active,
-                    "employee_code": employee.employee_code,
-                }
-
-                # Fetch company details
-                company = employee.company
-                company_details = {
-                    "id": company.id,
-                    "name": company.name,
-                    "address": company.address,
-                    "gst_in": company.gst_in,
-                    "number_of_outlets": company.number_of_outlets,
-                    "number_of_employees": company.number_of_employees,
-                }
-
-                # Fetch outlet details for the employee
-                outlets = Outlet.objects.filter(outletaccess__employee=employee).distinct()
-                outlet_count = outlets.count()
-                outlet_details = [
-                    {
-                        "id": outlet.id,
-                        "name": outlet.outlet_name,
-                        "logo": request.build_absolute_uri(outlet.logo.url) if outlet.logo else None,
-                        "gst_number": outlet.gst_number,
-                        "address": outlet.address,
-                        "phone_number": outlet.phone_number,
-                        "opening_hours": outlet.opening_hours,
-                        "is_active": outlet.is_active,
-                        "bank_account_number": outlet.bank_account_number,
-                        "ifsc_code": outlet.ifsc_code,
-                        "created_at": outlet.created_at,
-                        "updated_at": outlet.updated_at,
-                    }
-                    for outlet in outlets
-                ]
-
-                # Fetch active plan details for the user
-                from datetime import date
-                plan_assignments = PlanAssignment.objects.filter(
-                    user=user, status="active", valid_till__gte=date.today()
-                )
-                plans = [
-                    {
-                        "id": plan_assignment.plan.id,
-                        "name": plan_assignment.plan.plan_name,
-                        "price": str(plan_assignment.plan.plan_price),
-                        "price_tenure": plan_assignment.plan.price_tenure,
-                        "valid_till": plan_assignment.valid_till,
-                        "status": plan_assignment.status,
-                    }
-                    for plan_assignment in plan_assignments
-                ]
-
-                # Prepare the response
-                response_data = {
-                    "error": False,
-                    "detail": "User logged in successfully",
-                    "token": token.key,
-                    "user_details": user_details,
-                    "company_details": company_details,
-                    "outlet_count": outlet_count,
-                    "outlet_details": outlet_details,
-                    "plans": plans,
-                }
-
-                return Response(response_data, status=status.HTTP_200_OK)
-
-            return Response(
-                {"error": True, "detail": "Invalid username or password."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-    except Exception as e:
-        return Response(
-            {"error": True, "detail": str(e)},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
 
 
 

@@ -4,7 +4,6 @@ from .views import (
     get_expenses,
     get_expenses,
     get_table_with_kot,
-    user_login,
     category_list,
     product_list,
     place_order,
@@ -31,9 +30,6 @@ from .views import (
     )
 
 urlpatterns = [
-    # Endpoint to login into the counter
-    path('login/', user_login, name="Login Method Counter"),
-    
     # Endpoint to fetch the list of categories
     path('<int:outlet_id>/get-categories/', category_list, name='Get Categories for Counter'),
     

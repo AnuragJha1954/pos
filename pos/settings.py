@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'v1',
     'qr',
+    'subscriptions',
     'counterapi',
     'helpdesk',
     'users',
@@ -248,8 +249,13 @@ REDOC_SETTINGS = {
         'sidebar': {
             'backgroundColor': '#fafbfc'
         },
-        'logo': {
-            'gutter': '20px'
+        'rightPanel': {
+            'backgroundColor': '#ffffff'
         }
     }
 }
+
+
+# Global Razorpay Credentials for Subscriptions
+RAZORPAY_KEY_ID = 'rzp_test_placeholder'
+RAZORPAY_KEY_SECRET = 'placeholder_secret'

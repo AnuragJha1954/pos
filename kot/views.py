@@ -21,10 +21,9 @@ from v1.models import (
 from rest_framework.authtoken.models import Token
 
 from .serializers import (
-    OrderSerializer
+    OrderSerializer,
+    CustomUserCounterLoginSerializer
 )
-
-from counterapi.serializers import CustomUserCounterLoginSerializer
 # Create your views here.
 
 @swagger_auto_schema(

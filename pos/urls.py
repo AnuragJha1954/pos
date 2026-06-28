@@ -45,6 +45,7 @@ urlpatterns = [
     path('v1/panel/api/', include('v1.urls')),
     path('v1/qr/api/', include('qr.urls')),
     path('v1/kot/api/', include('kot.urls')),
+    path('api/subscriptions/', include('subscriptions.urls')),
     path('v1/counter/api/', include('counterapi.urls')),
     path('v1/helpdesk/api/', include('helpdesk.urls')),
     path('v1/auth/', include('userauth.urls')),

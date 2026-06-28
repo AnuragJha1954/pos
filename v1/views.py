@@ -2308,18 +2308,31 @@ def manage_employee_credentials(request, employee_id,user_id):
         return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     validated_data = serializer.validated_data
-    new_email = validated_data['email']
+    username = validated_data.get('username')
     new_password = validated_data['password']
+
+    # Determine if username is email or phone
+    is_email = '@' in username
 
     # Create or update the credentials
     credentials, created = EmployeeCredentials.objects.get_or_create(employee=employee)
 
-    credentials.email = new_email
+    if is_email:
+        credentials.email = username
+        credentials.phone_number = None
+    else:
+        credentials.phone_number = username
+        credentials.email = None
+
     credentials.password = new_password
     credentials.save()
 
     # Also update in CustomUser
-    user.email = new_email
+    if is_email:
+        user.email = username
+    else:
+        user.phone_number = username
+        
     user.set_password(new_password)
     user.save()
 

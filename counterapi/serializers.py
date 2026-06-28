@@ -13,50 +13,12 @@ from v1.models import (
     Employee,
     Table, 
     Expense,
-    
-    )
-from users.models import CustomUser
+)
 
-
-
-class CustomUserCounterLoginSerializer(serializers.Serializer):
-    username = serializers.EmailField()
-    password = serializers.CharField(write_only=True)
-    role = serializers.CharField()
-
-    def validate(self, data):
-        email = data.get('username')
-        password = data.get('password')
-        role = data.get('role')
-
-        if not email or not password or not role:
-            raise serializers.ValidationError("Email, password, and role are required.")
-
-        try:
-            user = CustomUser.objects.get(email=email)
-        except CustomUser.DoesNotExist:
-            raise serializers.ValidationError("Invalid email or password.")
-
-        # Check if the password matches
-        if not user.check_password(password):
-            raise serializers.ValidationError("Invalid email or password.")
-
-        # Check if the user is associated with an employee having the provided role
-        if not Employee.objects.filter(user=user, role=role).exists():
-            raise serializers.ValidationError("User does not have the specified role.")
-
-        data['user'] = user
-        return data
-
-
-
-
-
-
-
-
-
-
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ['id', 'name', 'created_at', 'updated_at']
 
 
 class ProductVariantSerializer(serializers.ModelSerializer):

@@ -22,6 +22,7 @@ from .views import (
     get_banner,
     update_banner,
     get_qr_customization,
+    toggle_qr_razorpay,
 )
 
 urlpatterns = [
@@ -47,4 +48,5 @@ urlpatterns = [
     path('qr-customization/colors/<int:outlet_id>/add/',add_colors_to_palette,name='add_colors_to_palette'),
     path('qr-customization/colors/<int:outlet_id>/remove/',remove_colors_from_palette,name='remove_colors_from_palette'),
     path('get-qr-customization/<int:outlet_id>/',get_qr_customization,name='get_qr_customization'),
+    path('toggle-razorpay/<int:outlet_id>/', toggle_qr_razorpay, name='toggle_qr_razorpay'),
 ]

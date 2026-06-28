@@ -12,6 +12,7 @@ class QRCustomization(models.Model):
     qr_logo = models.ImageField(upload_to='qr_logos/', blank=True, null=True)
     theme_color = models.CharField(max_length=7, blank=True, null=True)  # Hex code for theme color (e.g., #FFFFFF)
     color_palette = models.JSONField(blank=True, null=True)  # List of hex codes
+    is_razorpay_enabled = models.BooleanField(default=False)
     # background_color = models.CharField(max_length=7, blank=True, null=True)  # Hex code for background color
     # font_color = models.CharField(max_length=7, blank=True, null=True)  # Hex code for font color
     # button_color = models.CharField(max_length=7, blank=True, null=True)  # Hex code for button color

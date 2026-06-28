@@ -436,6 +436,12 @@ def place_order(request, outlet_id):
         outlet = Outlet.objects.select_related('company').get(id=outlet_id)
         gst_enabled = outlet.company.gst_enabled
 
+        # Check if Razorpay is enabled for QR
+        qr_customization = QRCustomization.objects.filter(outlet_id=outlet_id).first()
+        is_razorpay_enabled = qr_customization.is_razorpay_enabled if qr_customization else False
+        
+        accept_razorpay = (mode == 'upi' or is_razorpay_enabled)
+
         # Create the Order
         order = Order.objects.create(
             outlet_id=outlet_id,
@@ -447,9 +453,9 @@ def place_order(request, outlet_id):
             # address=data.get('address', ''),
             mode=mode,
             table_number=table_number,  # ✅ Save table number here
-            razorpay_order_id=razorpay_order_id if mode == 'upi' else None,
-            razorpay_payment_id=razorpay_payment_id if mode == 'upi' else None,
-            razorpay_signature=razorpay_signature if mode == 'upi' else None,
+            razorpay_order_id=razorpay_order_id if accept_razorpay else None,
+            razorpay_payment_id=razorpay_payment_id if accept_razorpay else None,
+            razorpay_signature=razorpay_signature if accept_razorpay else None,
         )
 
         customer.order = order
@@ -2089,4 +2095,27 @@ def get_qr_customization(request, outlet_id):
         return Response({
             "error": True,
             "detail": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def toggle_qr_razorpay(request, outlet_id):
+    try:
+        qr_customization, created = QRCustomization.objects.get_or_create(outlet_id=outlet_id)
+        is_enabled = request.data.get('is_razorpay_enabled', False)
+        
+        if isinstance(is_enabled, str):
+            is_enabled = is_enabled.lower() == 'true'
+            
+        qr_customization.is_razorpay_enabled = is_enabled
+        qr_customization.save()
+        
+        return Response({
+            "error": False,
+            "message": "Razorpay configuration updated successfully.",
+            "is_razorpay_enabled": qr_customization.is_razorpay_enabled
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({
+            "error": True,
+            "message": str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -284,7 +284,7 @@ class EmployeeCredentialsSerializer(serializers.ModelSerializer):
 
 
 class ManageEmployeeCredentialsSerializer(serializers.Serializer):
-    email = serializers.EmailField()
+    username = serializers.CharField(required=True)
     password = serializers.CharField(write_only=True, max_length=128)
     
     

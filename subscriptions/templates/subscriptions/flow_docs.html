@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Subscription Integration Guide</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px; background-color: #f9f9f9; }
+        h1, h2, h3 { color: #2c3e50; }
+        .card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .step { display: flex; align-items: flex-start; margin-bottom: 20px; }
+        .step-number { background: #f97316; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 15px; flex-shrink: 0; }
+        pre { background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 5px; overflow-x: auto; }
+        .endpoint { font-family: monospace; background: #e2e8f0; padding: 2px 6px; border-radius: 4px; color: #e11d48; }
+        .method { font-weight: bold; color: #0284c7; }
+        .note { background: #fffbeb; border-left: 4px solid #fbbf24; padding: 15px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Frontend Subscription & Sign-Up Flow</h1>
+    <p>This document explains the step-by-step flow for integrating Razorpay plan purchasing with the user sign-up and login process.</p>
+    
+    <div class="note">
+        <strong>Overview:</strong> We use an asynchronous flow. The user pays <em>before</em> their account is fully registered. The backend securely links their payment to their email/phone so that when they finally complete sign-up, the paid plan is automatically assigned instead of the free trial.
+    </div>
+
+    <div class="card">
+        <h2>Flow Steps</h2>
+
+        <div class="step">
+            <div class="step-number">1</div>
+            <div>
+                <h3>User Selects a Plan</h3>
+                <p>On the Pricing page, the user clicks "Subscribe" on the Basic plan. You prompt them for their <strong>email</strong> or <strong>phone number</strong> (this is required to link the payment before they sign up).</p>
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-number">2</div>
+            <div>
+                <h3>Create Razorpay Order (Backend Call)</h3>
+                <p>Call the backend to generate a secure Razorpay Order ID. Do <strong>not</strong> generate the order strictly on the frontend.</p>
+                <p><span class="method">POST</span> <span class="endpoint">/api/subscriptions/create-order/</span></p>
+                <strong>Request Body:</strong>
+<pre>
+{
+    "plan_id": 2, // The ID of the Basic Plan
+    "email": "user@example.com" // OR "phone_number": "9876543210"
+}
+</pre>
+                <strong>Response:</strong>
+<pre>
+{
+    "error": false,
+    "order_id": "order_Hlk...",
+    "amount": 99900,
+    "currency": "INR",
+    "key": "rzp_test_..." // Your Razorpay Key ID
+}
+</pre>
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-number">3</div>
+            <div>
+                <h3>Initialize Razorpay Checkout</h3>
+                <p>Using the details from Step 2, open the Razorpay Checkout modal.</p>
+<pre>
+const options = {
+    "key": response.data.key,
+    "amount": response.data.amount,
+    "currency": response.data.currency,
+    "name": "Your Company Name",
+    "description": "Basic Plan Subscription",
+    "order_id": response.data.order_id,
+    "handler": function (response){
+        // Proceed to Step 4 on success
+        verifyPayment(response);
+    },
+    "prefill": {
+        "email": "user@example.com"
+    }
+};
+const rzp1 = new Razorpay(options);
+rzp1.open();
+</pre>
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-number">4</div>
+            <div>
+                <h3>Verify Payment (Backend Call)</h3>
+                <p>After a successful payment, send the Razorpay response to the backend for cryptographic verification.</p>
+                <p><span class="method">POST</span> <span class="endpoint">/api/subscriptions/verify-payment/</span></p>
+                <strong>Request Body:</strong>
+<pre>
+{
+    "razorpay_order_id": "order_Hlk...",
+    "razorpay_payment_id": "pay_Hlk...",
+    "razorpay_signature": "signature_hash..."
+}
+</pre>
+                <p><strong>Success!</strong> The backend now knows this email/phone has a paid plan waiting for them.</p>
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-number">5</div>
+            <div>
+                <h3>Redirect to Sign-Up</h3>
+                <p>Redirect the user to your Sign-Up / Registration page. <strong>Crucial:</strong> Pre-fill the email or phone number they just used to pay.</p>
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-number">6</div>
+            <div>
+                <h3>Complete Registration</h3>
+                <p>Call the standard sign-up endpoint just like you do for the Free plan.</p>
+                <p><span class="method">POST</span> <span class="endpoint">/v1/auth/company-users/</span></p>
+                <strong>Request Body:</strong>
+<pre>
+{
+    "company_name": "My Store",
+    "email": "user@example.com", // MUST match the payment email
+    "phone_number": "9876543210",
+    "number_of_outlets": 1,
+    "number_of_employees": 5
+}
+</pre>
+                <p><em>Behind the scenes: The backend automatically detects the successful payment tied to this email, skips the 15-day Free Trial, assigns the Basic Plan, and sets the valid validity date based on the plan tenure!</em></p>
+            </div>
+        </div>
+
+        <div class="step">
+            <div class="step-number">7</div>
+            <div>
+                <h3>Auto-Login & Redirect to Dashboard</h3>
+                <p>Using the credentials or token from the successful sign-up response, log the user in, and redirect them to their main Dashboard view. They are now fully subscribed and ready to go!</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

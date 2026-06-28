@@ -523,7 +523,8 @@ class RazorpayCredential(models.Model):
 
 class EmployeeCredentials(models.Model):
     employee = models.OneToOneField('Employee', on_delete=models.CASCADE, related_name='credentials')
-    email = models.EmailField(unique=True)
+    email = models.EmailField(unique=True, null=True, blank=True)
+    phone_number = models.CharField(max_length=15, unique=True, null=True, blank=True)
     password = models.CharField(max_length=128)
     created_at = models.DateTimeField(auto_now_add=True)
 

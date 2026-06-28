@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.db.models import Q
 from v1.models import (
     Company,
     Plan,
@@ -9,9 +10,12 @@ from v1.models import (
 )
 from users.models import CustomUser
 from datetime import date, timedelta
+from dateutil.relativedelta import relativedelta
+from subscriptions.models import SubscriptionTransaction
 
 import random
 import string
+from django.db.models import Q
 
 def generate_random_password(length=10):
     characters = (
@@ -60,20 +64,50 @@ class CompanyUserSerializer(serializers.Serializer):
         user.role = 'manager'
         user.save()  # Save the user instance to update the plain_password and role fields
 
-        
-        # Assign the requested plan to the user
-        plan_name = validated_data.get('plan_name', 'Free')
-        try:
-            assigned_plan = Plan.objects.get(plan_name__iexact=plan_name)
+        # Check for paid subscription
+        paid_transaction = SubscriptionTransaction.objects.filter(
+            Q(email=validated_data['email']) | Q(phone_number=validated_data['phone_number']),
+            status='SUCCESS',
+            user__isnull=True
+        ).first()
+
+        if paid_transaction and paid_transaction.plan:
+            assigned_plan = paid_transaction.plan
+            
+            # Calculate valid_till based on tenure
+            if assigned_plan.price_tenure == 'monthly':
+                valid_till = date.today() + relativedelta(months=1)
+            elif assigned_plan.price_tenure == 'quarterly':
+                valid_till = date.today() + relativedelta(months=3)
+            elif assigned_plan.price_tenure == 'annually':
+                valid_till = date.today() + relativedelta(years=1)
+            else:
+                valid_till = date.today() + timedelta(days=30)
+                
             PlanAssignment.objects.create(
                 plan=assigned_plan,
                 user=user,
-                valid_till=date.today() + timedelta(days=15),  # Valid for 15 days from today
+                valid_till=valid_till,
                 status='active'
             )
-        except Plan.DoesNotExist:
-            raise serializers.ValidationError(f"Plan '{plan_name}' is not available.")
-        
+            
+            # Link the transaction to the user so it's consumed
+            paid_transaction.user = user
+            paid_transaction.save()
+            
+        else:
+            # Assign the default free plan for 15 days
+            plan_name = validated_data.get('plan_name', 'Free')
+            try:
+                assigned_plan = Plan.objects.get(plan_name__iexact=plan_name)
+                PlanAssignment.objects.create(
+                    plan=assigned_plan,
+                    user=user,
+                    valid_till=date.today() + timedelta(days=15),
+                    status='active'
+                )
+            except Plan.DoesNotExist:
+                raise serializers.ValidationError(f"Plan '{plan_name}' is not available.")
         
         
         # Create an entry in the Employee model with the role of 'manager'
@@ -104,28 +138,44 @@ class OTPVerificationSerializer(serializers.Serializer):
     
     
 class CustomUserLoginSerializer(serializers.Serializer):
-    username = serializers.EmailField()
+    username = serializers.CharField()
     password = serializers.CharField(write_only=True)
     role = serializers.CharField(required=True)
 
     def validate(self, data):
-        email = data.get('username')
+        username = data.get('username')
         password = data.get('password')
+        role = data.get('role')
 
-        if not email or not password:
-            raise serializers.ValidationError("Email and password are required.")
+        if not username or not password or not role:
+            raise serializers.ValidationError("Username/Phone, password, and role are required.")
 
-        try:
-            user = CustomUser.objects.get(email=email)
-        except CustomUser.DoesNotExist:
-            raise serializers.ValidationError("Invalid email or password.")
+        # If role is manager, enforce email only
+        if role.lower() == 'manager':
+            if '@' not in username:
+                raise serializers.ValidationError("Managers can only login via email id and password.")
+            try:
+                user = CustomUser.objects.get(email=username)
+            except CustomUser.DoesNotExist:
+                raise serializers.ValidationError("Invalid email or password.")
+        else:
+            # For other roles, allow email or phone number
+            user = CustomUser.objects.filter(Q(email=username) | Q(phone_number=username)).first()
+            if not user:
+                raise serializers.ValidationError("Invalid credentials.")
 
         # Check if the password matches
         if not user.check_password(password):
-            raise serializers.ValidationError("Invalid email or password.")
+            raise serializers.ValidationError("Invalid credentials.")
 
-        role = data.get('role')
-        if user.role != role:
+        # Check role permission (either on CustomUser or Employee model)
+        has_role = False
+        if user.role and user.role.lower() == role.lower():
+            has_role = True
+        elif Employee.objects.filter(user=user, role__iexact=role).exists():
+            has_role = True
+
+        if not has_role:
             raise serializers.ValidationError(f"Access denied: User does not have the '{role}' role.")
 
         data['user'] = user
